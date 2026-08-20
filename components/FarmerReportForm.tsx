@@ -1,0 +1,53 @@
+"use client";
+
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export function FarmerReportForm({ fieldId }: { fieldId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const supabase = createClient();
+
+  async function submit(formData: FormData) {
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Nincs bejelentkezve.");
+      const title = String(formData.get("title") || "").trim();
+      const message = String(formData.get("message") || "").trim();
+      const files = formData.getAll("media").filter((v): v is File => v instanceof File && v.size > 0);
+      if (!title) throw new Error("A bejelentés tárgya kötelező.");
+
+      const { data: report, error: reportError } = await supabase.from("farmer_reports").insert({ field_id: fieldId, farmer_id: user.id, title, message: message || null }).select("id").single();
+      if (reportError || !report) throw new Error(reportError?.message || "A bejelentés mentése sikertelen.");
+
+      for (const file of files) {
+        if (file.size > 50 * 1024 * 1024) throw new Error(`${file.name}: maximum 50 MB lehet.`);
+        const kind = file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : null;
+        if (!kind) throw new Error(`${file.name}: csak kép vagy videó tölthető fel.`);
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user.id}/${report.id}/${crypto.randomUUID()}-${safe}`;
+        const { error: uploadError } = await supabase.storage.from("farmer-report-media").upload(path, file, { contentType: file.type });
+        if (uploadError) throw new Error(uploadError.message);
+        const { error: mediaError } = await supabase.from("farmer_report_media").insert({ report_id: report.id, storage_path: path, file_name: file.name, media_type: kind, mime_type: file.type, size_bytes: file.size });
+        if (mediaError) throw new Error(mediaError.message);
+      }
+
+      setSuccess("A bejelentést elküldtük a szaktanácsadónak.");
+      setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "A bejelentés elküldése sikertelen.");
+      setBusy(false);
+    }
+  }
+
+  return <form action={submit} className="farmer-report-form">
+    <label>Tárgy<input name="title" placeholder="pl. Levélfoltosodást látok" required /></label>
+    <label>Megjegyzés<textarea name="message" rows={4} placeholder="Írd le röviden, mit tapasztalsz a táblán." /></label>
+    <label>Kép vagy videó<input name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple /><small>Egyszerre több fájl is csatolható, maximum 50 MB / fájl.</small></label>
+    {error && <div className="error-box">{error}</div>}
+    {success && <div className="success-box">{success}</div>}
+    <button className="btn btn-primary" disabled={busy}>{busy ? "Küldés…" : "Küldés a szaktanácsadónak"}</button>
+  </form>;
+}
