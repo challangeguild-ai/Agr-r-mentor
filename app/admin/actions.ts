@@ -4,97 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-async function requireAdvisor() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (profile?.role !== "advisor") redirect("/dashboard");
-  return { supabase, user };
-}
-
-async function extractFunctionError(error: unknown) {
-  if (!error || typeof error !== "object") return "Ismeretlen Edge Function hiba.";
-  const candidate = error as { message?: string; context?: Response };
-  if (candidate.context) {
-    try { const payload = await candidate.context.clone().json(); if (payload?.error) return String(payload.error); if (payload?.message) return String(payload.message); }
-    catch { try { const text = await candidate.context.clone().text(); if (text) return text; } catch {} }
-  }
-  return candidate.message || "Ismeretlen Edge Function hiba.";
-}
-
-export async function inviteFarmer(formData: FormData) {
-  const { supabase } = await requireAdvisor();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const full_name = String(formData.get("full_name") || "").trim();
-  if (!email || !email.includes("@") || !full_name) throw new Error("Név és érvényes e-mail cím szükséges.");
-  const redirect_to = "https://agr-r-mentor.vercel.app/invite";
-  const { data, error } = await supabase.functions.invoke("invite-farmer", { body: { email, full_name, redirect_to } });
-  if (error) { const detail = await extractFunctionError(error); throw new Error(`A meghívás sikertelen: ${detail}`); }
-  if (data?.error) throw new Error(`A meghívás sikertelen: ${data.error}`);
-  revalidatePath("/admin");
-}
-
-export async function createFarm(formData: FormData) {
-  const { supabase } = await requireAdvisor();
-  const owner_id = String(formData.get("owner_id") || "");
-  const name = String(formData.get("name") || "").trim();
-  const settlement = String(formData.get("settlement") || "").trim();
-  const address = String(formData.get("address") || "").trim();
-  if (!owner_id || !name) return;
-  const { error } = await supabase.from("farms").insert({ owner_id, name, settlement: settlement || null, address: address || null });
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin");
-}
-
-export async function createField(formData: FormData) {
-  const { supabase } = await requireAdvisor();
-  const farm_id = String(formData.get("farm_id") || "");
-  const name = String(formData.get("name") || "").trim();
-  const current_crop = String(formData.get("current_crop") || "").trim();
-  const areaRaw = String(formData.get("area_ha") || "").replace(",", ".");
-  const area_ha = areaRaw ? Number(areaRaw) : null;
-  if (!farm_id || !name || (area_ha !== null && Number.isNaN(area_ha))) return;
-  const { error } = await supabase.from("fields").insert({ farm_id, name, current_crop: current_crop || null, area_ha, crop_year: new Date().getFullYear() });
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin");
-}
-
-export async function createTask(formData: FormData) {
-  const { supabase, user } = await requireAdvisor();
-  const farm_id = String(formData.get("farm_id") || "");
-  const field_id = String(formData.get("field_id") || "");
-  const title = String(formData.get("title") || "").trim();
-  const description = String(formData.get("description") || "").trim();
-  const due_date = String(formData.get("due_date") || "");
-  const priority = String(formData.get("priority") || "normal");
-  if (!farm_id || !title) return;
-  const { data: farm, error: farmError } = await supabase.from("farms").select("owner_id").eq("id", farm_id).single();
-  if (farmError || !farm) throw new Error(farmError?.message || "A gazdaság nem található.");
-  const { error } = await supabase.from("tasks").insert({ farm_id, field_id: field_id || null, title, description: description || null, due_date: due_date || null, priority: ["normal", "high", "urgent"].includes(priority) ? priority : "normal", status: "open", assigned_to: farm.owner_id, created_by: user.id });
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin"); revalidatePath("/dashboard"); if (field_id) revalidatePath(`/fields/${field_id}`);
-}
-
-export async function createInspection(formData: FormData) {
-  const { supabase, user } = await requireAdvisor();
-  const field_id = String(formData.get("field_id") || "");
-  const inspected_at = String(formData.get("inspected_at") || "");
-  const condition = String(formData.get("condition") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
-  const recommendation = String(formData.get("recommendation") || "").trim();
-  if (!field_id || !condition) throw new Error("Földtábla és állapot megadása kötelező.");
-
-  const { data: field, error: fieldError } = await supabase.from("fields").select("farm_id, name").eq("id", field_id).single();
-  if (fieldError || !field) throw new Error(fieldError?.message || "A földtábla nem található.");
-
-  const inspectionDate = inspected_at ? new Date(`${inspected_at}T12:00:00`).toISOString() : new Date().toISOString();
-  const { data: inspection, error } = await supabase.from("inspections").insert({ field_id, advisor_id: user.id, inspected_at: inspectionDate, condition, notes: notes || null, recommendation: recommendation || null }).select("id").single();
-  if (error) throw new Error(error.message);
-
-  const description = [notes, recommendation ? `Javaslat: ${recommendation}` : ""].filter(Boolean).join(" · ");
-  const { error: timelineError } = await supabase.from("timeline_events").insert({ farm_id: field.farm_id, field_id, event_type: "inspection", title: `Táblaszemle: ${condition}`, description: description || null, event_at: inspectionDate, created_by: user.id, source_id: inspection.id });
-  if (timelineError) throw new Error(timelineError.message);
-
-  revalidatePath("/admin"); revalidatePath("/dashboard"); revalidatePath(`/fields/${field_id}`);
-}
+async function requireAdvisor() { const supabase=await createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user) redirect("/login"); const {data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle(); if(profile?.role!=="advisor") redirect("/dashboard"); return {supabase,user}; }
+async function extractFunctionError(error:unknown){if(!error||typeof error!=="object")return "Ismeretlen Edge Function hiba.";const c=error as {message?:string;context?:Response};if(c.context){try{const p=await c.context.clone().json();if(p?.error)return String(p.error);if(p?.message)return String(p.message)}catch{try{const t=await c.context.clone().text();if(t)return t}catch{}}}return c.message||"Ismeretlen Edge Function hiba."}
+export async function inviteFarmer(formData:FormData){const{supabase}=await requireAdvisor();const email=String(formData.get("email")||"").trim().toLowerCase(),full_name=String(formData.get("full_name")||"").trim();if(!email||!email.includes("@")||!full_name)throw new Error("Név és érvényes e-mail cím szükséges.");const{data,error}=await supabase.functions.invoke("invite-farmer",{body:{email,full_name,redirect_to:"https://agr-r-mentor.vercel.app/invite"}});if(error)throw new Error(`A meghívás sikertelen: ${await extractFunctionError(error)}`);if(data?.error)throw new Error(`A meghívás sikertelen: ${data.error}`);revalidatePath("/admin")}
+export async function createFarm(formData:FormData){const{supabase}=await requireAdvisor();const owner_id=String(formData.get("owner_id")||""),name=String(formData.get("name")||"").trim(),settlement=String(formData.get("settlement")||"").trim(),address=String(formData.get("address")||"").trim();if(!owner_id||!name)return;const{error}=await supabase.from("farms").insert({owner_id,name,settlement:settlement||null,address:address||null});if(error)throw new Error(error.message);revalidatePath("/admin")}
+export async function createField(formData:FormData){const{supabase}=await requireAdvisor();const farm_id=String(formData.get("farm_id")||""),name=String(formData.get("name")||"").trim(),current_crop=String(formData.get("current_crop")||"").trim(),areaRaw=String(formData.get("area_ha")||"").replace(",","."),area_ha=areaRaw?Number(areaRaw):null;if(!farm_id||!name||(area_ha!==null&&Number.isNaN(area_ha)))return;const{error}=await supabase.from("fields").insert({farm_id,name,current_crop:current_crop||null,area_ha,crop_year:new Date().getFullYear()});if(error)throw new Error(error.message);revalidatePath("/admin")}
+export async function createTask(formData:FormData){const{supabase,user}=await requireAdvisor();const farm_id=String(formData.get("farm_id")||""),field_id=String(formData.get("field_id")||""),title=String(formData.get("title")||"").trim(),description=String(formData.get("description")||"").trim(),due_date=String(formData.get("due_date")||""),priority=String(formData.get("priority")||"normal");if(!farm_id||!title)return;const{data:farm,error:farmError}=await supabase.from("farms").select("owner_id").eq("id",farm_id).single();if(farmError||!farm)throw new Error(farmError?.message||"A gazdaság nem található.");const{error}=await supabase.from("tasks").insert({farm_id,field_id:field_id||null,title,description:description||null,due_date:due_date||null,priority:["normal","high","urgent"].includes(priority)?priority:"normal",status:"open",assigned_to:farm.owner_id,created_by:user.id});if(error)throw new Error(error.message);revalidatePath("/admin");revalidatePath("/dashboard");if(field_id)revalidatePath(`/fields/${field_id}`)}
+export async function createInspection(formData:FormData):Promise<string>{const{supabase,user}=await requireAdvisor();const field_id=String(formData.get("field_id")||""),inspected_at=String(formData.get("inspected_at")||""),condition=String(formData.get("condition")||"").trim(),notes=String(formData.get("notes")||"").trim(),recommendation=String(formData.get("recommendation")||"").trim();if(!field_id||!condition)throw new Error("Földtábla és állapot megadása kötelező.");const{data:field,error:fieldError}=await supabase.from("fields").select("farm_id,name").eq("id",field_id).single();if(fieldError||!field)throw new Error(fieldError?.message||"A földtábla nem található.");const inspectionDate=inspected_at?new Date(`${inspected_at}T12:00:00`).toISOString():new Date().toISOString();const{data:inspection,error}=await supabase.from("inspections").insert({field_id,advisor_id:user.id,inspected_at:inspectionDate,condition,notes:notes||null,recommendation:recommendation||null}).select("id").single();if(error||!inspection)throw new Error(error?.message||"A szemle mentése sikertelen.");const description=[notes,recommendation?`Javaslat: ${recommendation}`:""].filter(Boolean).join(" · ");const{error:timelineError}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id,event_type:"inspection",title:`Táblaszemle: ${condition}`,description:description||null,event_at:inspectionDate,created_by:user.id,source_id:inspection.id});if(timelineError)throw new Error(timelineError.message);revalidatePath("/admin");revalidatePath("/dashboard");revalidatePath(`/fields/${field_id}`);return inspection.id}
