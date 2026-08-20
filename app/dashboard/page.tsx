@@ -14,7 +14,17 @@ export default async function DashboardPage() {
     supabase.from("tasks").select("id, title, due_date, priority, status").neq("status", "done").order("due_date", { ascending: true }).limit(5),
   ]);
 
+  const farmIds = farms?.map((farm) => farm.id) ?? [];
+  const { data: fields } = farmIds.length
+    ? await supabase
+        .from("fields")
+        .select("id, name, area_ha, current_crop, crop_year, farm_id")
+        .in("farm_id", farmIds)
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
   const name = profile?.full_name || "Gazdálkodó";
+  const totalArea = (fields ?? []).reduce((sum, field) => sum + (Number(field.area_ha) || 0), 0);
 
   return (
     <div className="app-shell">
@@ -30,20 +40,49 @@ export default async function DashboardPage() {
 
         <section className="stats-grid">
           <article className="stat-card"><span>Gazdaságok</span><strong>{farms?.length ?? 0}</strong><small>Aktív gazdaságok</small></article>
-          <article className="stat-card"><span>Táblák</span><strong>—</strong><small>Következő fejlesztési lépés</small></article>
+          <article className="stat-card"><span>Táblák</span><strong>{fields?.length ?? 0}</strong><small>{totalArea ? `${totalArea.toLocaleString("hu-HU", { maximumFractionDigits: 2 })} ha összesen` : "Nincs megadott terület"}</small></article>
           <article className="stat-card"><span>Nyitott teendők</span><strong>{tasks?.length ?? 0}</strong><small>Határidő szerint</small></article>
           <article className="stat-card"><span>Állapot</span><strong className="ok">Rendben</strong><small>A rendszer elérhető</small></article>
         </section>
 
         <section className="dashboard-grid">
           <article className="panel map-panel">
-            <div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Saját földterületek</h2></div></div>
-            <div className="map-placeholder"><div className="field-shape one">1</div><div className="field-shape two">2</div><div className="field-shape three">3</div><p>Itt jelenik majd meg a valódi térkép és a PostGIS-ben tárolt táblahatár.</p></div>
+            <div className="panel-heading">
+              <div><span className="eyebrow">FÖLDTERÜLETEK</span><h2>Saját táblák</h2></div>
+              <span className="field-total">{fields?.length ?? 0} tábla</span>
+            </div>
+
+            {fields?.length ? (
+              <div className="field-overview-grid">
+                {fields.map((field) => {
+                  const farm = farms?.find((item) => item.id === field.farm_id);
+                  return (
+                    <article className="field-card" key={field.id}>
+                      <div className="field-card-top">
+                        <span className="field-icon">{field.name.slice(0, 1).toUpperCase()}</span>
+                        <div>
+                          <strong>{field.name}</strong>
+                          <small>{farm?.name || "Gazdaság"}{farm?.settlement ? ` · ${farm.settlement}` : ""}</small>
+                        </div>
+                      </div>
+                      <div className="field-meta">
+                        <span><b>{field.area_ha ? `${field.area_ha} ha` : "—"}</b><small>Terület</small></span>
+                        <span><b>{field.current_crop || "—"}</b><small>Kultúra</small></span>
+                        <span><b>{field.crop_year || new Date().getFullYear()}</b><small>Év</small></span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state">Ehhez a gazdálkodóhoz még nincs földtábla rögzítve.</div>
+            )}
           </article>
+
           <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">KÖVETKEZŐ</span><h2>Teendők</h2></div></div>
             <div className="task-list">
-              {(tasks?.length ? tasks : [{ id: "demo", title: "Első gazdaság felvétele", due_date: null, priority: "normal", status: "open" }]).map((task) => (
+              {(tasks?.length ? tasks : [{ id: "demo", title: "Még nincs kiadott teendő", due_date: null, priority: "normal", status: "open" }]).map((task) => (
                 <div className="task-row" key={task.id}><span className={`dot ${task.priority}`}></span><div><strong>{task.title}</strong><small>{task.due_date ? new Date(task.due_date).toLocaleDateString("hu-HU") : "Nincs határidő"}</small></div><span className="task-status">Nyitott</span></div>
               ))}
             </div>
