@@ -16,7 +16,7 @@ async function requireAdvisor() {
     .maybeSingle();
 
   if (profile?.role !== "advisor") redirect("/dashboard");
-  return { supabase };
+  return { supabase, user };
 }
 
 async function extractFunctionError(error: unknown) {
@@ -101,4 +101,40 @@ export async function createField(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+}
+
+export async function createTask(formData: FormData) {
+  const { supabase, user } = await requireAdvisor();
+  const farm_id = String(formData.get("farm_id") || "");
+  const field_id = String(formData.get("field_id") || "");
+  const title = String(formData.get("title") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const due_date = String(formData.get("due_date") || "");
+  const priority = String(formData.get("priority") || "normal");
+
+  if (!farm_id || !title) return;
+
+  const { data: farm, error: farmError } = await supabase
+    .from("farms")
+    .select("owner_id")
+    .eq("id", farm_id)
+    .single();
+
+  if (farmError || !farm) throw new Error(farmError?.message || "A gazdaság nem található.");
+
+  const { error } = await supabase.from("tasks").insert({
+    farm_id,
+    field_id: field_id || null,
+    title,
+    description: description || null,
+    due_date: due_date || null,
+    priority: ["normal", "high", "urgent"].includes(priority) ? priority : "normal",
+    status: "open",
+    assigned_to: farm.owner_id,
+    created_by: user.id,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
 }
