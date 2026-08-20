@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createFarm, createField } from "./actions";
+import { createFarm, createField, inviteFarmer } from "./actions";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -21,7 +21,7 @@ export default async function AdminPage() {
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <div><span className="eyebrow">SZAKTANÁCSADÓI FELÜLET</span><h1>Ügyfelek és gazdaságok</h1><p>Innen építheted fel az ügyfelek gazdaságait és földtábláit.</p></div>
+        <div><span className="eyebrow">SZAKTANÁCSADÓI FELÜLET</span><h1>Ügyfelek és gazdaságok</h1><p>Új gazdálkodó meghívása, gazdaság és földtábla felvétele egy helyen.</p></div>
         <Link className="btn btn-secondary" href="/dashboard">Vissza a dashboardra</Link>
       </header>
 
@@ -33,7 +33,17 @@ export default async function AdminPage() {
 
       <section className="admin-grid">
         <article className="panel">
-          <span className="eyebrow">1. LÉPÉS</span><h2>Új gazdaság</h2>
+          <span className="eyebrow">1. LÉPÉS</span><h2>Új gazdálkodó meghívása</h2>
+          <form action={inviteFarmer} className="admin-form">
+            <label>Gazdálkodó neve<input name="full_name" placeholder="pl. Kovács János" required /></label>
+            <label>E-mail cím<input name="email" type="email" placeholder="kovacs@example.hu" required /></label>
+            <button className="btn btn-primary" type="submit">Meghívó küldése</button>
+          </form>
+          <div className="notice" style={{marginTop: 14}}>A meghívott ügyfél automatikusan <b>farmer</b> szerepkört kap. Belépés után az RLS szabályok miatt csak a saját gazdasági adataihoz fér hozzá.</div>
+        </article>
+
+        <article className="panel">
+          <span className="eyebrow">2. LÉPÉS</span><h2>Új gazdaság</h2>
           {farmers?.length ? (
             <form action={createFarm} className="admin-form">
               <label>Gazdálkodó<select name="owner_id" required><option value="">Válassz ügyfelet</option>{farmers.map((farmer) => <option key={farmer.id} value={farmer.id}>{farmer.full_name || "Névtelen ügyfél"}</option>)}</select></label>
@@ -42,21 +52,21 @@ export default async function AdminPage() {
               <label>Cím<input name="address" placeholder="Opcionális" /></label>
               <button className="btn btn-primary" type="submit">Gazdaság létrehozása</button>
             </form>
-          ) : <div className="notice">Még nincs farmer szerepkörű felhasználó. Az ügyfél-meghívást a következő lépésben kötjük be a Supabase Auth rendszerhez.</div>}
+          ) : <div className="notice">Először hívd meg az első gazdálkodót. A meghívás után itt automatikusan megjelenik.</div>}
         </article>
+      </section>
 
-        <article className="panel">
-          <span className="eyebrow">2. LÉPÉS</span><h2>Új földtábla</h2>
-          {farms?.length ? (
-            <form action={createField} className="admin-form">
-              <label>Gazdaság<select name="farm_id" required><option value="">Válassz gazdaságot</option>{farms.map((farm) => <option key={farm.id} value={farm.id}>{farm.name}{farm.settlement ? ` – ${farm.settlement}` : ""}</option>)}</select></label>
-              <label>Tábla neve<input name="name" placeholder="pl. Nagyrét 03" required /></label>
-              <label>Terület (ha)<input name="area_ha" inputMode="decimal" placeholder="12,46" /></label>
-              <label>Aktuális kultúra<input name="current_crop" placeholder="pl. Őszi búza" /></label>
-              <button className="btn btn-primary" type="submit">Tábla létrehozása</button>
-            </form>
-          ) : <div className="notice">Először hozz létre legalább egy gazdaságot.</div>}
-        </article>
+      <section className="panel" style={{marginBottom: 14}}>
+        <span className="eyebrow">3. LÉPÉS</span><h2>Új földtábla</h2>
+        {farms?.length ? (
+          <form action={createField} className="admin-form">
+            <label>Gazdaság<select name="farm_id" required><option value="">Válassz gazdaságot</option>{farms.map((farm) => <option key={farm.id} value={farm.id}>{farm.name}{farm.settlement ? ` – ${farm.settlement}` : ""}</option>)}</select></label>
+            <label>Tábla neve<input name="name" placeholder="pl. Nagyrét 03" required /></label>
+            <label>Terület (ha)<input name="area_ha" inputMode="decimal" placeholder="12,46" /></label>
+            <label>Aktuális kultúra<input name="current_crop" placeholder="pl. Őszi búza" /></label>
+            <button className="btn btn-primary" type="submit">Tábla létrehozása</button>
+          </form>
+        ) : <div className="notice">Először hozz létre legalább egy gazdaságot.</div>}
       </section>
 
       <section className="panel admin-list">
