@@ -19,6 +19,25 @@ async function requireAdvisor() {
   return { supabase };
 }
 
+export async function inviteFarmer(formData: FormData) {
+  const { supabase } = await requireAdvisor();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const full_name = String(formData.get("full_name") || "").trim();
+
+  if (!email || !email.includes("@") || !full_name) {
+    throw new Error("Név és érvényes e-mail cím szükséges.");
+  }
+
+  const { data, error } = await supabase.functions.invoke("invite-farmer", {
+    body: { email, full_name },
+  });
+
+  if (error) throw new Error(`A meghívás sikertelen: ${error.message}`);
+  if (data?.error) throw new Error(`A meghívás sikertelen: ${data.error}`);
+
+  revalidatePath("/admin");
+}
+
 export async function createFarm(formData: FormData) {
   const { supabase } = await requireAdvisor();
   const owner_id = String(formData.get("owner_id") || "");
