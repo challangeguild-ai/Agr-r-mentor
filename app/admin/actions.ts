@@ -19,6 +19,26 @@ async function requireAdvisor() {
   return { supabase };
 }
 
+async function extractFunctionError(error: unknown) {
+  if (!error || typeof error !== "object") return "Ismeretlen Edge Function hiba.";
+
+  const candidate = error as { message?: string; context?: Response };
+  if (candidate.context) {
+    try {
+      const payload = await candidate.context.clone().json();
+      if (payload?.error) return String(payload.error);
+      if (payload?.message) return String(payload.message);
+    } catch {
+      try {
+        const text = await candidate.context.clone().text();
+        if (text) return text;
+      } catch {}
+    }
+  }
+
+  return candidate.message || "Ismeretlen Edge Function hiba.";
+}
+
 export async function inviteFarmer(formData: FormData) {
   const { supabase } = await requireAdvisor();
   const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -33,7 +53,10 @@ export async function inviteFarmer(formData: FormData) {
     body: { email, full_name, redirect_to },
   });
 
-  if (error) throw new Error(`A meghívás sikertelen: ${error.message}`);
+  if (error) {
+    const detail = await extractFunctionError(error);
+    throw new Error(`A meghívás sikertelen: ${detail}`);
+  }
   if (data?.error) throw new Error(`A meghívás sikertelen: ${data.error}`);
 
   revalidatePath("/admin");
