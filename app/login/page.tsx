@@ -4,6 +4,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+const APP_URL = "https://agr-r-mentor.vercel.app";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,15 +39,19 @@ export default function LoginPage() {
       setError("Add meg előbb az e-mail címedet.");
       return;
     }
+
     setLoading(true);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${APP_URL}/reset-password`,
+    });
     setLoading(false);
+
     if (error) {
       setError(`A visszaállító e-mail küldése sikertelen: ${error.message}`);
       return;
     }
+
     setMessage("Elküldtük a jelszó-visszaállító e-mailt. Ellenőrizd a beérkező leveleket és a spam mappát is.");
   }
 
