@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/Sidebar";
@@ -21,7 +22,10 @@ export default async function DashboardPage() {
       <main className="dashboard">
         <header className="topbar">
           <div><span className="eyebrow">ÜGYFÉLPORTÁL</span><h1>Üdvözöljük, {name}!</h1><p>Itt látja a gazdasága aktuális állapotát és következő teendőit.</p></div>
-          <div className="user-pill">{profile?.role === "advisor" ? "Szaktanácsadó" : "Gazdálkodó"}</div>
+          <div className="topbar-actions">
+            {profile?.role === "advisor" && <Link className="btn btn-primary" href="/admin">Szaktanácsadói admin</Link>}
+            <div className="user-pill">{profile?.role === "advisor" ? "Szaktanácsadó" : "Gazdálkodó"}</div>
+          </div>
         </header>
 
         <section className="stats-grid">
