@@ -28,8 +28,9 @@ export async function inviteFarmer(formData: FormData) {
     throw new Error("Név és érvényes e-mail cím szükséges.");
   }
 
+  const redirect_to = "https://agr-r-mentor.vercel.app/invite";
   const { data, error } = await supabase.functions.invoke("invite-farmer", {
-    body: { email, full_name },
+    body: { email, full_name, redirect_to },
   });
 
   if (error) throw new Error(`A meghívás sikertelen: ${error.message}`);
