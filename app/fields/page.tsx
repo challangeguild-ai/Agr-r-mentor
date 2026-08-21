@@ -9,7 +9,10 @@ function statusLabel(status: string | null) {
   return "Aktív";
 }
 
-export default async function FieldsPage() {
+type SearchParams = Promise<{ view?: string }>;
+
+export default async function FieldsPage({ searchParams }: { searchParams: SearchParams }) {
+  const { view = "all" } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -31,6 +34,22 @@ export default async function FieldsPage() {
   const totalArea = (fields ?? []).reduce((sum, field) => sum + (Number(field.area_ha) || 0), 0);
   const active = (fields ?? []).filter(field => field.status !== "inactive" && field.status !== "archived").length;
   const openTasks = (tasks ?? []).filter(task => task.status !== "done").length;
+  const attentionIds = new Set((tasks ?? []).filter(task => task.status !== "done" && (task.priority === "urgent" || task.priority === "high")).map(task => task.field_id));
+  const noTaskIds = new Set((fields ?? []).filter(field => !(tasks ?? []).some(task => task.field_id === field.id && task.status !== "done")).map(field => field.id));
+  const visibleFields = (fields ?? []).filter(field => {
+    if (view === "active") return field.status !== "inactive" && field.status !== "archived";
+    if (view === "attention") return attentionIds.has(field.id);
+    if (view === "no-tasks") return noTaskIds.has(field.id);
+    if (view === "archived") return field.status === "archived" || field.status === "inactive";
+    return true;
+  });
+  const tabs = [
+    ["all", "Összes", fields?.length ?? 0],
+    ["active", "Aktív", active],
+    ["attention", "Figyelmet igényel", attentionIds.size],
+    ["no-tasks", "Nincs nyitott teendő", noTaskIds.size],
+    ["archived", "Inaktív / archivált", (fields ?? []).length - active],
+  ] as const;
 
   return <div className="app-shell">
     <Sidebar active="fields" />
@@ -48,16 +67,18 @@ export default async function FieldsPage() {
       </section>
 
       <section className="panel">
-        <div className="panel-heading"><div><span className="eyebrow">FÖLDTÁBLÁK</span><h2>Táblajegyzék</h2></div><span className="field-total">{fields?.length ?? 0} tábla</span></div>
-        {fields?.length ? <div className="field-overview-grid">{fields.map(field => {
+        <div className="panel-heading"><div><span className="eyebrow">FÖLDTÁBLÁK</span><h2>Táblajegyzék</h2></div><span className="field-total">{visibleFields.length} tábla</span></div>
+        <div className="task-filter-tabs">{tabs.map(([key,label,count]) => <Link key={key} className={view === key ? "active" : ""} href={`/fields?view=${key}`}>{label} <b>{count}</b></Link>)}</div>
+        {visibleFields.length ? <div className="field-overview-grid">{visibleFields.map(field => {
           const farm = farms?.find(item => item.id === field.farm_id);
           const fieldTasks = (tasks ?? []).filter(task => task.field_id === field.id && task.status !== "done");
+          const importantTasks = fieldTasks.filter(task => task.priority === "urgent" || task.priority === "high").length;
           return <Link className="field-card field-card-link" href={`/fields/${field.id}`} key={field.id}>
             <div className="field-card-top"><span className="field-icon">{field.name.slice(0,1).toUpperCase()}</span><div><strong>{field.name}</strong><small>{farm?.name || "Gazdaság"}{farm?.settlement ? ` · ${farm.settlement}` : ""}</small></div><span className="field-arrow">→</span></div>
             <div className="field-meta"><span><b>{field.area_ha ? `${field.area_ha} ha` : "—"}</b><small>Terület</small></span><span><b>{field.current_crop || "—"}</b><small>Kultúra</small></span><span><b>{field.crop_year || new Date().getFullYear()}</b><small>Év</small></span></div>
-            <div className="field-meta"><span><b>{statusLabel(field.status)}</b><small>Állapot</small></span><span><b>{fieldTasks.length}</b><small>Nyitott teendő</small></span><span><b>{field.sowing_date ? new Date(`${field.sowing_date}T12:00:00`).toLocaleDateString("hu-HU") : "—"}</b><small>Vetés</small></span></div>
+            <div className="field-meta"><span><b>{statusLabel(field.status)}</b><small>Állapot</small></span><span><b>{fieldTasks.length}{importantTasks ? ` (${importantTasks} fontos)` : ""}</b><small>Nyitott teendő</small></span><span><b>{field.sowing_date ? new Date(`${field.sowing_date}T12:00:00`).toLocaleDateString("hu-HU") : "—"}</b><small>Vetés</small></span></div>
           </Link>;
-        })}</div> : <div className="empty-state">Még nincs földtábla rögzítve.</div>}
+        })}</div> : <div className="empty-state">Ebben a nézetben nincs földtábla.</div>}
       </section>
     </main>
   </div>;
