@@ -1,10 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const APP_URL = "https://agr-r-mentor.vercel.app";
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  return value;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +16,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -28,7 +32,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(safeNext(searchParams.get("next")));
     router.refresh();
   }
 
@@ -42,8 +46,9 @@ export default function LoginPage() {
 
     setLoading(true);
     const supabase = createClient();
+    const origin = window.location.origin;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${APP_URL}/reset-password`,
+      redirectTo: `${origin}/reset-password`,
     });
     setLoading(false);
 
@@ -61,8 +66,8 @@ export default function LoginPage() {
         <div className="brand-mark">AM</div>
         <h1>Agrár Mentor</h1>
         <p>Belépés az ügyfélportálra</p>
-        <label>E-mail cím<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-        <label>Jelszó<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+        <label>E-mail cím<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
+        <label>Jelszó<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
         {error && <div className="error-box">{error}</div>}
         {message && <div className="success-box">{message}</div>}
         <button className="btn btn-primary full" disabled={loading}>{loading ? "Folyamatban…" : "Belépés"}</button>
