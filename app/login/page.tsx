@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function safeNext(value: string | null) {
@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -32,7 +31,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(safeNext(searchParams.get("next")));
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.push(safeNext(next));
     router.refresh();
   }
 
