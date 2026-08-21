@@ -60,14 +60,14 @@ export default async function AdminPage(){
         </article>
 
         <article className={styles.panel}><div className={styles.panelHead}><h2>Legutóbbi dokumentumok</h2><Link href="/admin/documents">Összes dokumentum</Link></div>{documents?.length?<div className={styles.docGrid}>{documents.map(doc=><Link href="/admin/documents" className={styles.doc} key={doc.id}><span>▤</span><div><strong>{doc.title}</strong><small>{d(doc.created_at)} · {fieldMap.get(doc.field_id)?.name||farmMap.get(doc.farm_id)?.name||"Gazdaság"}</small></div></Link>)}</div>:<div className={styles.empty}>Még nincs dokumentum.</div>}</article>
+
+        <article className={styles.panel}><div className={styles.panelHead}><h2>Bejelentések</h2><Link href="/admin/reports">Összes megnyitása</Link></div>{openReports.length?<div className={styles.reportGrid}>{openReports.slice(0,4).map(r=><Link href="/admin/reports" className={styles.reportCard} key={r.id}><span className={`${styles.rowIcon} ${styles.warn}`}>!</span><div><strong>{r.title}</strong><small>{fieldMap.get(r.field_id)?.name||"Földtábla"} · {d(r.created_at)}</small></div></Link>)}</div>:<div className={styles.empty}>Nincs nyitott bejelentés.</div>}</article>
       </div>
 
       <div className={styles.right}>
         <article className={styles.panel}><div className={styles.panelHead}><h2>Következő teendők</h2><Link href="/admin/tasks">Összes megnyitása</Link></div>{openTasks.length?<div className={styles.list}>{openTasks.slice(0,5).map(t=>{const days=daysUntil(t.due_date);const urgent=t.priority==="urgent"||t.priority==="high"||(days!==null&&days<=3);return <Link href={t.field_id?`/fields/${t.field_id}`:"/admin/tasks"} className={styles.row} key={t.id}><span className={`${styles.rowIcon} ${urgent?styles.warn:""}`}>{urgent?"!":"☑"}</span><div><strong>{t.title}</strong><small>{fieldMap.get(t.field_id)?.name||farmMap.get(t.farm_id)?.name||"Gazdaság"}</small></div><time>{days===null?"Nincs határidő":days<0?`${Math.abs(days)} napja lejárt`:days===0?"Ma":`${days} nap múlva`}<br/><em>{d(t.due_date)}</em></time></Link>})}</div>:<div className={styles.empty}>Nincs nyitott teendő.</div>}</article>
 
         <article className={styles.panel}><div className={styles.panelHead}><h2>Idővonal</h2><Link href="/admin/timeline">Teljes idővonal</Link></div>{timeline?.length?<div className={styles.timeline}>{timeline.slice(0,5).map(e=><div className={styles.event} key={e.id}><time>{d(e.event_at||e.created_at)}</time><div><strong>{eventLabel(e.event_type)}</strong><p>{e.description||e.title}</p>{e.field_id&&<small>{fieldMap.get(e.field_id)?.name||"Földtábla"}</small>}</div></div>)}</div>:<div className={styles.empty}>Még nincs esemény.</div>}</article>
-
-        <article className={styles.panel}><div className={styles.panelHead}><h2>Bejelentések</h2><Link href="/admin/reports">Összes megnyitása</Link></div>{openReports.length?<div className={styles.list}>{openReports.slice(0,3).map(r=><Link href="/admin/reports" className={styles.row} key={r.id}><span className={`${styles.rowIcon} ${styles.warn}`}>!</span><div><strong>{r.title}</strong><small>{fieldMap.get(r.field_id)?.name||"Földtábla"}</small></div><time>{d(r.created_at)}</time></Link>)}</div>:<div className={styles.empty}>Nincs nyitott bejelentés.</div>}</article>
       </div>
     </section>
   </main>
