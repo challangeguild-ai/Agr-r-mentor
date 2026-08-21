@@ -9,6 +9,7 @@ type FieldOption = { id: string; name: string; farmName: string };
 export function InspectionForm({ fields }: { fields: FieldOption[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [createTask, setCreateTask] = useState(false);
   const supabase = createClient();
 
   async function submit(formData: FormData) {
@@ -39,6 +40,16 @@ export function InspectionForm({ fields }: { fields: FieldOption[] }) {
     <label>Állapot / minősítés<select name="condition" defaultValue="good" required><option value="good">Jó állapot</option><option value="attention">Figyelmet igényel</option><option value="critical">Kritikus</option></select></label>
     <label className="inspection-wide">Megfigyelés<textarea name="notes" rows={3} placeholder="Mit tapasztaltál a helyszínen?" /></label>
     <label className="inspection-wide">Szaktanácsadói javaslat<textarea name="recommendation" rows={3} placeholder="Javasolt kezelés, következő lépés..." /></label>
+
+    <div className="inspection-wide task-from-inspection">
+      <label className="checkbox-row"><input type="checkbox" name="create_task" value="yes" checked={createTask} onChange={e=>setCreateTask(e.target.checked)} /> Teendő létrehozása ebből a szemléből</label>
+      {createTask && <div className="inspection-task-grid">
+        <label>Teendő neve<input name="task_title" placeholder="pl. Gyomirtás" required /></label>
+        <label>Határidő<input name="task_due_date" type="date" /></label>
+        <label>Prioritás<select name="task_priority" defaultValue="normal"><option value="normal">Normál</option><option value="high">Fontos</option><option value="urgent">Sürgős</option></select></label>
+      </div>}
+    </div>
+
     <label className="inspection-wide">Képek és videók<input name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple /><small>Egyszerre több fájl is választható. Maximum 50 MB / fájl.</small></label>
     {error && <div className="error-box inspection-wide">{error}</div>}
     <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? "Mentés és feltöltés…" : "Szemle mentése"}</button>
