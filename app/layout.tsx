@@ -3,6 +3,7 @@ import "./globals.css";
 import "./notifications.css";
 import "./portal-theme.css";
 import "./farmer-template.css";
+import "./portal-reference.css";
 
 export const metadata: Metadata = {
   title: "Agrár Mentor",
