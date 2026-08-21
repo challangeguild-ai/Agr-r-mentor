@@ -1,6 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const protectedPrefixes = [
+  "/dashboard",
+  "/admin",
+  "/farms",
+  "/fields",
+  "/tasks",
+  "/timeline",
+  "/documents",
+  "/invoices",
+  "/messages",
+];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -22,11 +34,13 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const protectedRoute = request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/admin");
+  const pathname = request.nextUrl.pathname;
+  const protectedRoute = protectedPrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   if (protectedRoute && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 
