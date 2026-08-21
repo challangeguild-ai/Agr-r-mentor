@@ -9,7 +9,7 @@ export function Sidebar({ active = "dashboard" }: { active?: string }) {
         <a href="#gazdasag">Gazdaságom</a>
         <a href="#tablak">Táblák</a>
         <Link className={active === "tasks" ? "active" : ""} href="/tasks">Teendők</Link>
-        <a href="#idovonal">Idővonal</a>
+        <Link className={active === "timeline" ? "active" : ""} href="/timeline">Idővonal</Link>
         <a href="#dokumentumok">Dokumentumok</a>
       </nav>
       <div className="sidebar-footer">MVP 0.1</div>
