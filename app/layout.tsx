@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./notifications.css";
 import "./portal-theme.css";
+import "./farmer-template.css";
 
 export const metadata: Metadata = {
   title: "Agrár Mentor",
