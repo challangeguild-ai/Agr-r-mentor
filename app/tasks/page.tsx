@@ -10,12 +10,11 @@ type SearchParams = Promise<{ view?: string }>;
 function dateKey(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Budapest", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
-
+function addDaysKey(days:number){const d=new Date();d.setDate(d.getDate()+days);return dateKey(d)}
 function formatDate(value: string | null) {
   if (!value) return "Nincs határidő";
   return new Intl.DateTimeFormat("hu-HU", { timeZone: "Europe/Budapest" }).format(new Date(`${value}T12:00:00`));
 }
-
 function priorityLabel(priority: string) {
   if (priority === "urgent") return "Sürgős";
   if (priority === "high") return "Fontos";
@@ -42,19 +41,22 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
   ]);
 
   const today = dateKey();
+  const weekEnd = addDaysKey(7);
   const open = (tasks ?? []).filter(task => task.status !== "done");
   const overdue = open.filter(task => task.due_date && task.due_date < today);
   const dueToday = open.filter(task => task.due_date === today);
+  const upcoming = open.filter(task => task.due_date && task.due_date > today && task.due_date <= weekEnd);
   const done = (tasks ?? []).filter(task => task.status === "done");
 
   const visible = (tasks ?? []).filter(task => {
     if (view === "overdue") return task.status !== "done" && !!task.due_date && task.due_date < today;
+    if (view === "upcoming") return task.status !== "done" && !!task.due_date && task.due_date > today && task.due_date <= weekEnd;
     if (view === "done") return task.status === "done";
     if (view === "all") return true;
     return task.status !== "done";
   });
 
-  return <div className="app-shell">
+  return <div className="app-shell farmer-app">
     <Sidebar active="tasks" />
     <main className="dashboard">
       <header className="topbar">
@@ -65,7 +67,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
       <section className="stats-grid">
         <article className="stat-card"><span>Nyitott</span><strong>{open.length}</strong><small>Elvégzésre vár</small></article>
         <article className="stat-card"><span>Lejárt</span><strong className={overdue.length ? styles.dangerNumber : ""}>{overdue.length}</strong><small>Határidőn túl</small></article>
-        <article className="stat-card"><span>Ma esedékes</span><strong>{dueToday.length}</strong><small>Mai határidő</small></article>
+        <article className="stat-card"><span>Következő 7 nap</span><strong>{upcoming.length}</strong><small>{dueToday.length ? `${dueToday.length} ma esedékes` : "Közelgő feladatok"}</small></article>
         <article className="stat-card"><span>Elvégzett</span><strong>{done.length}</strong><small>Lezárt feladat</small></article>
       </section>
 
@@ -73,6 +75,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
         <div className={styles.tabs}>
           <Link className={view === "open" ? styles.active : ""} href="/tasks?view=open">Nyitott <span>{open.length}</span></Link>
           <Link className={view === "overdue" ? styles.active : ""} href="/tasks?view=overdue">Lejárt <span>{overdue.length}</span></Link>
+          <Link className={view === "upcoming" ? styles.active : ""} href="/tasks?view=upcoming">7 napon belül <span>{upcoming.length}</span></Link>
           <Link className={view === "done" ? styles.active : ""} href="/tasks?view=done">Elvégzett <span>{done.length}</span></Link>
           <Link className={view === "all" ? styles.active : ""} href="/tasks?view=all">Összes <span>{tasks?.length ?? 0}</span></Link>
         </div>
