@@ -1,18 +1,18 @@
 import Link from "next/link";
 
-export function Sidebar({ active = "dashboard" }: { active?: string }) {
-  return (
-    <aside className="sidebar farmer-sidebar">
-      <div className="sidebar-brand"><span>AM</span><div><strong>AGRÁR MENTOR</strong><small>Gazdálkodói felület</small></div></div>
-      <nav>
-        <Link className={active === "dashboard" ? "active" : ""} href="/dashboard">Kezdőlap</Link>
-        <Link className={active === "timeline" ? "active" : ""} href="/timeline">Idővonal</Link>
-        <Link className={active === "farms" ? "active" : ""} href="/farms">Gazdaságom</Link>
-        <Link className={active === "fields" ? "active" : ""} href="/fields">Táblák</Link>
-        <Link className={active === "tasks" ? "active" : ""} href="/tasks">Teendők</Link>
-        <Link className={active === "documents" ? "active" : ""} href="/documents">Dokumentumok</Link>
-      </nav>
-      <div className="sidebar-footer">Agrár Mentor · Gazdálkodói portál</div>
-    </aside>
-  );
+const items=[
+  ["/dashboard","dashboard","⌂","Kezdőlap"],
+  ["/timeline","timeline","◷","Idővonal"],
+  ["/farms","farms","⌂","Gazdaságom"],
+  ["/fields","fields","▱","Táblák"],
+  ["/documents","documents","□","Dokumentumok"],
+  ["/tasks","tasks","✓","Teendők"],
+] as const;
+
+export function Sidebar({active="dashboard"}:{active?:string}){
+  return <aside className="farmer-sidebar">
+    <div className="portal-brand farmer-brand"><span className="portal-mark">AM</span><div><strong>AGRÁR MENTOR</strong><small>Gazdálkodói felület</small></div></div>
+    <nav className="portal-nav">{items.map(([href,key,icon,label])=><Link key={key} className={active===key?"active":""} href={href}><span className="portal-nav-icon">{icon}</span><span>{label}</span></Link>)}</nav>
+    <div className="portal-sidebar-bottom"><div className="portal-user"><span>TG</span><div><strong>Gazdálkodó</strong><small>Saját fiók</small></div></div><Link className="portal-logout" href="/logout"><span>↪</span>Kijelentkezés</Link><small className="portal-version">v1.0.0</small></div>
+  </aside>
 }
