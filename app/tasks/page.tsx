@@ -3,16 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/Sidebar";
 import { completeTask } from "@/app/fields/[id]/actions";
+import styles from "./tasks.module.css";
 
 type SearchParams = Promise<{ view?: string }>;
 
 function dateKey(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Budapest",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Budapest", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
 function formatDate(value: string | null) {
@@ -66,39 +62,39 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
         <div className="user-pill">{profile?.role === "advisor" ? "Szaktanácsadó" : "Gazdálkodó"}</div>
       </header>
 
-      <section className="stats-grid task-summary-grid">
+      <section className="stats-grid">
         <article className="stat-card"><span>Nyitott</span><strong>{open.length}</strong><small>Elvégzésre vár</small></article>
-        <article className="stat-card"><span>Lejárt</span><strong className={overdue.length ? "danger-number" : ""}>{overdue.length}</strong><small>Határidőn túl</small></article>
+        <article className="stat-card"><span>Lejárt</span><strong className={overdue.length ? styles.dangerNumber : ""}>{overdue.length}</strong><small>Határidőn túl</small></article>
         <article className="stat-card"><span>Ma esedékes</span><strong>{dueToday.length}</strong><small>Mai határidő</small></article>
         <article className="stat-card"><span>Elvégzett</span><strong>{done.length}</strong><small>Lezárt feladat</small></article>
       </section>
 
       <section className="panel">
-        <div className="task-tabs">
-          <Link className={view === "open" ? "active" : ""} href="/tasks?view=open">Nyitott <span>{open.length}</span></Link>
-          <Link className={view === "overdue" ? "active" : ""} href="/tasks?view=overdue">Lejárt <span>{overdue.length}</span></Link>
-          <Link className={view === "done" ? "active" : ""} href="/tasks?view=done">Elvégzett <span>{done.length}</span></Link>
-          <Link className={view === "all" ? "active" : ""} href="/tasks?view=all">Összes <span>{tasks?.length ?? 0}</span></Link>
+        <div className={styles.tabs}>
+          <Link className={view === "open" ? styles.active : ""} href="/tasks?view=open">Nyitott <span>{open.length}</span></Link>
+          <Link className={view === "overdue" ? styles.active : ""} href="/tasks?view=overdue">Lejárt <span>{overdue.length}</span></Link>
+          <Link className={view === "done" ? styles.active : ""} href="/tasks?view=done">Elvégzett <span>{done.length}</span></Link>
+          <Link className={view === "all" ? styles.active : ""} href="/tasks?view=all">Összes <span>{tasks?.length ?? 0}</span></Link>
         </div>
 
-        {visible.length ? <div className="task-page-list">{visible.map(task => {
+        {visible.length ? <div className={styles.list}>{visible.map(task => {
           const field = fields?.find(item => item.id === task.field_id);
           const farm = farms?.find(item => item.id === task.farm_id);
           const isOverdue = task.status !== "done" && !!task.due_date && task.due_date < today;
           const isToday = task.status !== "done" && task.due_date === today;
-          return <article className={`task-page-card ${isOverdue ? "overdue" : ""}`} key={task.id}>
-            <div className="task-page-main">
-              <div className="task-page-title"><span className={`dot ${task.priority}`}></span><div><strong>{task.title}</strong><small>{field?.name || farm?.name || "Gazdasági teendő"}</small></div></div>
+          return <article className={`${styles.card} ${isOverdue ? styles.overdue : ""}`} key={task.id}>
+            <div className={styles.main}>
+              <div className={styles.title}><span className={`dot ${task.priority}`}></span><div><strong>{task.title}</strong><small>{field?.name || farm?.name || "Gazdasági teendő"}</small></div></div>
               {task.description && <p>{task.description}</p>}
-              <div className="task-page-meta">
-                <span className={`priority-pill ${task.priority}`}>{priorityLabel(task.priority)}</span>
-                <span className={isOverdue ? "deadline overdue-text" : isToday ? "deadline today-text" : "deadline"}>{task.status === "done" ? `Elvégezve: ${task.completed_at ? new Date(task.completed_at).toLocaleDateString("hu-HU") : "—"}` : `${isOverdue ? "Lejárt: " : isToday ? "Ma esedékes: " : "Határidő: "}${formatDate(task.due_date)}`}</span>
+              <div className={styles.meta}>
+                <span className={`${styles.priority} ${task.priority === "urgent" ? styles.urgent : task.priority === "high" ? styles.high : ""}`}>{priorityLabel(task.priority)}</span>
+                <span className={isOverdue ? styles.overdueText : isToday ? styles.todayText : styles.deadline}>{task.status === "done" ? `Elvégezve: ${task.completed_at ? new Date(task.completed_at).toLocaleDateString("hu-HU") : "—"}` : `${isOverdue ? "Lejárt: " : isToday ? "Ma esedékes: " : "Határidő: "}${formatDate(task.due_date)}`}</span>
               </div>
             </div>
-            <div className="task-page-actions">
+            <div className={styles.actions}>
               {task.field_id && <Link className="ghost-btn" href={`/fields/${task.field_id}`}>Tábla megnyitása</Link>}
               {profile?.role !== "advisor" && task.status !== "done" && <form action={completeTask}><input type="hidden" name="task_id" value={task.id}/><button className="btn btn-primary" type="submit">Készre jelölöm</button></form>}
-              {task.status === "done" && <span className="done-badge">✓ Elvégezve</span>}
+              {task.status === "done" && <span className={styles.done}>✓ Elvégezve</span>}
             </div>
           </article>;
         })}</div> : <div className="empty-state">Ebben a nézetben nincs teendő.</div>}
