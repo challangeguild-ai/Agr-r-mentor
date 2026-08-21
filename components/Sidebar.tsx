@@ -6,8 +6,8 @@ export function Sidebar({ active = "dashboard" }: { active?: string }) {
       <div className="sidebar-brand"><span>AM</span><strong>Agrár Mentor</strong></div>
       <nav>
         <Link className={active === "dashboard" ? "active" : ""} href="/dashboard">Áttekintés</Link>
-        <a href="#gazdasag">Gazdaságom</a>
-        <a href="#tablak">Táblák</a>
+        <Link className={active === "farms" ? "active" : ""} href="/farms">Gazdaságom</Link>
+        <Link className={active === "fields" ? "active" : ""} href="/fields">Táblák</Link>
         <Link className={active === "tasks" ? "active" : ""} href="/tasks">Teendők</Link>
         <Link className={active === "timeline" ? "active" : ""} href="/timeline">Idővonal</Link>
         <a href="#dokumentumok">Dokumentumok</a>
