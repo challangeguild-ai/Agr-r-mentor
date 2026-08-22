@@ -38,6 +38,9 @@ export function InspectionForm({ fields, defaultFieldId = "" }: { fields: FieldO
     <label>Földtábla<select name="field_id" required defaultValue={defaultFieldId}><option value="">Válassz táblát</option>{fields.map(f => <option key={f.id} value={f.id}>{f.name} – {f.farmName}</option>)}</select></label>
     <label>Szemle dátuma<input name="inspected_at" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></label>
     <label>Állapot / minősítés<select name="condition" defaultValue="good" required><option value="good">Jó állapot</option><option value="attention">Figyelmet igényel</option><option value="critical">Kritikus</option></select></label>
+    <label>Előző szemléhez képest<select name="follow_up_status" defaultValue=""><option value="">Első szemle / nincs összevetés</option><option value="improved">Javult</option><option value="unchanged">Változatlan</option><option value="worsened">Romlott</option></select></label>
+    <label>Következő javasolt ellenőrzés<input name="next_check_at" type="date" /><small>Ha szükséges visszaellenőrzés, itt ütemezhető.</small></label>
+    <label>Probléma állapota<select name="issue_status" defaultValue="open"><option value="open">Nyitott</option><option value="monitoring">Megfigyelés alatt</option><option value="resolved">Lezárt / megoldódott</option></select></label>
     <label className="inspection-wide">Megfigyelés<textarea name="notes" rows={3} placeholder="Mit tapasztaltál a helyszínen?" /></label>
     <label className="inspection-wide">Szaktanácsadói javaslat<textarea name="recommendation" rows={3} placeholder="Javasolt kezelés, következő lépés..." /></label>
 
