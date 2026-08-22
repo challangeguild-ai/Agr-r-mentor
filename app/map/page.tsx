@@ -1,0 +1,26 @@
+import Link from "next/link";
+import {redirect} from "next/navigation";
+import {createClient} from "@/lib/supabase/server";
+import {Sidebar} from "@/components/Sidebar";
+import {FieldMapEditor} from "@/components/FieldMapEditor";
+
+type SP=Promise<{field?:string}>;
+
+export default async function FarmerMapPage({searchParams}:{searchParams:SP}){
+  const{field:fieldId}=await searchParams;
+  const supabase=await createClient();
+  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
+  const{data:profile}=await supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();
+  if(profile?.role==="advisor")redirect("/admin/map");
+  const[{data:fields},{data:farms}]=await Promise.all([
+    supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,center_lat,center_lng,boundary_geojson,boundary_updated_at").order("name"),
+    supabase.from("farms").select("id,name").order("name")
+  ]);
+  const selected=(fields??[]).find(f=>f.id===fieldId)||(fields??[])[0]||null;
+  const farmMap=new Map((farms??[]).map(f=>[f.id,f.name]));
+  return <div className="app-shell farmer-app"><Sidebar active="map" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard">
+    <header className="field-detail-header"><div><span className="eyebrow">TÉRKÉPI ÁTTEKINTÉS</span><h1>Tábláim térképen</h1><p>A saját földtáblák rögzített helye és táblahatára.</p></div></header>
+    <section className="panel" style={{marginBottom:14}}><div className="panel-heading"><div><span className="eyebrow">FÖLDTÁBLÁK</span><h2>Válassz táblát</h2></div><span className="user-pill">{fields?.length??0} tábla</span></div><div className="field-overview-grid">{fields?.length?fields.map(f=><Link key={f.id} href={`/map?field=${f.id}`} className="field-card field-card-link" style={{border:selected?.id===f.id?"2px solid #39752f":undefined}}><div className="field-card-top"><span className="field-icon">▥</span><div><strong>{f.name}</strong><small>{farmMap.get(f.farm_id)||"Gazdaság"}</small></div><span className="field-arrow">→</span></div><div className="field-meta"><span><b>{f.area_ha?`${f.area_ha} ha`:"—"}</b><small>Terület</small></span><span><b>{f.current_crop||"—"}</b><small>Kultúra</small></span><span><b>{f.boundary_geojson?"Rögzítve":f.center_lat!=null?"Hely megadva":"Nincs adat"}</b><small>Térkép</small></span></div></Link>):<div className="empty-state">Még nincs földtábla.</div>}</div></section>
+    {selected?<><FieldMapEditor fieldId={selected.id} lat={selected.center_lat} lng={selected.center_lng} boundary={selected.boundary_geojson} editable={false}/><div style={{marginTop:12}}><Link className="ghost-btn" href={`/fields/${selected.id}`}>Földtábla adatlapja →</Link></div></>:<section className="panel"><div className="empty-state">Nincs megjeleníthető földtábla.</div></section>}
+  </main></div>
+}
