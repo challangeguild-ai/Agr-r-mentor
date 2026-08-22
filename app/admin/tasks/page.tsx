@@ -8,10 +8,10 @@ function dateKey(date=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZo
 function addDaysKey(days:number){const d=new Date();d.setDate(d.getDate()+days);return dateKey(d)}
 function fmt(v:string|null){return v?new Intl.DateTimeFormat("hu-HU",{timeZone:"Europe/Budapest"}).format(new Date(`${v}T12:00:00`)):"Nincs határidő"}
 
-type SP=Promise<{view?:string;priority?:string}>;
+type SP=Promise<{view?:string;priority?:string;farm?:string;field?:string}>;
 
 export default async function TasksAdminPage({searchParams}:{searchParams:SP}){
-  const{view="open",priority="all"}=await searchParams;
+  const{view="open",priority="all",farm:requestedFarm="",field:requestedField=""}=await searchParams;
   const supabase=await createClient();
   const{data:{user}}=await supabase.auth.getUser();
   if(!user)redirect("/login");
@@ -25,6 +25,9 @@ export default async function TasksAdminPage({searchParams}:{searchParams:SP}){
     supabase.from("profiles").select("id,full_name").eq("role","farmer").order("full_name")
   ]);
 
+  const requestedFieldRow=(fields??[]).find(f=>f.id===requestedField);
+  const defaultField=requestedFieldRow?.id||"";
+  const defaultFarm=(farms??[]).some(f=>f.id===requestedFarm)?requestedFarm:(requestedFieldRow?.farm_id||"");
   const today=dateKey(); const weekEnd=addDaysKey(7);
   const all=tasks??[]; const open=all.filter(t=>t.status!=="done"); const done=all.filter(t=>t.status==="done");
   const overdue=open.filter(t=>t.due_date&&t.due_date<today); const upcoming=open.filter(t=>t.due_date&&t.due_date>=today&&t.due_date<=weekEnd); const urgent=open.filter(t=>t.priority==="urgent"||t.priority==="high");
@@ -42,7 +45,7 @@ export default async function TasksAdminPage({searchParams}:{searchParams:SP}){
   return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">SZAKTANÁCSADÓI VEZÉRLŐPULT</span><h1>Teendők</h1><p>Feladatkiadás, határidők és végrehajtás követése ügyfelenként.</p></div></header>
     <section className="admin-summary"><div><span>Nyitott</span><strong>{open.length}</strong></div><div><span>Lejárt</span><strong>{overdue.length}</strong></div><div><span>Sürgős / fontos</span><strong>{urgent.length}</strong></div></section>
 
-    <section className="panel"><span className="eyebrow">ÚJ TEENDŐ</span><h2>Feladat kiadása</h2><form action={createTask} className="admin-form task-create-grid"><label>Gazdaság<select name="farm_id" required><option value="">Válassz gazdaságot</option>{farms?.map(f=><option key={f.id} value={f.id}>{ownerMap.get(f.owner_id)?.full_name?`${ownerMap.get(f.owner_id)?.full_name} — `:""}{f.name}</option>)}</select></label><label>Földtábla<select name="field_id"><option value="">Teljes gazdaság</option>{fields?.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Feladat<input name="title" required/></label><label>Határidő<input name="due_date" type="date"/></label><label>Prioritás<select name="priority"><option value="normal">Normál</option><option value="high">Fontos</option><option value="urgent">Sürgős</option></select></label><label className="task-description">Megjegyzés<input name="description"/></label><button className="btn btn-primary">Teendő kiadása</button></form></section>
+    <section className="panel"><span className="eyebrow">ÚJ TEENDŐ</span><h2>Feladat kiadása</h2><form action={createTask} className="admin-form task-create-grid"><label>Gazdaság<select name="farm_id" required defaultValue={defaultFarm}><option value="">Válassz gazdaságot</option>{farms?.map(f=><option key={f.id} value={f.id}>{ownerMap.get(f.owner_id)?.full_name?`${ownerMap.get(f.owner_id)?.full_name} — `:""}{f.name}</option>)}</select></label><label>Földtábla<select name="field_id" defaultValue={defaultField}><option value="">Teljes gazdaság</option>{fields?.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Feladat<input name="title" required/></label><label>Határidő<input name="due_date" type="date"/></label><label>Prioritás<select name="priority"><option value="normal">Normál</option><option value="high">Fontos</option><option value="urgent">Sürgős</option></select></label><label className="task-description">Megjegyzés<input name="description"/></label><button className="btn btn-primary">Teendő kiadása</button></form></section>
 
     <section className="panel"><div className="panel-heading"><div><span className="eyebrow">MUNKALISTA</span><h2>Kiadott teendők</h2></div><span className="user-pill">{visible.length} találat</span></div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}><Link className="ghost-btn" href={q("open")}>Nyitott ({open.length})</Link><Link className="ghost-btn" href={q("overdue")}>Lejárt ({overdue.length})</Link><Link className="ghost-btn" href={q("upcoming")}>7 napon belül ({upcoming.length})</Link><Link className="ghost-btn" href={q("done")}>Elvégzett ({done.length})</Link><Link className="ghost-btn" href={q("all")}>Összes ({all.length})</Link></div>
