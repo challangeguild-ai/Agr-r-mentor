@@ -13,10 +13,9 @@ export default async function MessagesPage({searchParams}:{searchParams:SearchPa
  if(!user)redirect("/login");
  const{data:profile}=await supabase.from("profiles").select("full_name,role").eq("id",user.id).maybeSingle();
  if(profile?.role==="advisor")redirect("/admin/reports");
- const[{data:reports},{data:fields}]=await Promise.all([
-  supabase.from("farmer_reports").select("id,field_id,title,message,status,created_at,advisor_reply,replied_at").order("created_at",{ascending:false}),
-  supabase.from("fields").select("id,name").order("name")
- ]);
+ const{data:reports}=await supabase.from("farmer_reports").select("id,field_id,title,message,status,created_at,advisor_reply,replied_at").eq("farmer_id",user.id).order("created_at",{ascending:false});
+ const fieldIds=[...new Set((reports??[]).map(r=>r.field_id).filter(Boolean))] as string[];
+ const{data:fields}=fieldIds.length?await supabase.from("fields").select("id,name").in("id",fieldIds):{data:[]};
  const all=reports??[];
  const waiting=all.filter(r=>r.status!=="reviewed"&&r.status!=="closed");
  const answered=all.filter(r=>r.status==="reviewed");
