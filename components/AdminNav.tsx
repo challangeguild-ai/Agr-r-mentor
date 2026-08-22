@@ -7,6 +7,7 @@ const items=[
   {href:"/admin/reports",key:"reports",label:"Bejelentések"},
   {href:"/admin/inspections",key:"inspections",label:"Szemlék"},
   {href:"/admin/tasks",key:"tasks",label:"Teendők"},
+  {href:"/notifications",key:"notifications",label:"Értesítések"},
 ];
 
 export function AdminNav({active="overview"}:{active?:string}){
