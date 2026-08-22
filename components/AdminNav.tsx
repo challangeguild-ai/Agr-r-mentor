@@ -3,6 +3,7 @@ import Link from "next/link";
 const items=[
   {href:"/admin",key:"overview",label:"Áttekintés"},
   {href:"/admin/portfolio",key:"portfolio",label:"Ügyfélportfólió"},
+  {href:"/admin/visits",key:"visits",label:"Látogatások"},
   {href:"/admin/priorities",key:"priorities",label:"Mai prioritások"},
   {href:"/admin/supervision",key:"supervision",label:"Szemlézési szezonok"},
   {href:"/admin/clients",key:"clients",label:"Ügyfelek"},
