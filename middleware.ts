@@ -12,6 +12,7 @@ const protectedPrefixes = [
   "/documents",
   "/invoices",
   "/messages",
+  "/notifications",
 ];
 
 export async function middleware(request: NextRequest) {
