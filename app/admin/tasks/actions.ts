@@ -1,0 +1,13 @@
+"use server";
+import {revalidatePath} from "next/cache";
+import {redirect} from "next/navigation";
+import {createClient} from "@/lib/supabase/server";
+export async function createAssignedTask(formData:FormData){
+ const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:me}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor")throw new Error("Szaktanácsadói jogosultság szükséges.");
+ const farmId=String(formData.get("farm_id")||""),fieldId=String(formData.get("field_id")||""),assignedTo=String(formData.get("assigned_to")||""),title=String(formData.get("title")||"").trim(),description=String(formData.get("description")||"").trim(),dueDate=String(formData.get("due_date")||""),priority=String(formData.get("priority")||"normal");if(!farmId||!title)throw new Error("Gazdaság és teendő megadása kötelező.");
+ const{data:farm}=await supabase.from("farms").select("id,name,owner_id").eq("id",farmId).maybeSingle();if(!farm)throw new Error("A gazdaság nem található.");if(fieldId){const{data:field}=await supabase.from("fields").select("id,farm_id").eq("id",fieldId).maybeSingle();if(!field||field.farm_id!==farmId)throw new Error("A tábla nem ehhez a gazdasághoz tartozik.")}
+ const target=assignedTo||farm.owner_id;if(target!==farm.owner_id){const{data:member}=await supabase.from("farm_members").select("id").eq("farm_id",farmId).eq("user_id",target).eq("active",true).maybeSingle();if(!member)throw new Error("A kiválasztott végrehajtó nem aktív tagja a gazdaságnak.")}
+ const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";const{data:task,error}=await supabase.from("tasks").insert({farm_id:farmId,field_id:fieldId||null,title:title.slice(0,180),description:description.slice(0,3000)||null,due_date:dueDate||null,priority:safePriority,status:"open",assigned_to:target,created_by:user.id}).select("id").single();if(error||!task)throw new Error(error?.message||"A teendő mentése sikertelen.");
+ const href=target===farm.owner_id?(fieldId?`/fields/${fieldId}`:"/tasks"):"/work";await supabase.from("notifications").insert({user_id:target,kind:"task",title:"Új munka a szaktanácsadótól",message:title,href});try{await supabase.functions.invoke("send-notification-email",{body:{target_user_id:target,subject:safePriority==="urgent"?"Sürgős munka a szaktanácsadótól":"Új munka a szaktanácsadótól",message:`${title}${dueDate?`\nHatáridő: ${dueDate}`:""}${description?`\n${description}`:""}`,href}})}catch(e){console.error(e)}
+ revalidatePath("/admin/tasks");revalidatePath("/work");revalidatePath("/tasks");if(fieldId)revalidatePath(`/fields/${fieldId}`);
+}
