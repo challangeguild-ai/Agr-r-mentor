@@ -16,19 +16,17 @@ export default async function FieldsPage({ searchParams }: { searchParams: Searc
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { data: profile } = await supabase.from("profiles").select("role,full_name").eq("id", user.id).maybeSingle();
+  if(profile?.role==="advisor") redirect("/admin/map");
 
-  const [{ data: profile }, { data: fields, error }] = await Promise.all([
-    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-    supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,sowing_date,status,created_at").order("name"),
-  ]);
+  const {data:farms,error:farmError}=await supabase.from("farms").select("id,name,settlement").eq("owner_id",user.id).order("name");
+  if(farmError)throw new Error(farmError.message);
+  const farmIds=(farms??[]).map(f=>f.id);
+  const {data:fields,error}=farmIds.length?await supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,sowing_date,status,created_at").in("farm_id",farmIds).order("name"):{data:[],error:null};
   if (error) throw new Error(error.message);
 
-  const farmIds = [...new Set((fields ?? []).map(field => field.farm_id).filter(Boolean))] as string[];
-  const { data: farms } = farmIds.length
-    ? await supabase.from("farms").select("id,name,settlement").in("id", farmIds)
-    : { data: [] };
   const { data: tasks } = fields?.length
-    ? await supabase.from("tasks").select("id,field_id,status,due_date,priority").in("field_id", (fields ?? []).map(field => field.id))
+    ? await supabase.from("tasks").select("id,field_id,status,due_date,priority").in("field_id", (fields ?? []).map(field => field.id)).eq("assigned_to",user.id)
     : { data: [] };
 
   const totalArea = (fields ?? []).reduce((sum, field) => sum + (Number(field.area_ha) || 0), 0);
@@ -51,12 +49,11 @@ export default async function FieldsPage({ searchParams }: { searchParams: Searc
     ["archived", "Inaktív / archivált", (fields ?? []).length - active],
   ] as const;
 
-  return <div className="app-shell">
-    <Sidebar active="fields" />
+  return <div className="app-shell farmer-app">
+    <Sidebar active="fields" userName={profile?.full_name||"Gazdálkodó"}/>
     <main className="dashboard">
       <header className="topbar">
         <div><span className="eyebrow">FÖLDTERÜLETEK</span><h1>Táblák</h1><p>Minden földtábla egy helyen, kultúrával, területtel és aktuális feladatokkal.</p></div>
-        <div className="user-pill">{profile?.role === "advisor" ? "Szaktanácsadó" : "Gazdálkodó"}</div>
       </header>
 
       <section className="stats-grid">
