@@ -30,3 +30,27 @@ export async function completeTask(formData:FormData){
   revalidatePath("/dashboard");
   revalidatePath("/admin");
 }
+
+export async function saveFieldMap(formData:FormData){
+  const supabase=await createClient();
+  const{data:{user}}=await supabase.auth.getUser();
+  if(!user)redirect("/login");
+  const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  if(profile?.role!=="advisor")throw new Error("A térképi adatok módosításához szaktanácsadói jogosultság szükséges.");
+  const fieldId=String(formData.get("field_id")||"");
+  const latRaw=String(formData.get("center_lat")||"").trim().replace(",",".");
+  const lngRaw=String(formData.get("center_lng")||"").trim().replace(",",".");
+  const geoRaw=String(formData.get("boundary_geojson")||"").trim();
+  if(!fieldId)throw new Error("Hiányzó földtábla.");
+  const center_lat=latRaw?Number(latRaw):null,center_lng=lngRaw?Number(lngRaw):null;
+  if(center_lat!==null&&(!Number.isFinite(center_lat)||center_lat<-90||center_lat>90))throw new Error("Érvénytelen szélességi koordináta.");
+  if(center_lng!==null&&(!Number.isFinite(center_lng)||center_lng<-180||center_lng>180))throw new Error("Érvénytelen hosszúsági koordináta.");
+  let boundary_geojson:any=null;
+  if(geoRaw){
+    try{boundary_geojson=JSON.parse(geoRaw)}catch{throw new Error("A táblahatár GeoJSON formátuma hibás.")}
+    if(!boundary_geojson||!["Polygon","MultiPolygon"].includes(boundary_geojson.type)||!Array.isArray(boundary_geojson.coordinates))throw new Error("Csak Polygon vagy MultiPolygon táblahatár menthető.");
+  }
+  const{error}=await supabase.from("fields").update({center_lat,center_lng,boundary_geojson,boundary_updated_at:new Date().toISOString()}).eq("id",fieldId);
+  if(error)throw new Error(error.message);
+  revalidatePath(`/fields/${fieldId}`);revalidatePath("/dashboard");revalidatePath("/admin");
+}
