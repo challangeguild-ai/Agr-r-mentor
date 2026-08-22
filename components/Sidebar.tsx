@@ -14,6 +14,7 @@ const items=[
   ["/documents","documents","□","Dokumentumok"],
   ["/invoices","invoices","▤","Számlák"],
   ["/messages","messages","✉","Üzenetek"],
+  ["/notifications","notifications","●","Értesítések"],
 ] as const;
 
 export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:string;userName?:string}){
