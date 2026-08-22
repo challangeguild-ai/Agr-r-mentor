@@ -8,8 +8,9 @@ import styles from "./AdvisorSidebar.module.css";
 const items=[
   ["/admin","⌂","Áttekintés"],
   ["/admin/clients","♙","Ügyfelek"],
+  ["/admin/map","⌖","Térkép"],
   ["/admin/reports","✉","Bejelentések"],
-  ["/admin/inspections","⌖","Szemlék"],
+  ["/admin/inspections","◉","Szemlék"],
   ["/admin/tasks","☑","Teendők"],
   ["/admin/timeline","☼","Idővonal"],
   ["/admin/documents","□","Dokumentumok"],
