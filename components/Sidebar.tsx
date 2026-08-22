@@ -9,6 +9,7 @@ const items=[
   ["/farms","farms","▥","Gazdaságom"],
   ["/fields","fields","◩","Táblák"],
   ["/map","map","⌖","Térkép"],
+  ["/operations","operations","✣","Műveleti napló"],
   ["/tasks","tasks","☑","Teendők"],
   ["/timeline","timeline","☼","Idővonal"],
   ["/documents","documents","□","Dokumentumok"],
