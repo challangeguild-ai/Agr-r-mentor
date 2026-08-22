@@ -2,6 +2,7 @@
 import {useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import {createClient} from "@/lib/supabase/client";
+import {deleteDocument} from "@/app/documents/actions";
 import styles from "./DocumentLibrary.module.css";
 
 const labels:Record<string,string>={talajvizsgalat:"Talajvizsgálat",permetezes:"Permetezés",szerzodes:"Szerződés",szamla:"Számla",foto:"Fotó",egyeb:"Egyéb"};
@@ -26,7 +27,7 @@ export function DocumentLibrary({items}:{items:any[]}){
   }),[items,query,category,scope]);
 
   async function openDoc(d:any){setBusy(`open-${d.id}`);const supabase=createClient();const{data,error}=await supabase.storage.from("documents").createSignedUrl(d.storage_path,60);setBusy(null);if(error||!data?.signedUrl){alert("A dokumentum megnyitása sikertelen.");return}window.open(data.signedUrl,"_blank","noopener,noreferrer")}
-  async function deleteDoc(d:any){if(!confirm(`Biztosan törlöd ezt a dokumentumot?\n\n${d.title}`))return;setBusy(`delete-${d.id}`);const supabase=createClient();const row=await supabase.from("documents").delete().eq("id",d.id);if(row.error){alert(`A dokumentum törlése sikertelen: ${row.error.message}`);setBusy(null);return}const storage=await supabase.storage.from("documents").remove([d.storage_path]);if(storage.error)console.warn("A dokumentum rekordja törölve, de a fájl takarítása sikertelen:",storage.error.message);setBusy(null);router.refresh()}
+  async function deleteDoc(d:any){if(!confirm(`Biztosan törlöd ezt a dokumentumot?\n\n${d.title}`))return;setBusy(`delete-${d.id}`);try{await deleteDocument(d.id);router.refresh()}catch(error){alert(`A dokumentum törlése sikertelen: ${error instanceof Error?error.message:"Ismeretlen hiba"}`)}finally{setBusy(null)}}
 
   return <>
     <div className={styles.toolbar}>
