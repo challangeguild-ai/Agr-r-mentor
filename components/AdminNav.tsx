@@ -6,6 +6,7 @@ const items=[
   {href:"/admin/supervision",key:"supervision",label:"Szemlézési szezonok"},
   {href:"/admin/clients",key:"clients",label:"Ügyfelek"},
   {href:"/admin/team",key:"team",label:"Munkatársak"},
+  {href:"/admin/machines",key:"machines",label:"Géppark"},
   {href:"/admin/map",key:"map",label:"Térkép"},
   {href:"/admin/operations",key:"operations",label:"Műveleti napló"},
   {href:"/admin/reports",key:"reports",label:"Bejelentések"},
