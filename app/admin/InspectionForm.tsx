@@ -6,7 +6,7 @@ import { createInspection } from "./actions";
 
 type FieldOption = { id: string; name: string; farmName: string };
 
-export function InspectionForm({ fields }: { fields: FieldOption[] }) {
+export function InspectionForm({ fields, defaultFieldId = "" }: { fields: FieldOption[]; defaultFieldId?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [createTask, setCreateTask] = useState(false);
@@ -35,7 +35,7 @@ export function InspectionForm({ fields }: { fields: FieldOption[] }) {
   }
 
   return <form action={submit} className="admin-form inspection-create-grid">
-    <label>Földtábla<select name="field_id" required><option value="">Válassz táblát</option>{fields.map(f => <option key={f.id} value={f.id}>{f.name} – {f.farmName}</option>)}</select></label>
+    <label>Földtábla<select name="field_id" required defaultValue={defaultFieldId}><option value="">Válassz táblát</option>{fields.map(f => <option key={f.id} value={f.id}>{f.name} – {f.farmName}</option>)}</select></label>
     <label>Szemle dátuma<input name="inspected_at" type="date" defaultValue={new Date().toISOString().slice(0,10)} /></label>
     <label>Állapot / minősítés<select name="condition" defaultValue="good" required><option value="good">Jó állapot</option><option value="attention">Figyelmet igényel</option><option value="critical">Kritikus</option></select></label>
     <label className="inspection-wide">Megfigyelés<textarea name="notes" rows={3} placeholder="Mit tapasztaltál a helyszínen?" /></label>
