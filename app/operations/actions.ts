@@ -2,27 +2,20 @@
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
-import {encodeOperation,operationLabel,operationTypes,type OperationType} from "@/lib/operations";
+import {encodeOperation,operationLabel,operationTypes,type OperationType,OP_EVENT} from "@/lib/operations";
 
 function num(v:FormDataEntryValue|null){const s=String(v||"").trim().replace(",",".");if(!s)return null;const n=Number(s);return Number.isFinite(n)?n:null}
 function text(v:FormDataEntryValue|null,max:number){return String(v||"").trim().slice(0,max)}
 function validDate(v:string){return /^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(new Date(`${v}T12:00:00`).getTime())}
+async function context(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();return{supabase,user,profile}}
+async function assertFieldAccess(supabase:any,userId:string,role:string|undefined,fieldId:string){const{data:field}=await supabase.from("fields").select("id,name,farm_id,area_ha").eq("id",fieldId).maybeSingle();if(!field)throw new Error("A földtábla nem található.");const{data:farm}=await supabase.from("farms").select("id,name,owner_id").eq("id",field.farm_id).maybeSingle();if(!farm)throw new Error("A gazdaság nem található.");if(role!=="advisor"&&farm.owner_id!==userId)throw new Error("Ehhez a földtáblához nincs jogosultságod.");return{field,farm}}
 
 export async function createFieldOperation(formData:FormData){
- const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
- const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
- const fieldId=text(formData.get("field_id"),100),date=text(formData.get("operation_date"),10),rawType=text(formData.get("operation_type"),40);
- if(!fieldId)throw new Error("Válassz földtáblát.");if(!validDate(date))throw new Error("Érvényes műveleti dátum szükséges.");
- const allowed=new Set(operationTypes.map(([k])=>k));if(!allowed.has(rawType as OperationType))throw new Error("Érvénytelen művelettípus.");
- const{data:field}=await supabase.from("fields").select("id,name,farm_id,area_ha").eq("id",fieldId).maybeSingle();if(!field)throw new Error("A földtábla nem található.");
- const{data:farm}=await supabase.from("farms").select("id,name,owner_id").eq("id",field.farm_id).maybeSingle();if(!farm)throw new Error("A gazdaság nem található.");
- if(profile?.role!=="advisor"&&farm.owner_id!==user.id)throw new Error("Ehhez a földtáblához nincs jogosultságod.");
- const treatedArea=num(formData.get("treated_area"));if(treatedArea!==null&&(treatedArea<=0||treatedArea>Number(field.area_ha||999999)))throw new Error("A kezelt terület értéke hibás.");
- const dose=num(formData.get("dose")),quantity=num(formData.get("quantity"));if(dose!==null&&dose<0)throw new Error("A dózis nem lehet negatív.");if(quantity!==null&&quantity<0)throw new Error("A mennyiség nem lehet negatív.");
- const type=rawType as OperationType,product=text(formData.get("product"),180),doseUnit=text(formData.get("dose_unit"),30),quantityUnit=text(formData.get("quantity_unit"),30),machine=text(formData.get("machine"),150),weather=text(formData.get("weather"),180),notes=text(formData.get("notes"),1000),operator=text(formData.get("operator"),120);
- const payload={type,product:product||undefined,dose,doseUnit:doseUnit||undefined,quantity,quantityUnit:quantityUnit||undefined,treatedArea,machine:machine||undefined,weather:weather||undefined,notes:notes||undefined,operator:operator||undefined};
- const eventAt=new Date(`${date}T12:00:00`).toISOString();const title=`Művelet: ${operationLabel(type)}${product?` – ${product}`:""}`;
- const{error}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id:field.id,event_type:"field_operation",title,description:encodeOperation(payload),event_at:eventAt,created_by:user.id});if(error)throw new Error(error.message);
- revalidatePath("/operations");revalidatePath("/admin/operations");revalidatePath("/timeline");revalidatePath("/admin/timeline");revalidatePath(`/fields/${field.id}`);revalidatePath("/dashboard");revalidatePath("/admin");
- return {ok:true};
+ const{supabase,user,profile}=await context();const fieldId=text(formData.get("field_id"),100),date=text(formData.get("operation_date"),10),rawType=text(formData.get("operation_type"),40);if(!fieldId)throw new Error("Válassz földtáblát.");if(!validDate(date))throw new Error("Érvényes műveleti dátum szükséges.");const allowed=new Set(operationTypes.map(([k])=>k));if(!allowed.has(rawType as OperationType))throw new Error("Érvénytelen művelettípus.");const{field}=await assertFieldAccess(supabase,user.id,profile?.role,fieldId);
+ const treatedArea=num(formData.get("treated_area"));if(treatedArea!==null&&(treatedArea<=0||treatedArea>Number(field.area_ha||999999)))throw new Error("A kezelt terület értéke hibás.");const dose=num(formData.get("dose")),quantity=num(formData.get("quantity"));if(dose!==null&&dose<0)throw new Error("A dózis nem lehet negatív.");if(quantity!==null&&quantity<0)throw new Error("A mennyiség nem lehet negatív.");
+ const type=rawType as OperationType,product=text(formData.get("product"),180),doseUnit=text(formData.get("dose_unit"),30),quantityUnit=text(formData.get("quantity_unit"),30),machine=text(formData.get("machine"),150),weather=text(formData.get("weather"),180),notes=text(formData.get("notes"),1000),operator=text(formData.get("operator"),120);const payload={type,product:product||undefined,dose,doseUnit:doseUnit||undefined,quantity,quantityUnit:quantityUnit||undefined,treatedArea,machine:machine||undefined,weather:weather||undefined,notes:notes||undefined,operator:operator||undefined};const eventAt=new Date(`${date}T12:00:00`).toISOString();const title=`Művelet: ${operationLabel(type)}${product?` – ${product}`:""}`;
+ const{error}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id:field.id,event_type:OP_EVENT,title,description:encodeOperation(payload),event_at:eventAt,created_by:user.id});if(error)throw new Error(error.message);revalidateOperationPaths(field.id);return{ok:true};
 }
+
+export async function deleteFieldOperation(id:string){const{supabase,user,profile}=await context();const safe=text(id,100);if(!safe)throw new Error("Hiányzó művelet.");const{data:event}=await supabase.from("timeline_events").select("id,field_id,event_type,created_by").eq("id",safe).maybeSingle();if(!event||event.event_type!==OP_EVENT||!event.field_id)throw new Error("A művelet nem található.");await assertFieldAccess(supabase,user.id,profile?.role,event.field_id);if(profile?.role!=="advisor"&&event.created_by!==user.id)throw new Error("Csak a saját bejegyzésed törölheted.");const{error}=await supabase.from("timeline_events").delete().eq("id",safe).eq("event_type",OP_EVENT);if(error)throw new Error(error.message);revalidateOperationPaths(event.field_id);return{ok:true}}
+function revalidateOperationPaths(fieldId:string){revalidatePath("/operations");revalidatePath("/admin/operations");revalidatePath("/timeline");revalidatePath("/admin/timeline");revalidatePath(`/fields/${fieldId}`);revalidatePath("/dashboard");revalidatePath("/admin")}
