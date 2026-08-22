@@ -7,6 +7,8 @@ const items=[
   {href:"/admin/reports",key:"reports",label:"Bejelentések"},
   {href:"/admin/inspections",key:"inspections",label:"Szemlék"},
   {href:"/admin/tasks",key:"tasks",label:"Teendők"},
+  {href:"/admin/documents",key:"documents",label:"Dokumentumok"},
+  {href:"/admin/timeline",key:"timeline",label:"Idővonal"},
   {href:"/notifications",key:"notifications",label:"Értesítések"},
 ];
 
