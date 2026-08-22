@@ -13,6 +13,7 @@ const items=[
   ["/tasks","tasks","☑","Teendők"],
   ["/team","team","♙","Munkatársak"],
   ["/dispatch","dispatch","↗","Munkakiosztás"],
+  ["/machines","machines","⚙","Géppark"],
   ["/timeline","timeline","☼","Idővonal"],
   ["/documents","documents","□","Dokumentumok"],
   ["/invoices","invoices","▤","Számlák"],
