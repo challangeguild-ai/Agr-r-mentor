@@ -1,0 +1,4 @@
+export const machineTypes=[['tractor','Traktor'],['combine','Kombájn'],['sprayer','Permetező'],['implement','Munkagép'],['loader','Rakodó'],['other','Egyéb']] as const;
+export type MachineType=typeof machineTypes[number][0];
+export function machineTypeLabel(v:string|null|undefined){return machineTypes.find(([k])=>k===v)?.[1]||'Gép'}
+export function serviceStatus(current:number|null|undefined,next:number|null|undefined){if(current==null||next==null)return{label:'Nincs szervizciklus',tone:'neutral'};const left=Number(next)-Number(current);if(left<=0)return{label:`Szerviz esedékes (${Math.abs(left).toLocaleString('hu-HU')} üó túlfutás)`,tone:'critical'};if(left<=20)return{label:`Szerviz ${left.toLocaleString('hu-HU')} üó múlva`,tone:'attention'};return{label:`Következő szerviz: ${next.toLocaleString('hu-HU')} üó`,tone:'good'}}
