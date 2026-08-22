@@ -7,6 +7,7 @@ const protectedPrefixes = [
   "/farms",
   "/fields",
   "/map",
+  "/operations",
   "/tasks",
   "/timeline",
   "/documents",
