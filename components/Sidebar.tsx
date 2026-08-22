@@ -8,6 +8,7 @@ const items=[
   ["/dashboard","dashboard","⌂","Áttekintés"],
   ["/farms","farms","▥","Gazdaságom"],
   ["/fields","fields","◩","Táblák"],
+  ["/map","map","⌖","Térkép"],
   ["/tasks","tasks","☑","Teendők"],
   ["/timeline","timeline","☼","Idővonal"],
   ["/documents","documents","□","Dokumentumok"],
