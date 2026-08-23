@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {AdminNav} from "@/components/AdminNav";
@@ -16,7 +17,7 @@ export default async function AdminDocumentsPage(){
   ]);
   const docs=documents??[];const invoices=docs.filter(d=>d.category==="szamla").length;const soil=docs.filter(d=>d.category==="talajvizsgalat").length;const totalSize=docs.reduce((s,d)=>s+Number(d.file_size||0),0);
   return <main className={`admin-shell ${styles.page}`}>
-    <header className="admin-header"><div><span className="eyebrow">SZAKTANÁCSADÓI IRATTÁR</span><h1>Dokumentumok</h1><p>Ügyfelekhez, gazdaságokhoz és földtáblákhoz tartozó iratok egy központi helyen.</p></div></header>
+    <header className="admin-header"><div><span className="eyebrow">SZAKTANÁCSADÓI IRATTÁR</span><h1>Dokumentumok</h1><p>Ügyfelekhez, gazdaságokhoz és földtáblákhoz tartozó iratok egy központi helyen.</p></div><Link href="/admin/backup" className="btn btn-secondary">Biztonsági mentés</Link></header>
     <AdminNav active="documents"/>
     <section className="admin-overview-grid"><article className="admin-overview-card"><span>Összes dokumentum</span><strong>{docs.length}</strong><small>Központi irattár</small></article><article className="admin-overview-card"><span>Számlák</span><strong>{invoices}</strong><small>Pénzügyi dokumentum</small></article><article className="admin-overview-card"><span>Talajvizsgálatok</span><strong>{soil}</strong><small>Szakmai dokumentum</small></article><article className="admin-overview-card"><span>Tárhely</span><strong>{(totalSize/1048576).toLocaleString("hu-HU",{maximumFractionDigits:1})}</strong><small>MB feltöltött fájl</small></article></section>
     <section className={styles.card}><span className="eyebrow">ÚJ DOKUMENTUM FELTÖLTÉSE</span><DocumentUploadForm farms={farms??[]} fields={fields??[]}/></section>
