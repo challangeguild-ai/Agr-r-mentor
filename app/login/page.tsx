@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function safeNext(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
   return value;
 }
 
@@ -23,17 +23,24 @@ export default function LoginPage() {
     setError("");
     setMessage("");
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      setLoading(false);
       setError(`Sikertelen belépés: ${error.message}`);
       return;
     }
 
-    const next = new URLSearchParams(window.location.search).get("next");
-    router.push(safeNext(next));
-    router.refresh();
+    const requestedNext = safeNext(new URLSearchParams(window.location.search).get("next"));
+    let target = requestedNext;
+
+    if (!target && data.user) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+      target = profile?.role === "advisor" ? "/admin" : "/dashboard";
+    }
+
+    setLoading(false);
+    window.location.assign(target || "/dashboard");
   }
 
   async function handleRecovery() {
@@ -70,7 +77,7 @@ export default function LoginPage() {
         <label>Jelszó<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
         {error && <div className="error-box">{error}</div>}
         {message && <div className="success-box">{message}</div>}
-        <button className="btn btn-primary full" disabled={loading}>{loading ? "Folyamatban…" : "Belépés"}</button>
+        <button className="btn btn-primary full" disabled={loading}>{loading ? "Belépés…" : "Belépés"}</button>
         <button type="button" className="btn full" onClick={handleRecovery} disabled={loading}>Elfelejtett jelszó</button>
       </form>
     </main>
