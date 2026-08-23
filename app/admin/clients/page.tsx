@@ -2,6 +2,7 @@ import Link from "next/link";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {AdminNav} from "@/components/AdminNav";
+import {AdminDeleteButton} from "@/components/AdminDeleteButton";
 import {inviteFarmer,createFarm,createField} from "../actions";
 import styles from "./clients.module.css";
 
@@ -45,7 +46,10 @@ export default async function ClientsPage(){
    {clientRows.length?<div className="advisor-client-list">{clientRows.map(r=>{const state=r.critical?"🔴 Kritikus":r.attention||r.overdue||r.dueChecks?"🟡 Figyelmet igényel":"🟢 Rendben";return <article className="advisor-client-card" key={r.farmer.id}>
     <span className="advisor-client-avatar">{(r.farmer.full_name||"G").slice(0,2).toUpperCase()}</span>
     <div style={{minWidth:0}}><strong>{r.farmer.full_name||"Névtelen ügyfél"}</strong><small>{r.farmer.phone||"Nincs telefonszám"}</small><small>{r.ownFarms.length} gazdaság · {r.ownFields.length} tábla · {r.area.toLocaleString("hu-HU",{maximumFractionDigits:1})} ha</small>
-     <div style={{display:"grid",gap:6,marginTop:10}}>{r.ownFarms.length?r.ownFarms.map(f=><div key={f.id} style={{padding:"8px 10px",border:"1px solid #e2e8e2",borderRadius:8,background:"#f8faf8"}}><strong style={{display:"block",fontSize:13}}>{f.name}</strong><small style={{display:"block"}}>{f.settlement||"Nincs település"}{f.address?` · ${f.address}`:""}</small></div>):<small style={{marginTop:8}}>Ehhez az ügyfélhez még nincs gazdaság rögzítve.</small>}</div>
+     <div style={{display:"grid",gap:8,marginTop:10}}>{r.ownFarms.length?r.ownFarms.map(f=>{const farmFields=r.ownFields.filter(field=>field.farm_id===f.id);return <div key={f.id} style={{padding:"10px",border:"1px solid #e2e8e2",borderRadius:8,background:"#f8faf8"}}>
+      <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap"}}><div><strong style={{display:"block",fontSize:13}}>{f.name}</strong><small style={{display:"block"}}>{f.settlement||"Nincs település"}{f.address?` · ${f.address}`:""}</small></div><AdminDeleteButton type="farm" id={f.id} name={f.name}/></div>
+      {farmFields.length?<div style={{display:"grid",gap:5,marginTop:8}}>{farmFields.map(field=><div key={field.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"6px 8px",background:"#fff",borderRadius:7,border:"1px solid #e7ece7"}}><Link href={`/fields/${field.id}`} style={{minWidth:0}}><strong style={{display:"block",fontSize:12}}>{field.name}</strong><small>{field.area_ha?`${field.area_ha} ha · `:""}{field.current_crop||"Nincs kultúra"}</small></Link><AdminDeleteButton type="field" id={field.id} name={field.name}/></div>)}</div>:<small style={{display:"block",marginTop:8}}>Nincs földtábla ebben a gazdaságban.</small>}
+     </div>}):<small style={{marginTop:8}}>Ehhez az ügyfélhez még nincs gazdaság rögzítve.</small>}</div>
     </div>
     <div className="advisor-client-stats"><span>{state}</span><span>{r.critical} kritikus · {r.attention} figyelmeztetés · {r.dueChecks} visszaellenőrzés</span><span>{r.openTasks} feladat ({r.overdue} lejárt) · {r.openReports} jelzés</span><span>Utolsó szemle: {dateLabel(r.last?.inspected_at)}</span></div>
     <Link href={`/admin/clients/${r.farmer.id}`} className="ghost-btn">Dosszié megnyitása →</Link>
