@@ -41,8 +41,8 @@ export function pointInBoundary(lat:number,lng:number,boundary:any){
 }
 
 function flattenBoundary(boundary:any):Array<[number,number]>{
- if(boundary?.type==="Polygon")return (boundary.coordinates?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
- if(boundary?.type==="MultiPolygon")return (boundary.coordinates||[]).flatMap((poly:any)=>(poly?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number])).filter((p:any)=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+ if(boundary?.type==="Polygon")return (boundary.coordinates?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number]).filter((p:[number,number])=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+ if(boundary?.type==="MultiPolygon")return (boundary.coordinates||[]).flatMap((poly:any)=>(poly?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number])).filter((p:[number,number])=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
  return [];
 }
 export function nearestBoundaryDistance(lat:number,lng:number,boundary:any){
