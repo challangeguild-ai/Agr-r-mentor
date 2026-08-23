@@ -13,7 +13,7 @@ export default async function ClientsPage(){
  const{data:me}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor")redirect("/dashboard");
  const[{data:farmers},{data:farms},{data:fields},{data:inspections},{data:tasks},{data:reports}]=await Promise.all([
   supabase.from("profiles").select("id,full_name,phone").eq("role","farmer").order("full_name"),
-  supabase.from("farms").select("id,name,settlement,owner_id").order("name"),
+  supabase.from("farms").select("id,name,settlement,address,owner_id").order("name"),
   supabase.from("fields").select("id,name,farm_id,area_ha,current_crop").order("name"),
   supabase.from("inspections").select("field_id,condition,inspected_at,next_check_at,issue_status").order("inspected_at",{ascending:false}),
   supabase.from("tasks").select("farm_id,field_id,status,due_date").neq("status","done"),
@@ -41,13 +41,15 @@ export default async function ClientsPage(){
    <article className="admin-overview-card"><span>Kezelt terület</span><strong>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:1})}</strong><small>hektár összesen</small></article>
   </section>
   <section className="panel">
-   <div className="panel-heading"><div><span className="eyebrow">ÜGYFÉLLISTA</span><h2>Gazdálkodók és aktuális szakmai állapot</h2></div><Link className="ghost-btn" href="/admin/priorities">Mai prioritások →</Link></div>
-   {clientRows.length?<div className="advisor-client-list">{clientRows.map(r=>{const state=r.critical?"🔴 Kritikus":r.attention||r.overdue||r.dueChecks?"🟡 Figyelmet igényel":"🟢 Rendben";return <Link href={`/admin/clients/${r.farmer.id}`} className="advisor-client-card" key={r.farmer.id}>
+   <div className="panel-heading"><div><span className="eyebrow">ÜGYFÉLLISTA</span><h2>Gazdálkodók, gazdaságok és aktuális szakmai állapot</h2></div><Link className="ghost-btn" href="/admin/priorities">Mai prioritások →</Link></div>
+   {clientRows.length?<div className="advisor-client-list">{clientRows.map(r=>{const state=r.critical?"🔴 Kritikus":r.attention||r.overdue||r.dueChecks?"🟡 Figyelmet igényel":"🟢 Rendben";return <article className="advisor-client-card" key={r.farmer.id}>
     <span className="advisor-client-avatar">{(r.farmer.full_name||"G").slice(0,2).toUpperCase()}</span>
-    <div><strong>{r.farmer.full_name||"Névtelen ügyfél"}</strong><small>{r.farmer.phone||"Nincs telefonszám"}</small><small>{r.ownFarms.length} gazdaság · {r.ownFields.length} tábla · {r.area.toLocaleString("hu-HU",{maximumFractionDigits:1})} ha</small></div>
+    <div style={{minWidth:0}}><strong>{r.farmer.full_name||"Névtelen ügyfél"}</strong><small>{r.farmer.phone||"Nincs telefonszám"}</small><small>{r.ownFarms.length} gazdaság · {r.ownFields.length} tábla · {r.area.toLocaleString("hu-HU",{maximumFractionDigits:1})} ha</small>
+     <div style={{display:"grid",gap:6,marginTop:10}}>{r.ownFarms.length?r.ownFarms.map(f=><div key={f.id} style={{padding:"8px 10px",border:"1px solid #e2e8e2",borderRadius:8,background:"#f8faf8"}}><strong style={{display:"block",fontSize:13}}>{f.name}</strong><small style={{display:"block"}}>{f.settlement||"Nincs település"}{f.address?` · ${f.address}`:""}</small></div>):<small style={{marginTop:8}}>Ehhez az ügyfélhez még nincs gazdaság rögzítve.</small>}</div>
+    </div>
     <div className="advisor-client-stats"><span>{state}</span><span>{r.critical} kritikus · {r.attention} figyelmeztetés · {r.dueChecks} visszaellenőrzés</span><span>{r.openTasks} feladat ({r.overdue} lejárt) · {r.openReports} jelzés</span><span>Utolsó szemle: {dateLabel(r.last?.inspected_at)}</span></div>
-    <b>Dosszié megnyitása →</b>
-   </Link>})}</div>:<div className="empty-state">Még nincs ügyfél.</div>}
+    <Link href={`/admin/clients/${r.farmer.id}`} className="ghost-btn">Dosszié megnyitása →</Link>
+   </article>})}</div>:<div className="empty-state">Még nincs ügyfél.</div>}
   </section>
   <details className="panel" style={{marginTop:14}}><summary style={{cursor:"pointer",padding:18,fontWeight:800}}>＋ Ügyfél, gazdaság vagy földtábla felvétele</summary><div style={{padding:"0 18px 18px"}}><div className="admin-grid">
    <article><span className="eyebrow">ÚJ ÜGYFÉL</span><h2>Gazdálkodó meghívása</h2><form action={inviteFarmer} className="admin-form"><label>Gazdálkodó neve<input name="full_name" required/></label><label>E-mail cím<input name="email" type="email" required/></label><button className="btn btn-primary">Meghívó küldése</button></form></article>
