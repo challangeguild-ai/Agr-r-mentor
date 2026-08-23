@@ -1,22 +1,13 @@
 import Link from "next/link";
 
 const items=[
-  {href:"/admin",key:"overview",label:"Áttekintés"},
-  {href:"/admin/portfolio",key:"portfolio",label:"Ügyfélportfólió"},
-  {href:"/admin/visits",key:"visits",label:"Látogatások"},
-  {href:"/admin/priorities",key:"priorities",label:"Mai prioritások"},
-  {href:"/admin/supervision",key:"supervision",label:"Szemlézési szezonok"},
+  {href:"/admin",key:"overview",label:"Kezdőlap"},
   {href:"/admin/clients",key:"clients",label:"Ügyfelek"},
-  {href:"/admin/team",key:"team",label:"Munkatársak"},
-  {href:"/admin/machines",key:"machines",label:"Géppark"},
   {href:"/admin/map",key:"map",label:"Térkép"},
-  {href:"/admin/operations",key:"operations",label:"Műveleti napló"},
-  {href:"/admin/reports",key:"reports",label:"Bejelentések"},
   {href:"/admin/inspections",key:"inspections",label:"Szemlék"},
-  {href:"/admin/tasks",key:"tasks",label:"Teendők"},
+  {href:"/admin/tasks",key:"tasks",label:"Feladatok"},
+  {href:"/admin/visits",key:"visits",label:"Látogatások"},
   {href:"/admin/documents",key:"documents",label:"Dokumentumok"},
-  {href:"/admin/timeline",key:"timeline",label:"Idővonal"},
-  {href:"/notifications",key:"notifications",label:"Értesítések"},
 ];
 
 export function AdminNav({active="overview"}:{active?:string}){
