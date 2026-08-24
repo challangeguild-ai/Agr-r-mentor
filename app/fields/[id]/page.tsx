@@ -12,8 +12,9 @@ function formatDate(v:string|null|undefined){return v?new Date(v).toLocaleDateSt
 function conditionLabel(v:string|null|undefined){if(v==="good")return"Jó állapot";if(v==="attention")return"Figyelmet igényel";if(v==="critical")return"Kritikus";return"Nincs szemle"}
 function followLabel(v:string|null|undefined){if(v==="improved")return"↑ Javult";if(v==="unchanged")return"→ Változatlan";if(v==="worsened")return"↓ Romlott";return null}
 function issueLabel(v:string|null|undefined){if(v==="resolved")return"Lezárt";if(v==="monitoring")return"Megfigyelés alatt";return"Nyitott"}
-function eventTypeLabel(v:string|null|undefined){const m:Record<string,string>={inspection:"Szemle",inspection_followup:"Visszaellenőrzés",task:"Teendő",task_completed:"Teendő elvégezve",farmer_report:"Gazdálkodói bejelentés",advisor_reply:"Szaktanácsadói válasz",report_closed:"Bejelentés lezárva",field_operation:"Gazdálkodási művelet"};return m[v||""]||"Napló"}
+function eventTypeLabel(v:string|null|undefined){const m:Record<string,string>={inspection:"Szemle",inspection_followup:"Visszaellenőrzés",task:"Teendő",task_completed:"Teendő elvégezve",farmer_report:"Gazdálkodói bejelentés",advisor_reply:"Szaktanácsadói válasz",report_closed:"Bejelentés lezárva",field_operation:"Gazdálkodási művelet",field_hotspot:"GPS problémagóc"};return m[v||""]||"Napló"}
 function reportStatus(v:string){if(v==="reviewed")return"Megválaszolva";if(v==="closed")return"Lezárva";return"Új"}
+function hotspotFromEvent(e:any){if(e?.event_type!=="field_hotspot")return null;const m=String(e.description||"").match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);if(!m)return null;const text=String(e.description||"").toLowerCase();return{lat:Number(m[1]),lng:Number(m[2]),title:e.title||"GPS problémagóc",description:e.description||null,severity:(text.includes("kritikus")?"critical":text.includes("figyel")?"attention":"good") as "critical"|"attention"|"good"}}
 
 export default async function FieldDetailPage({params}:{params:Promise<{id:string}>}){
   const{id}=await params;
@@ -47,6 +48,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   const latestInspection=(inspections??[])[0];
   const openReports=(reports??[]).filter(r=>r.status!=="closed");
   const operations=(timeline??[]).filter(x=>x.event_type==="field_operation");
+  const hotspots=(timeline??[]).map(hotspotFromEvent).filter(Boolean) as {lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"}[];
   const events=[
     ...(tasks??[]).map(x=>({id:`t-${x.id}`,type:"Teendő",title:x.title,description:x.description||"Kiadott feladat.",date:x.created_at})),
     ...(timeline??[]).map(x=>({id:`e-${x.id}`,type:eventTypeLabel(x.event_type),title:x.title,description:x.description||"",date:x.event_at||x.created_at})),
@@ -58,51 +60,15 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   return <div className="app-shell farmer-app">
     <Sidebar userName={profile?.full_name||"Gazdálkodó"}/>
     <main className="dashboard">
-      <header className="field-detail-header">
-        <div>
-          <Link href={profile?.role==="advisor"?"/admin":"/dashboard"} className="back-link">← Vissza az áttekintéshez</Link>
-          <span className="eyebrow">FÖLDTÁBLA ADATLAP</span>
-          <h1>{field.name}</h1>
-          <p>{farm?.name||"Gazdaság"}{farm?.settlement?` · ${farm.settlement}`:""}</p>
-        </div>
-        <div className="topbar-actions">
-          {profile?.role==="advisor"&&<>
-            <Link className="btn btn-primary" href={`/admin/inspections?field=${field.id}`}>Új szemle</Link>
-            <Link className="btn btn-secondary" href={`/admin/tasks?farm=${field.farm_id}&field=${field.id}`}>Új teendő</Link>
-            <Link className="btn btn-secondary" href={`/admin/map?field=${field.id}`}>Térkép szerkesztése</Link>
-          </>}
-          <Link className="btn btn-secondary" href={operationHref}>Művelet rögzítése</Link>
-          <span className="user-pill">{conditionLabel(latestInspection?.condition)}</span>
-        </div>
-      </header>
+      <header className="field-detail-header"><div><Link href={profile?.role==="advisor"?"/admin":"/dashboard"} className="back-link">← Vissza az áttekintéshez</Link><span className="eyebrow">FÖLDTÁBLA ADATLAP</span><h1>{field.name}</h1><p>{farm?.name||"Gazdaság"}{farm?.settlement?` · ${farm.settlement}`:""}</p></div><div className="topbar-actions">{profile?.role==="advisor"&&<><Link className="btn btn-primary" href={`/admin/inspections?field=${field.id}`}>Új szemle</Link><Link className="btn btn-secondary" href={`/admin/tasks?farm=${field.farm_id}&field=${field.id}`}>Új teendő</Link><Link className="btn btn-secondary" href={`/admin/map?field=${field.id}`}>Térkép szerkesztése</Link></>}<Link className="btn btn-secondary" href={operationHref}>Művelet rögzítése</Link><span className="user-pill">{conditionLabel(latestInspection?.condition)}</span></div></header>
 
-      <section className="field-detail-stats">
-        <article className="stat-card"><span>Terület</span><strong>{field.area_ha?`${field.area_ha} ha`:"—"}</strong><small>{field.crop_year?`${field.crop_year}. gazdasági év`:""}</small></article>
-        <article className="stat-card"><span>Aktuális kultúra</span><strong className="field-stat-text">{field.current_crop||"—"}</strong><small>Vetés: {formatDate(field.sowing_date)}</small></article>
-        <article className="stat-card"><span>Utolsó szemle</span><strong className="field-stat-text">{formatDate(latestInspection?.inspected_at)}</strong><small>{conditionLabel(latestInspection?.condition)}</small></article>
-        <article className="stat-card"><span>Nyitott ügyek</span><strong>{openTasks.length+openReports.length}</strong><small>{openTasks.length} teendő · {openReports.length} bejelentés · {operations.length} művelet</small></article>
-      </section>
+      <section className="field-detail-stats"><article className="stat-card"><span>Terület</span><strong>{field.area_ha?`${field.area_ha} ha`:"—"}</strong><small>{field.crop_year?`${field.crop_year}. gazdasági év`:""}</small></article><article className="stat-card"><span>Aktuális kultúra</span><strong className="field-stat-text">{field.current_crop||"—"}</strong><small>Vetés: {formatDate(field.sowing_date)}</small></article><article className="stat-card"><span>Utolsó szemle</span><strong className="field-stat-text">{formatDate(latestInspection?.inspected_at)}</strong><small>{conditionLabel(latestInspection?.condition)}</small></article><article className="stat-card"><span>Nyitott ügyek</span><strong>{openTasks.length+openReports.length}</strong><small>{openTasks.length} teendő · {openReports.length} bejelentés · {operations.length} művelet</small></article></section>
 
-      <FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false}/>
+      <FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots}/>
 
       {profile?.role!=="advisor"&&<section className="panel farmer-report-panel"><span className="eyebrow">KAPCSOLAT A SZAKTANÁCSADÓVAL</span><h2>Bejelentés küldése</h2><FarmerReportForm fieldId={field.id}/></section>}
 
-      <section className="field-detail-grid">
-        <article className="panel">
-          <span className="eyebrow">SZAKTANÁCSADÁS</span><h2>Szemlék és javaslatok</h2>
-          {inspections?.length?<div className="inspection-list">{inspections.map(i=>{const follow=followLabel(i.follow_up_status);return <div className="inspection-card" key={i.id}>
-            <div className="inspection-head"><div><strong>{conditionLabel(i.condition)}</strong><small>{formatDate(i.inspected_at)}</small></div><span className="event-badge">{i.previous_inspection_id?"Visszaellenőrzés":"Szemle"}</span></div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",margin:"8px 0"}}>{follow&&<span className="user-pill">{follow}</span>}<span className="user-pill">{issueLabel(i.issue_status)}</span>{i.next_check_at&&<span className="user-pill">Következő: {formatDate(i.next_check_at)}</span>}</div>
-            {i.notes&&<p>{i.notes}</p>}{i.recommendation&&<div className="recommendation"><b>Szaktanácsadói javaslat</b><span>{i.recommendation}</span></div>}
-            <InspectionMedia items={(media??[]).filter((m:any)=>m.inspection_id===i.id) as any}/>
-          </div>})}</div>:<div className="empty-state">Ehhez a táblához még nincs rögzített szemle.</div>}
-        </article>
-
-        <article className="panel">
-          <span className="eyebrow">GAZDÁLKODÓI JELZÉSEK</span><h2>Bejelentések</h2>
-          {reports?.length?<div className="inspection-list">{reports.map(r=><div className="inspection-card" key={r.id}><div className="inspection-head"><div><strong>{r.title}</strong><small>{formatDate(r.created_at)}</small></div><span className="event-badge">{reportStatus(r.status)}</span></div>{r.message&&<p>{r.message}</p>}<FarmerReportMedia items={(reportMedia??[]).filter((m:any)=>m.report_id===r.id) as any}/>{r.advisor_reply&&<div className="recommendation"><b>Szaktanácsadói válasz · {formatDate(r.replied_at)}</b><span>{r.advisor_reply}</span></div>}</div>)}</div>:<div className="empty-state">Még nincs gazdálkodói bejelentés.</div>}
-        </article>
-      </section>
+      <section className="field-detail-grid"><article className="panel"><span className="eyebrow">SZAKTANÁCSADÁS</span><h2>Szemlék és javaslatok</h2>{inspections?.length?<div className="inspection-list">{inspections.map(i=>{const follow=followLabel(i.follow_up_status);return <div className="inspection-card" key={i.id}><div className="inspection-head"><div><strong>{conditionLabel(i.condition)}</strong><small>{formatDate(i.inspected_at)}</small></div><span className="event-badge">{i.previous_inspection_id?"Visszaellenőrzés":"Szemle"}</span></div><div style={{display:"flex",gap:8,flexWrap:"wrap",margin:"8px 0"}}>{follow&&<span className="user-pill">{follow}</span>}<span className="user-pill">{issueLabel(i.issue_status)}</span>{i.next_check_at&&<span className="user-pill">Következő: {formatDate(i.next_check_at)}</span>}</div>{i.notes&&<p>{i.notes}</p>}{i.recommendation&&<div className="recommendation"><b>Szaktanácsadói javaslat</b><span>{i.recommendation}</span></div>}<InspectionMedia items={(media??[]).filter((m:any)=>m.inspection_id===i.id) as any}/></div>})}</div>:<div className="empty-state">Ehhez a táblához még nincs rögzített szemle.</div>}</article><article className="panel"><span className="eyebrow">GAZDÁLKODÓI JELZÉSEK</span><h2>Bejelentések</h2>{reports?.length?<div className="inspection-list">{reports.map(r=><div className="inspection-card" key={r.id}><div className="inspection-head"><div><strong>{r.title}</strong><small>{formatDate(r.created_at)}</small></div><span className="event-badge">{reportStatus(r.status)}</span></div>{r.message&&<p>{r.message}</p>}<FarmerReportMedia items={(reportMedia??[]).filter((m:any)=>m.report_id===r.id) as any}/>{r.advisor_reply&&<div className="recommendation"><b>Szaktanácsadói válasz · {formatDate(r.replied_at)}</b><span>{r.advisor_reply}</span></div>}</div>)}</div>:<div className="empty-state">Még nincs gazdálkodói bejelentés.</div>}</article></section>
 
       <section className="panel"><div className="panel-heading"><div><span className="eyebrow">GAZDÁLKODÁSI NAPLÓ</span><h2>Táblaműveletek</h2></div><Link className="ghost-btn" href={operationHref}>Műveleti napló →</Link></div>{operations.length?<div className="task-list">{operations.slice(0,6).map(o=><div className="task-row" key={o.id}><span className="dot normal"/><div><strong>{o.title}</strong><small>{formatDate(o.event_at||o.created_at)}{o.description?` · ${o.description}`:""}</small></div><span className="task-status">Napló</span></div>)}</div>:<div className="empty-state">Ehhez a táblához még nincs rögzített gazdálkodási művelet.</div>}</section>
 
