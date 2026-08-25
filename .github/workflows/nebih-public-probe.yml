@@ -1,0 +1,16 @@
+name: Temporary Nébih public probe
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for production deployment
+        run: sleep 45
+      - name: Fetch Agrár Mentor Nébih diagnostic
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 \
+            https://agr-r-mentor.vercel.app/api/nebih-public-meta | python -m json.tool
