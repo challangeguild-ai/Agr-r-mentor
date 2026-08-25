@@ -8,6 +8,7 @@ const primary=[
   ["/dashboard","dashboard","⌂","Áttekintés"],
   ["/fields","fields","◩","Táblák"],
   ["/operations","operations","✣","Műveleti napló"],
+  ["/operations/approvals","approvals","✓","Jóváhagyások"],
   ["/tasks","tasks","☑","Teendők"],
   ["/messages","messages","✉","Üzenetek"],
   ["/documents","documents","□","Dokumentumok"],

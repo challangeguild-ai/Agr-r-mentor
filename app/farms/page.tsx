@@ -1,65 +1,25 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/Sidebar";
+import {redirect} from "next/navigation";
+import {createClient} from "@/lib/supabase/server";
+import {Sidebar} from "@/components/Sidebar";
+import {savePlantProtectionApprover,deactivatePlantProtectionApprover} from "./plant-protection-actions";
 
-export default async function FarmsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase.from("profiles").select("role,full_name").eq("id", user.id).maybeSingle();
-  if(profile?.role==="advisor") redirect("/admin/clients");
-  const { data: farms, error } = await supabase.from("farms").select("id,name,settlement,address,owner_id,created_at").eq("owner_id",user.id).order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-
-  const farmIds = (farms ?? []).map(farm => farm.id);
-  const { data: fields } = farmIds.length
-    ? await supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,status").in("farm_id", farmIds).order("created_at", { ascending: true })
-    : { data: [] };
-  const { data: tasks } = farmIds.length
-    ? await supabase.from("tasks").select("id,farm_id,status").in("farm_id", farmIds).eq("assigned_to",user.id)
-    : { data: [] };
-
-  const totalArea = (fields ?? []).reduce((sum, field) => sum + (Number(field.area_ha) || 0), 0);
-  const openTasks = (tasks ?? []).filter(task => task.status !== "done").length;
-
-  return <div className="app-shell farmer-app">
-    <Sidebar active="farms" userName={profile?.full_name||"Gazdálkodó"}/>
-    <main className="dashboard">
-      <header className="topbar">
-        <div><span className="eyebrow">GAZDASÁGI ÁTTEKINTÉS</span><h1>Gazdaságom</h1><p>A gazdaságok és a hozzájuk tartozó földterületek összefoglalója.</p></div>
-      </header>
-
-      <section className="stats-grid">
-        <article className="stat-card"><span>Gazdaságok</span><strong>{farms?.length ?? 0}</strong><small>Nyilvántartott gazdaság</small></article>
-        <article className="stat-card"><span>Földtáblák</span><strong>{fields?.length ?? 0}</strong><small>Összes földtábla</small></article>
-        <article className="stat-card"><span>Összterület</span><strong>{totalArea.toLocaleString("hu-HU", { maximumFractionDigits: 2 })} ha</strong><small>Nyilvántartott terület</small></article>
-        <article className="stat-card"><span>Nyitott teendők</span><strong>{openTasks}</strong><small>Elvégzésre vár</small></article>
-      </section>
-
-      <section className="dashboard-grid lower">
-        <article className="panel">
-          <div className="panel-heading"><div><span className="eyebrow">GAZDASÁGOK</span><h2>Gazdasági adatok</h2></div></div>
-          {farms?.length ? <div className="inspection-list">{farms.map(farm => {
-            const farmFields = (fields ?? []).filter(field => field.farm_id === farm.id);
-            const area = farmFields.reduce((sum, field) => sum + (Number(field.area_ha) || 0), 0);
-            return <article className="inspection-card" key={farm.id}>
-              <div className="inspection-head"><div><strong>{farm.name}</strong><small>{farm.settlement || "Település nincs megadva"}</small></div><span className="field-total">{farmFields.length} tábla</span></div>
-              {farm.address && <p>{farm.address}</p>}
-              <div className="field-meta"><span><b>{area.toLocaleString("hu-HU", { maximumFractionDigits: 2 })} ha</b><small>Terület</small></span><span><b>{farmFields.length}</b><small>Táblák</small></span><span><b>{(tasks ?? []).filter(task => task.farm_id === farm.id && task.status !== "done").length}</b><small>Nyitott teendő</small></span></div>
-            </article>;
-          })}</div> : <div className="empty-state">Még nincs gazdaság rögzítve.</div>}
-        </article>
-
-        <article className="panel">
-          <div className="panel-heading"><div><span className="eyebrow">GYORS ELÉRÉS</span><h2>Földtáblák</h2></div><Link className="ghost-btn" href="/fields">Összes tábla</Link></div>
-          {fields?.length ? <div className="field-overview-grid">{fields.slice(0, 6).map(field => <Link className="field-card field-card-link" href={`/fields/${field.id}`} key={field.id}>
-            <div className="field-card-top"><span className="field-icon">{field.name.slice(0,1).toUpperCase()}</span><div><strong>{field.name}</strong><small>{field.current_crop || "Nincs kultúra megadva"}</small></div><span className="field-arrow">→</span></div>
-            <div className="field-meta"><span><b>{field.area_ha ? `${field.area_ha} ha` : "—"}</b><small>Terület</small></span><span><b>{field.crop_year || new Date().getFullYear()}</b><small>Év</small></span></div>
-          </Link>)}</div> : <div className="empty-state">Még nincs földtábla rögzítve.</div>}
-        </article>
-      </section>
-    </main>
-  </div>;
+export default async function FarmsPage(){
+ const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();if(profile?.role==="advisor")redirect("/admin/clients");
+ const{data:farms,error}=await supabase.from("farms").select("id,name,settlement,address,owner_id,created_at").eq("owner_id",user.id).order("created_at",{ascending:true});if(error)throw new Error(error.message);const farmIds=(farms??[]).map(f=>f.id);
+ const[{data:fields},{data:tasks},{data:members},{data:authorizations}]=farmIds.length?await Promise.all([
+  supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,status").in("farm_id",farmIds).order("created_at",{ascending:true}),
+  supabase.from("tasks").select("id,farm_id,status").in("farm_id",farmIds).eq("assigned_to",user.id),
+  supabase.from("farm_members").select("farm_id,user_id,member_role,active").in("farm_id",farmIds).eq("active",true),
+  supabase.from("farm_plant_protection_approvers").select("id,farm_id,user_id,authorization_level,permit_number,valid_until,active").in("farm_id",farmIds).eq("active",true),
+ ]):[{data:[]},{data:[]},{data:[]},{data:[]}];
+ const memberIds=Array.from(new Set([user.id,...(members??[]).map(m=>m.user_id)]));const{data:people}=memberIds.length?await supabase.from("profiles").select("id,full_name,role").in("id",memberIds):{data:[]};const peopleMap=new Map((people??[]).map(p=>[p.id,p]));
+ const totalArea=(fields??[]).reduce((sum,field)=>sum+(Number(field.area_ha)||0),0),openTasks=(tasks??[]).filter(task=>task.status!=="done").length;
+ return <div className="app-shell farmer-app"><Sidebar active="farms" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard"><header className="topbar"><div><span className="eyebrow">GAZDASÁGI ÁTTEKINTÉS</span><h1>Gazdaságom</h1><p>A gazdaságok, földterületek és a gazdaság saját növényvédelmi jogosultságai.</p></div></header>
+ <section className="stats-grid"><article className="stat-card"><span>Gazdaságok</span><strong>{farms?.length??0}</strong><small>Nyilvántartott gazdaság</small></article><article className="stat-card"><span>Földtáblák</span><strong>{fields?.length??0}</strong><small>Összes földtábla</small></article><article className="stat-card"><span>Összterület</span><strong>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:2})} ha</strong><small>Nyilvántartott terület</small></article><article className="stat-card"><span>Nyitott teendők</span><strong>{openTasks}</strong><small>Elvégzésre vár</small></article></section>
+ <section className="dashboard-grid lower"><article className="panel"><div className="panel-heading"><div><span className="eyebrow">GAZDASÁGOK</span><h2>Gazdasági adatok</h2></div></div>{farms?.length?<div className="inspection-list">{farms.map(farm=>{const farmFields=(fields??[]).filter(field=>field.farm_id===farm.id),area=farmFields.reduce((sum,field)=>sum+(Number(field.area_ha)||0),0);return <article className="inspection-card" key={farm.id}><div className="inspection-head"><div><strong>{farm.name}</strong><small>{farm.settlement||"Település nincs megadva"}</small></div><span className="field-total">{farmFields.length} tábla</span></div>{farm.address&&<p>{farm.address}</p>}<div className="field-meta"><span><b>{area.toLocaleString("hu-HU",{maximumFractionDigits:2})} ha</b><small>Terület</small></span><span><b>{farmFields.length}</b><small>Táblák</small></span><span><b>{(tasks??[]).filter(task=>task.farm_id===farm.id&&task.status!=="done").length}</b><small>Nyitott teendő</small></span></div></article>})}</div>:<div className="empty-state">Még nincs gazdaság rögzítve.</div>}</article>
+ <article className="panel"><div className="panel-heading"><div><span className="eyebrow">GYORS ELÉRÉS</span><h2>Földtáblák</h2></div><Link className="ghost-btn" href="/fields">Összes tábla</Link></div>{fields?.length?<div className="field-overview-grid">{fields.slice(0,6).map(field=><Link className="field-card field-card-link" href={`/fields/${field.id}`} key={field.id}><div className="field-card-top"><span className="field-icon">{field.name.slice(0,1).toUpperCase()}</span><div><strong>{field.name}</strong><small>{field.current_crop||"Nincs kultúra megadva"}</small></div><span className="field-arrow">→</span></div><div className="field-meta"><span><b>{field.area_ha?`${field.area_ha} ha`:"—"}</b><small>Terület</small></span><span><b>{field.crop_year||new Date().getFullYear()}</b><small>Év</small></span></div></Link>)}</div>:<div className="empty-state">Még nincs földtábla rögzítve.</div>}</article></section>
+ <section className="panel"><div className="panel-heading"><div><span className="eyebrow">NÖVÉNYVÉDELMI FELELŐSSÉG</span><h2>Gazdasági jogosult személyek</h2><p>Az itt kijelölt személyek a gazdaság oldalán hagyhatják jóvá a jogosultsághoz kötött növényvédelmi műveleteket. A szaktanácsadó nem része ennek a jóváhagyási láncnak.</p></div></div>{(farms??[]).map(farm=>{const farmMemberIds=(members??[]).filter(m=>m.farm_id===farm.id).map(m=>m.user_id),candidateIds=Array.from(new Set([farm.owner_id,...farmMemberIds])),candidates=candidateIds.map(id=>peopleMap.get(id)).filter((p):p is NonNullable<typeof p>=>!!p&&p.role!=="advisor"),active=(authorizations??[]).filter(a=>a.farm_id===farm.id);return <article key={farm.id} style={{padding:"16px 0",borderTop:"1px solid #e8eee8"}}><h3 style={{marginTop:0}}>{farm.name}</h3>{active.length?<div className="inspection-list">{active.map(a=>{const person=peopleMap.get(a.user_id);return <div className="inspection-card" key={a.id}><div className="inspection-head"><div><strong>{person?.full_name||"Gazdasági jogosult"}</strong><small>{a.authorization_level}. kategóriás jogosultság · {a.permit_number||"engedélyszám nincs"}</small></div><span className="field-total">{a.valid_until?`Érvényes: ${a.valid_until}`:"Nincs lejárat"}</span></div><form action={deactivatePlantProtectionApprover}><input type="hidden" name="id" value={a.id}/><button className="ghost-btn" type="submit">Jogosultság deaktiválása</button></form></div>})}</div>:<div className="empty-state">Ehhez a gazdasághoz még nincs kijelölt növényvédelmi jóváhagyó.</div>}
+ <form action={savePlantProtectionApprover} className="admin-form" style={{marginTop:16}}><input type="hidden" name="farm_id" value={farm.id}/><label>Személy<select name="user_id" required><option value="">Válassz gazdasági személyt</option>{candidates.map(p=><option value={p.id} key={p.id}>{p.full_name||"Gazdasági felhasználó"}{p.id===farm.owner_id?" · tulajdonos":" · gazdasági tag"}</option>)}</select></label><label>Jogosultsági szint<select name="authorization_level" defaultValue="II" required><option value="II">II. kategória</option><option value="I">I. kategória</option></select></label><label>Engedély / igazolvány száma<input name="permit_number" required placeholder="pl. zöld könyv / hatósági engedély száma"/></label><label>Érvényes eddig<input name="valid_until" type="date" required/></label><button className="btn btn-primary" type="submit">Jogosult személy mentése</button></form><small>Ha a jóváhagyó még nem tagja a gazdaságnak, előbb a gazdasági felhasználók között kell meghívni. Szaktanácsadói fiók itt nem választható.</small></article>})}</section>
+ </main></div>;
 }
