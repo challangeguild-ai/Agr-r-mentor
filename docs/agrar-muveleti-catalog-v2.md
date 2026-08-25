@@ -20,20 +20,13 @@ Hivatalos katalógusadat esetén a folyamat:
 
 `ország → kultúra → engedélyezett készítmény → engedélyezett felhasználás/cél → dózis`
 
-Mentéskor a szerver újra ellenőrzi:
+Mentéskor a szerver újra ellenőrzi a készítmény országát és aktív állapotát, az engedély érvényességét a művelet dátumán, a kötelező felhasználás termékhez tartozását, a kultúrát/célt, a dózisegységet és dózistartományt, továbbá a hatóanyagokat a terméktörzsből tölti.
 
-- a készítmény országát és aktív állapotát,
-- az engedély érvényességét a művelet dátumán,
-- a kiválasztott felhasználás termékhez tartozását,
-- a kultúrát/célt a felhasználási rekordból,
-- a dózisegységet és az engedélyezett dózistartományt,
-- a hatóanyagokat a terméktörzsből.
-
-A HU forrás a Nébih növényvédőszer-adatbázis, az SK forrás az ÚKSÚP ISPOR/ORP. A források állapotát az `operation_catalog_sources` tábla kezeli. Amíg a hivatalos forrásadat importja nem `ready`, az alkalmazás egyértelműen jelzi ezt és kézi rögzítést enged, de azt nem jelöli hivatalos katalógusos adatnak.
+A HU forrás a Nébih növényvédőszer-adatbázis, az SK forrás az ÚKSÚP ISPOR/ORP. A források állapotát az `operation_catalog_sources` tábla kezeli. A hivatalos forrásadatok tényleges importja külső adat-hozzáférést igényel: a HU API integrációhoz szolgáltatói kapcsolat/jogosultság szükséges, az SK export külön importforrás. Amíg egy ország importja nem `ready`, az alkalmazás ezt egyértelműen jelzi és kézi rögzítést enged, de azt nem jelöli hivatalos katalógusos adatnak.
 
 ## Jogosultság és konzisztencia
 
-A `field_operations` RLS szabályai a szaktanácsadói hozzáférést és a gazdaság tulajdonosának saját műveleteit különítik el. A művelet törlése adatbázis-triggerrel automatikusan eltávolítja a hozzá kapcsolt idővonal-eseményt. A korábbi OPJSON és demo műveleti eseményekhez migrációk biztosítják a strukturált naplóval való kompatibilitást.
+A `field_operations` RLS szabályai a szaktanácsadói hozzáférést és a gazdaság tulajdonosának saját műveleteit különítik el. A művelet törlése adatbázis-triggerrel automatikusan eltávolítja a hozzá kapcsolt idővonal-eseményt. A korábbi OPJSON és szöveges demo műveleti eseményeket migrációk vezetik át a strukturált naplóba.
 
 ## Export
 
