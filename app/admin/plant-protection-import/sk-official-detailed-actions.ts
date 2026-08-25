@@ -47,11 +47,13 @@ const aliases: Record<string, string> = {
   pouzitie: "crop",
   "skodlivy organizmus alebo iny ucel pouzitia": "target",
   "skodlivy organizmus": "target",
+  "skodlivy cinitel": "target",
   "ucel pouzitia": "target",
   skodca: "target",
   davka: "dose_raw",
   "davka pripravku": "dose_raw",
   "maximalna davka": "dose_raw",
+  "max davka mj": "dose_raw",
   "minimalna davka": "dose_min",
   "jednotka davky": "dose_unit",
   "merna jednotka davky": "dose_unit",
@@ -75,6 +77,8 @@ const aliases: Record<string, string> = {
   "maximalny pocet aplikacii": "max_applications",
   "max pocet aplikacii": "max_applications",
   "pocet aplikacii": "max_applications",
+  "max pocet pouziti": "max_applications",
+  "max pocet pouziti / sezona": "max_applications_season",
   "interval medzi aplikaciami": "application_interval_days",
   "interval aplikacie": "application_interval_days",
   interval: "application_interval_days",
@@ -97,6 +101,12 @@ const aliases: Record<string, string> = {
   "ucinna latka": "ingredient",
   "nazov ucinnej latky": "ingredient",
   "chemicka latka": "ingredient",
+  "aktivna zlozka": "ingredient",
+  "ucinna latka / aktivna zlozka": "ingredient",
+  "max davka / sezona mj": "seasonal_dose_raw",
+  formulacia: "formulation",
+  "tank mix": "tank_mix",
+  "minoritne pouzitie": "minor_use",
 };
 
 const LIST_PAGES = [
@@ -136,6 +146,7 @@ function norm(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/&nbsp;|\u00a0/g, " ")
     .replace(/[._–—-]+/g, " ")
+    .replace(/\s*\/\s*/g, " / ")
     .replace(/\s+/g, " ");
 }
 
@@ -154,7 +165,10 @@ function headerKey(value: string) {
   if (!n) return "";
   if (aliases[n]) return aliases[n];
 
-  if ((n.includes("skodliv") && n.includes("organiz")) || n.includes("skodca")) {
+  if (
+    (n.includes("skodliv") && (n.includes("organiz") || n.includes("cinitel"))) ||
+    n.includes("skodca")
+  ) {
     return "target";
   }
   if (n.includes("iny") && n.includes("ucel") && n.includes("pouzitia")) {
@@ -166,6 +180,9 @@ function headerKey(value: string) {
   if (n.includes("plodin") || (n.includes("oblast") && n.includes("pouzitia"))) {
     return "crop";
   }
+  if ((n.includes("ucinna") && n.includes("latka")) || (n.includes("aktivna") && n.includes("zlozka"))) {
+    return "ingredient";
+  }
   if (n.includes("ochrann") && (n.includes("dob") || n.includes("lehot"))) {
     return "phi_raw";
   }
@@ -174,7 +191,14 @@ function headerKey(value: string) {
     if (n.includes("do") || n.includes("max")) return "bbch_max";
     return "bbch_range";
   }
-  if (n.includes("pocet") && n.includes("aplik")) return "max_applications";
+  if (n.includes("pocet") && (n.includes("aplik") || n.includes("pouziti"))) {
+    if (n.includes("sezona")) return "max_applications_season";
+    return "max_applications";
+  }
+  if (n.includes("max") && n.includes("davka")) {
+    if (n.includes("sezona")) return "seasonal_dose_raw";
+    return "dose_raw";
+  }
   if (n.includes("interval") && n.includes("aplik")) return "application_interval_days";
   if ((n.includes("mnozstvo") || n.includes("objem")) && n.includes("vod")) {
     if (n.includes("od") || n.includes("min")) return "water_volume_min";
@@ -247,6 +271,28 @@ function normalizeRow(original: Row) {
     const n = numbers(phi);
     if (n.length) row.phi_days = String(Math.trunc(n[0]));
     else row.restrictions = appendText(row.restrictions || "", `Ochranná doba: ${phi}`);
+  }
+
+  if (row.max_applications_season) {
+    row.restrictions = appendText(
+      row.restrictions || "",
+      `Max. počet použití / sezóna: ${row.max_applications_season}`,
+    );
+  }
+  if (row.seasonal_dose_raw) {
+    row.restrictions = appendText(
+      row.restrictions || "",
+      `Max. dávka / sezóna: ${row.seasonal_dose_raw}`,
+    );
+  }
+  if (row.formulation) {
+    row.restrictions = appendText(row.restrictions || "", `Formulácia: ${row.formulation}`);
+  }
+  if (row.tank_mix) {
+    row.restrictions = appendText(row.restrictions || "", `Tank-mix: ${row.tank_mix}`);
+  }
+  if (row.minor_use) {
+    row.restrictions = appendText(row.restrictions || "", `Minoritné použitie: ${row.minor_use}`);
   }
 
   for (const k of ["bbch_min", "bbch_max", "max_applications", "application_interval_days"]) {
