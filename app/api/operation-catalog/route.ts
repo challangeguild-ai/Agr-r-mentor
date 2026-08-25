@@ -36,10 +36,11 @@ export async function GET(request:NextRequest){
 
   if(type!=="spraying"&&type!=="plant_protection")return NextResponse.json({country,type,catalog:catalog??[],products:[],uses:[],approvers,source});
 
-  const today=new Date().toISOString().slice(0,10);
+  // A történeti/visszavont termékeket is visszaadjuk. Az alkalmazhatóságot a művelet dátumára
+  // a szerveroldali validáció dönti el; a katalógus nem tünteti el a régi készítményeket.
   const products:any[]=[];
   for(let from=0;;from+=PAGE){
-    const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,regulatory_category,professional_use_only,prescription_required,approval_required").eq("country_code",country).eq("active",true).or(`valid_until.is.null,valid_until.gte.${today}`).order("name").range(from,from+PAGE-1);
+    const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,source_url,source_snapshot_at,regulatory_category,regulatory_status,withdrawal_effective_at,grace_period_until,status_note,professional_use_only,prescription_required,approval_required,active").eq("country_code",country).order("name").range(from,from+PAGE-1);
     if(error)return NextResponse.json({error:error.message},{status:500});
     products.push(...(data??[]));
     if((data??[]).length<PAGE)break;
