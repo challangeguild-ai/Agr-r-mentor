@@ -1,0 +1,31 @@
+name: Sync Nébih withdrawn products
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 4 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build official Nébih snapshot
+        run: python scripts/sync_nebih_withdrawn.py
+      - name: Commit snapshot when changed
+        run: |
+          git config user.name "agrar-mentor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/official/nebih/withdrawn_products.csv data/official/nebih/metadata.txt
+          if git diff --cached --quiet; then
+            echo "No Nébih source change."
+          else
+            git commit -m "Update official Nébih withdrawn product snapshot"
+            git push
+          fi
