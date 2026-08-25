@@ -33,7 +33,14 @@ const aliases:Record<string,string>={
 const LIST_PAGES=["https://www.uksup.sk/orp-zoznamy-pripravkov-na-ochranu-rastlin","https://beta.uksup.sk/orp-zoznamy-pripravkov-na-ochranu-rastlin"];
 function norm(value:string){return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/&nbsp;|\u00a0/g," ").replace(/[._–—-]+/g," ").replace(/\s+/g," ")}
 function stripHtml(value:string){return value.replace(/<[^>]+>/g," ").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g," ").trim()}
-function headerKey(value:string){const n=norm(value).replace(/^\d+[a-z]?\s*/,"");return aliases[n]||n.replace(/\s+/g,"_")}
+function headerKey(value:string){
+ const n=norm(value).replace(/^\d+[a-z]?\s*/,"");
+ if(aliases[n])return aliases[n];
+ // Az ÚKSÚP XLSX fejlécének szövege verziónként változhat. A célkárosító/célfelhasználás
+ // oszlopot ezért nem csak pontos alias, hanem szemantikus fejléc-minta alapján is felismerjük.
+ if((n.includes("skodliv")&&n.includes("organiz"))||n.includes("skodca")||(n.includes("ucel")&&n.includes("pouzitia")))return "target";
+ return n.replace(/\s+/g,"_");
+}
 function numbers(value:string){return (value.replace(/,/g,".").match(/\d+(?:\.\d+)?/g)||[]).map(Number).filter(Number.isFinite)}
 function measureUnit(value:string){return value.match(/(?:ml|l|kg|g)\s*\/\s*(?:ha|100\s*l)|(?:ml|l|kg|g)\b/i)?.[0]?.replace(/\s+/g,"")||""}
 function appendText(a:string,b:string){return [a,b].filter(Boolean).join(" · ")}
@@ -61,6 +68,7 @@ function workbookRows(buffer:ArrayBuffer){
  const dedup=new Map<string,Row>();for(const row of rows){const key=[row.name,row.authorization_number,row.crop,row.target,row.dose_max,row.dose_unit,row.application_method,row.bbch_min,row.bbch_max].map(v=>norm(v||"")).join("|");if(!dedup.has(key))dedup.set(key,row)}
  const unique=[...dedup.values()],products=new Set(unique.map(r=>norm(r.name))).size,crops=new Set(unique.map(r=>norm(r.crop))).size,withDose=unique.filter(r=>r.dose_max||r.dose_min).length,withTarget=unique.filter(r=>r.target).length;
  if(unique.length<100||products<20||crops<5)throw new Error(`A részletes XLSX szerkezete gyanús: ${unique.length} felhasználás, ${products} készítmény, ${crops} kultúra. Import megszakítva.`);
+ if(withTarget===0)throw new Error(`A részletes XLSX ${unique.length} felhasználást tartalmaz, de egyetlen célkárosító/célfelhasználás sem volt felismerhető. A forrásszerkezet valószínűleg megváltozott; import megszakítva az adatok sérülésének elkerülésére.`);
  return{rows:unique,sheets:wb.SheetNames.length,products,crops,withDose,withTarget};
 }
 async function fetchText(url:string,timeout=15000){const c=new AbortController();const t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(url,{cache:"no-store",signal:c.signal,headers:{"user-agent":"Agrar-Mentor/1.0 UKSUP detailed sync","accept":"text/html,*/*"}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return await r.text()}finally{clearTimeout(t)}}
