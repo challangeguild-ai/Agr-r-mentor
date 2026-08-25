@@ -5,6 +5,14 @@ const countries=new Set(["HU","SK"]);
 const operationTypes=new Set(["spraying","plant_protection","fertilizing","sowing","soil_work","harvest","irrigation","mowing","other"]);
 const PAGE=1000,ID_CHUNK=100;
 function chunks<T>(items:T[],size:number){const out:T[][]=[];for(let i=0;i<items.length;i+=size)out.push(items.slice(i,i+size));return out}
+function regulatoryDisplay(p:any,country:string){
+ if(country!=="HU")return p;
+ const original=p.authorization_number||"";
+ if(p.regulatory_status==="not_applicable")return{...p,authorization_number:`⛔ NEM ALKALMAZHATÓ${p.grace_period_until?` · türelmi idő vége: ${p.grace_period_until}`:""}${original?` · ${original}`:""}`};
+ if(p.regulatory_status==="withdrawn_grace")return{...p,authorization_number:`⚠ VISSZAVONT${p.grace_period_until?` · felhasználható legfeljebb: ${p.grace_period_until}`:" · türelmi idő ellenőrzendő"}${original?` · ${original}`:""}`};
+ if(p.regulatory_status==="unknown")return{...p,authorization_number:`⚠ STÁTUSZ ELLENŐRIZENDŐ${original?` · ${original}`:""}`};
+ return p;
+}
 
 export async function GET(request:NextRequest){
   const supabase=await createClient();
@@ -36,8 +44,6 @@ export async function GET(request:NextRequest){
 
   if(type!=="spraying"&&type!=="plant_protection")return NextResponse.json({country,type,catalog:catalog??[],products:[],uses:[],approvers,source});
 
-  // A történeti/visszavont termékeket is visszaadjuk. Az alkalmazhatóságot a művelet dátumára
-  // a szerveroldali validáció dönti el; a katalógus nem tünteti el a régi készítményeket.
   const products:any[]=[];
   for(let from=0;;from+=PAGE){
     const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,source_url,source_snapshot_at,regulatory_category,regulatory_status,withdrawal_effective_at,grace_period_until,status_note,professional_use_only,prescription_required,approval_required,active").eq("country_code",country).order("name").range(from,from+PAGE-1);
@@ -63,5 +69,5 @@ export async function GET(request:NextRequest){
       if((data??[]).length<PAGE)break;
     }
   }
-  return NextResponse.json({country,type,catalog:catalog??[],products,uses,ingredients,approvers,source});
+  return NextResponse.json({country,type,catalog:catalog??[],products:products.map(p=>regulatoryDisplay(p,country)),uses,ingredients,approvers,source});
 }
