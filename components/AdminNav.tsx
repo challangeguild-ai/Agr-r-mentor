@@ -5,6 +5,8 @@ const items=[
   {href:"/admin/clients",key:"clients",label:"Ügyfelek"},
   {href:"/admin/workday",key:"workday",label:"Munkanap"},
   {href:"/admin/map",key:"map",label:"Térkép"},
+  {href:"/admin/operations",key:"operations",label:"Műveletek"},
+  {href:"/admin/plant-protection-import",key:"plant-protection-import",label:"Növényvédőszer-import"},
   {href:"/admin/documents",key:"documents",label:"Dokumentumok"},
 ];
 
