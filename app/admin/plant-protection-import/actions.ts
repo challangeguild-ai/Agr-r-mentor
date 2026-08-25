@@ -4,6 +4,7 @@ import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 
+// Deployment trigger: UKSUP Z7 fallback parser production sync.
 type Row=Record<string,string>;
 export type SyncResult={ok:boolean;error?:string;rows?:number;inserted_products?:number;inserted_uses?:number;inserted_ingredients?:number;source_url?:string};
 const aliases:Record<string,string>={
