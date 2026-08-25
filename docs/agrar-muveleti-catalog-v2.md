@@ -34,4 +34,4 @@ A gazda és a szaktanácsadó CSV exportja a strukturált naplóból készül, �
 
 ## Ellenőrzési állapot
 
-A Supabase migrációk alkalmazva vannak, az új táblákon RLS aktív, a művelet–idővonal törlési trigger tranzakciós integrációs próbája sikeres, és a korábbi 6 demo művelet mind strukturált rekordként, kapcsolt idővonal-eseménnyel megmaradt. A végső összevonás feltétele a GitHub/Vercel build check sikeres állapota.
+A Supabase migrációk alkalmazva vannak, az új táblákon RLS aktív, a művelet–idővonal törlési trigger tranzakciós integrációs próbája sikeres, és a korábbi 6 demo művelet mind strukturált rekordként, kapcsolt idővonal-eseménnyel megmaradt. A modul kódja és adatmodellje kész; a hivatalos HU/SK növényvédőszer-tartalom feltöltése nem kódhiány, hanem külső forrásadat/jogosultság függvénye. A végső összevonás feltétele a GitHub/Vercel build check sikeres állapota.
