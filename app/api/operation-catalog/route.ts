@@ -57,7 +57,7 @@ export async function GET(request:NextRequest){
   const uses:any[]=[],ingredients:any[]=[];
   for(const ids of chunks(productIds,ID_CHUNK)){
     for(let from=0;;from+=PAGE){
-      const{data,error}=await supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,notes").in("product_id",ids).order("crop").range(from,from+PAGE-1);
+      const{data,error}=await supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,notes,bbch_min,bbch_max,max_applications,application_interval_days,water_volume_min,water_volume_max,water_volume_unit,application_timing,restrictions,source_reference").in("product_id",ids).order("crop").range(from,from+PAGE-1);
       if(error)return NextResponse.json({error:error.message},{status:500});
       uses.push(...(data??[]));
       if((data??[]).length<PAGE)break;
