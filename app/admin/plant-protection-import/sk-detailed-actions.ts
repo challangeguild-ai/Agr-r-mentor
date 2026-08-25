@@ -5,7 +5,7 @@ import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 
 type Row=Record<string,string>;
-export type SkDetailedImportResult={ok:boolean;error?:string;rows?:number;inserted_products?:number;inserted_uses?:number;inserted_ingredients?:number};
+export type SkDetailedImportResult={ok:boolean;error?:string;rows?:number;inserted_products?:number;inserted_uses?:number;updated_uses?:number;inserted_ingredients?:number};
 
 const aliases:Record<string,string>={
   "obchodny nazov pripravku":"name","nazov pripravku":"name","pripravok":"name",
@@ -37,8 +37,8 @@ function parseDelimited(input:string){
   let text=normalizeNewlines(input.replace(/^\uFEFF/,"")).trim();
   if(!text)return[] as Row[];
   const first=text.split("\n")[0]||"";
-  const candidates=[";","\t",","] as const;
-  const sep=candidates.sort((a,b)=>(first.split(b).length)-(first.split(a).length))[0];
+  const candidates:string[]=[";","\t",","];
+  const sep=candidates.sort((a,b)=>(first.split(b).length)-(first.split(a).length))[0]||";";
   const rows:string[][]=[];let row:string[]=[],cell="",quoted=false;
   for(let i=0;i<text.length;i++){
     const ch=text[i],next=text[i+1];
@@ -86,7 +86,7 @@ export async function importUksupDetailedUsesCsv(formData:FormData):Promise<SkDe
     const parsed=normalizeRows(parseDelimited(raw));
     if(!parsed.length)throw new Error("Nem találtam részletes szlovák felhasználási rekordot. A fájlban legalább készítmény- és kultúraoszlop szükséges.");
     const{supabase}=await advisorContext();
-    const totals={rows:0,inserted_products:0,inserted_uses:0,inserted_ingredients:0};
+    const totals={rows:0,inserted_products:0,inserted_uses:0,updated_uses:0,inserted_ingredients:0};
     for(let i=0;i<parsed.length;i+=500){
       const chunk=parsed.slice(i,i+500);
       const{data,error}=await supabase.rpc("import_plant_protection_catalog",{
@@ -101,6 +101,7 @@ export async function importUksupDetailedUsesCsv(formData:FormData):Promise<SkDe
       totals.rows+=Number(d.rows||chunk.length);
       totals.inserted_products+=Number(d.inserted_products||0);
       totals.inserted_uses+=Number(d.inserted_uses||0);
+      totals.updated_uses+=Number(d.updated_uses||0);
       totals.inserted_ingredients+=Number(d.inserted_ingredients||0);
     }
     revalidatePath("/admin/plant-protection-import");
