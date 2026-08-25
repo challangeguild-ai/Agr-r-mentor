@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wait for production deployment
-        run: sleep 45
+        run: sleep 10
       - name: Fetch Agrár Mentor Nébih diagnostic
         run: |
           set -euo pipefail
