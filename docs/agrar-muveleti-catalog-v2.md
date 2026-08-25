@@ -1,37 +1,11 @@
 # Agrár Műveleti Modul – HU/SK katalógusvezérelt rendszer
 
-## Adatmodell
+A műveleti napló elsődleges adatforrása a `field_operations` tábla; az idővonal kapcsolt eseménynapló. A gazda és a szaktanácsadó nézet, a szűrések és a CSV export a strukturált műveleti táblából dolgoznak.
 
-A műveleti napló elsődleges adatforrása a `field_operations` tábla. Az idővonal minden új művelethez kapcsolt `field_operation` eseményt kap, de a műveleti képernyők, szűrések és CSV export a strukturált táblából dolgoznak.
+A földtábla országát a szerver a gazdaság `country_code` értékéből határozza meg. Talajmunka, vetés, betakarítás, öntözés, kaszálás és egyéb munkák az `operation_catalog` katalógusból választhatók. A műtrágya metaadataiból számított N/P2O5/K2O kijuttatás megjelenik, és a metaadat a rekordban is megmarad. A gazdaság aktív gépei közvetlenül választhatók, a szerver a gép gazdasághoz tartozását ellenőrzi.
 
-A strukturált rekord tartalmazza többek között az országot, művelettípust, munkafolyamatot, készítményt/anyagot, engedélyszámot, kultúrát, célkárosítót, hatóanyagot, dózist, mennyiséget, kezelt területet, gépet, végrehajtót, körülményeket és adatforrás-módot.
+Hivatalos növényvédelmi adatoknál a folyamat: `ország → kultúra → engedélyezett készítmény → engedélyezett felhasználás/cél → dózis`. A szerver mentéskor újra ellenőrzi az országot, aktív állapotot, engedély-időszakot, kötelező felhasználást, termék–felhasználás kapcsolatot, dózisegységet és dózistartományt; a kultúra, cél és hatóanyag törzsadatból származik.
 
-## Országfüggő működés
+A HU forrás a Nébih növényvédőszer-adatbázis, az SK forrás az ÚKSÚP ISPOR/ORP. A forrásállapotot az `operation_catalog_sources` tábla kezeli. A tényleges hivatalos tartalomimport külső adat-hozzáférés függvénye; amíg az import nem `ready`, az alkalmazás ezt jelzi, kézi rögzítést enged, és a rekordot nem minősíti hivatalos katalógusosnak.
 
-- A földtábla országát a szerver a gazdaság `country_code` értékéből határozza meg. Kliensoldali országérték nem engedélyezési forrás.
-- Az `/api/operation-catalog` hitelesített végpont HU/SK ország és művelettípus szerint szolgálja ki a katalógust.
-- Talajmunka, vetés, betakarítás, öntözés, kaszálás és egyéb munkák munkafolyamatai az `operation_catalog` táblából érkeznek.
-- A műtrágya-katalógus metaadataiból az űrlap kiszámítja a hektáronként kijuttatott N/P2O5/K2O hatóanyagot; a katalógusmetaadat a műveleti rekordban is megmarad.
-- A gazdaság aktív gépei közvetlenül választhatók, a szerver ellenőrzi a gép gazdasághoz tartozását.
-
-## Növényvédelem
-
-Hivatalos katalógusadat esetén a folyamat:
-
-`ország → kultúra → engedélyezett készítmény → engedélyezett felhasználás/cél → dózis`
-
-Mentéskor a szerver újra ellenőrzi a készítmény országát és aktív állapotát, az engedély érvényességét a művelet dátumán, a kötelező felhasználás termékhez tartozását, a kultúrát/célt, a dózisegységet és dózistartományt, továbbá a hatóanyagokat a terméktörzsből tölti.
-
-A HU forrás a Nébih növényvédőszer-adatbázis, az SK forrás az ÚKSÚP ISPOR/ORP. A források állapotát az `operation_catalog_sources` tábla kezeli. A hivatalos forrásadatok tényleges importja külső adat-hozzáférést igényel: a HU API integrációhoz szolgáltatói kapcsolat/jogosultság szükséges, az SK export külön importforrás. Amíg egy ország importja nem `ready`, az alkalmazás ezt egyértelműen jelzi és kézi rögzítést enged, de azt nem jelöli hivatalos katalógusos adatnak.
-
-## Jogosultság és konzisztencia
-
-A `field_operations` RLS szabályai a szaktanácsadói hozzáférést és a gazdaság tulajdonosának saját műveleteit különítik el. A művelet törlése adatbázis-triggerrel automatikusan eltávolítja a hozzá kapcsolt idővonal-eseményt. A korábbi OPJSON és szöveges demo műveleti eseményeket migrációk vezetik át a strukturált naplóba.
-
-## Export
-
-A gazda és a szaktanácsadó CSV exportja a strukturált naplóból készül, és az alapadatokon túl az országot, munkafolyamatot, engedélyszámot, kultúrát, célkárosítót, hatóanyagot és az adatforrás módját is tartalmazza.
-
-## Ellenőrzési állapot
-
-A Supabase migrációk alkalmazva vannak, az új táblákon RLS aktív, a művelet–idővonal törlési trigger tranzakciós integrációs próbája sikeres, és a korábbi 6 demo művelet mind strukturált rekordként, kapcsolt idővonal-eseménnyel megmaradt. A modul kódja és adatmodellje kész; a hivatalos HU/SK növényvédőszer-tartalom feltöltése nem kódhiány, hanem külső forrásadat/jogosultság függvénye. A végső összevonás feltétele a GitHub/Vercel build check sikeres állapota.
+A `field_operations` RLS aktív. Törléskor adatbázis-trigger takarítja a kapcsolt idővonal-eseményt. A régi OPJSON és a 6 korábbi szöveges demo művelet migrációval a strukturált naplóba került. Az integrációs törlési próba tranzakcióban sikeres volt. A végső összevonás feltétele a GitHub/Vercel build check sikeres állapota.
