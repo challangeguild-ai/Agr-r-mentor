@@ -3,6 +3,8 @@ import {createClient} from "@/lib/supabase/server";
 
 const countries=new Set(["HU","SK"]);
 const operationTypes=new Set(["spraying","plant_protection","fertilizing","sowing","soil_work","harvest","irrigation","mowing","other"]);
+const PAGE=1000,ID_CHUNK=100;
+function chunks<T>(items:T[],size:number){const out:T[][]=[];for(let i=0;i<items.length;i+=size)out.push(items.slice(i,i+size));return out}
 
 export async function GET(request:NextRequest){
   const supabase=await createClient();
@@ -35,16 +37,30 @@ export async function GET(request:NextRequest){
   if(type!=="spraying"&&type!=="plant_protection")return NextResponse.json({country,type,catalog:catalog??[],products:[],uses:[],approvers,source});
 
   const today=new Date().toISOString().slice(0,10);
-  const{data:products,error:productError}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,regulatory_category,professional_use_only,prescription_required,approval_required").eq("country_code",country).eq("active",true).or(`valid_until.is.null,valid_until.gte.${today}`).order("name").limit(3000);
-  if(productError)return NextResponse.json({error:productError.message},{status:500});
-  const productIds=(products??[]).map(p=>p.id);
+  const products:any[]=[];
+  for(let from=0;;from+=PAGE){
+    const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,regulatory_category,professional_use_only,prescription_required,approval_required").eq("country_code",country).eq("active",true).or(`valid_until.is.null,valid_until.gte.${today}`).order("name").range(from,from+PAGE-1);
+    if(error)return NextResponse.json({error:error.message},{status:500});
+    products.push(...(data??[]));
+    if((data??[]).length<PAGE)break;
+  }
+  const productIds=products.map(p=>p.id);
   if(!productIds.length)return NextResponse.json({country,type,catalog:catalog??[],products:[],uses:[],ingredients:[],approvers,source});
 
-  const[{data:uses,error:usesError},{data:ingredients,error:ingredientError}]=await Promise.all([
-    supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,notes").in("product_id",productIds).order("crop"),
-    supabase.from("plant_protection_ingredients").select("product_id,ingredient,concentration,concentration_unit").in("product_id",productIds).order("ingredient"),
-  ]);
-  if(usesError)return NextResponse.json({error:usesError.message},{status:500});
-  if(ingredientError)return NextResponse.json({error:ingredientError.message},{status:500});
-  return NextResponse.json({country,type,catalog:catalog??[],products:products??[],uses:uses??[],ingredients:ingredients??[],approvers,source});
+  const uses:any[]=[],ingredients:any[]=[];
+  for(const ids of chunks(productIds,ID_CHUNK)){
+    for(let from=0;;from+=PAGE){
+      const{data,error}=await supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,notes").in("product_id",ids).order("crop").range(from,from+PAGE-1);
+      if(error)return NextResponse.json({error:error.message},{status:500});
+      uses.push(...(data??[]));
+      if((data??[]).length<PAGE)break;
+    }
+    for(let from=0;;from+=PAGE){
+      const{data,error}=await supabase.from("plant_protection_ingredients").select("product_id,ingredient,concentration,concentration_unit").in("product_id",ids).order("ingredient").range(from,from+PAGE-1);
+      if(error)return NextResponse.json({error:error.message},{status:500});
+      ingredients.push(...(data??[]));
+      if((data??[]).length<PAGE)break;
+    }
+  }
+  return NextResponse.json({country,type,catalog:catalog??[],products,uses,ingredients,approvers,source});
 }
