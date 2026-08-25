@@ -14,6 +14,7 @@ export type DetailedPlantProtectionUse={
   application_interval_days?:number|null;
   water_volume_min?:number|null;
   water_volume_max?:number|null;
+  water_volume_unit?:string|null;
   application_timing?:string|null;
   restrictions?:string|null;
   source_reference?:string|null;
@@ -29,8 +30,8 @@ export function PlantProtectionUseDetails({use,country}:{use:DetailedPlantProtec
   if(!use)return null;
   const dose=range(use.dose_min,use.dose_max,use.dose_unit||"");
   const bbch=range(use.bbch_min,use.bbch_max);
-  const water=range(use.water_volume_min,use.water_volume_max,"l/ha");
-  const detailed=country==="SK"&&(bbch||water||use.max_applications!=null||use.application_interval_days!=null||use.application_timing||use.restrictions);
+  const water=range(use.water_volume_min,use.water_volume_max,use.water_volume_unit||"l/ha");
+  const detailed=bbch||water||use.max_applications!=null||use.application_interval_days!=null||use.application_timing||use.restrictions;
   return <div className="operation-wide" style={{padding:14,border:`1px solid ${detailed?"#9ec5a6":"#dce5dc"}`,borderRadius:12,background:detailed?"#f5fbf6":"#fafcfb",fontSize:13,lineHeight:1.55}}>
     <b>{country==="SK"?"🇸🇰 ÚKSÚP engedélyezett felhasználási részletek":"Engedélyezett felhasználási részletek"}</b>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:8,marginTop:10}}>
@@ -46,6 +47,6 @@ export function PlantProtectionUseDetails({use,country}:{use:DetailedPlantProtec
     </div>
     {use.application_timing&&<p style={{margin:"10px 0 0"}}><b>Alkalmazási idő:</b> {use.application_timing}</p>}
     {use.restrictions&&<div style={{marginTop:10,padding:10,border:"1px solid #e0b85d",borderRadius:9,background:"#fffaf0"}}><b>⚠ Korlátozás / külön feltétel:</b> {use.restrictions}</div>}
-    {country==="SK"&&<p style={{margin:"10px 0 0",color:"#607066"}}>Forrás: {use.source_reference||"ÚKSÚP ISPOR"}. A kijuttatás előtt a hatályos szlovák engedélyokirat és az ÚKSÚP aktuális adata az irányadó.</p>}
+    <p style={{margin:"10px 0 0",color:"#607066"}}>Forrás: {use.source_reference||(country==="SK"?"ÚKSÚP ISPOR":"hivatalos növényvédőszer-katalógus")}. A kijuttatás előtt a művelet napján hatályos engedélyokirat az irányadó.</p>
   </div>;
 }
