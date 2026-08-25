@@ -1,0 +1,49 @@
+name: Sync UKSUP official catalog snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+  push:
+    paths:
+      - '.github/workflows/sync-uksup-catalog.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official UKSUP catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data/official/uksup
+          TMP=$(mktemp)
+          URL1='https://www.uksup.sk/storage/app/uploads/public/604/080/af4/604080af43e18263270214.csv'
+          URL2='https://beta.uksup.sk/storage/app/uploads/public/604/080/af4/604080af43e18263270214.csv'
+          if ! curl -fL --retry 8 --retry-all-errors --connect-timeout 15 --max-time 180 "$URL1" -o "$TMP"; then
+            curl -fL --retry 8 --retry-all-errors --connect-timeout 15 --max-time 180 "$URL2" -o "$TMP"
+          fi
+          BYTES=$(wc -c < "$TMP")
+          if [ "$BYTES" -lt 10000 ]; then
+            echo "Downloaded file is unexpectedly small: $BYTES bytes" >&2
+            exit 1
+          fi
+          mv "$TMP" data/official/uksup/plant_protection.csv
+          printf '%s\n' "source=UKSUP ISPOR" "downloaded_at=$(date -u +%FT%TZ)" "bytes=$BYTES" > data/official/uksup/metadata.txt
+      - name: Commit snapshot if changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'agrar-mentor-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/official/uksup/plant_protection.csv data/official/uksup/metadata.txt
+          if git diff --cached --quiet; then
+            echo 'No catalog change.'
+            exit 0
+          fi
+          git commit -m 'Update official UKSUP catalog snapshot'
+          git push
