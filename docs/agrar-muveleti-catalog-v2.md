@@ -8,4 +8,4 @@ Hivatalos növényvédelmi adatoknál a folyamat: `ország → kultúra → enge
 
 A HU forrás a Nébih növényvédőszer-adatbázis, az SK forrás az ÚKSÚP ISPOR/ORP. A forrásállapotot az `operation_catalog_sources` tábla kezeli. A tényleges hivatalos tartalomimport külső adat-hozzáférés függvénye; amíg az import nem `ready`, az alkalmazás ezt jelzi, kézi rögzítést enged, és a rekordot nem minősíti hivatalos katalógusosnak.
 
-A `field_operations` RLS aktív. Törléskor adatbázis-trigger takarítja a kapcsolt idővonal-eseményt. A régi OPJSON és a 6 korábbi szöveges demo művelet migrációval a strukturált naplóba került. Az integrációs törlési próba tranzakcióban sikeres volt. A modul kódját tartalmazó commit Vercel buildje sikeres; a végső ági dokumentációs commitok buildje külön fut.
+A `field_operations` RLS aktív. Törléskor adatbázis-trigger takarítja a kapcsolt idővonal-eseményt. A régi OPJSON és a 6 korábbi szöveges demo művelet migrációval a strukturált naplóba került. Az integrációs törlési próba tranzakcióban sikeres volt. A modul kódját tartalmazó commit Vercel buildje sikeres.
