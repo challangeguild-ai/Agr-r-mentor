@@ -31,3 +31,7 @@ A `field_operations` RLS szabályai a szaktanácsadói hozzáférést és a gazd
 ## Export
 
 A gazda és a szaktanácsadó CSV exportja a strukturált naplóból készül, és az alapadatokon túl az országot, munkafolyamatot, engedélyszámot, kultúrát, célkárosítót, hatóanyagot és az adatforrás módját is tartalmazza.
+
+## Ellenőrzési állapot
+
+A Supabase migrációk alkalmazva vannak, az új táblákon RLS aktív, a művelet–idővonal törlési trigger tranzakciós integrációs próbája sikeres, és a korábbi 6 demo művelet mind strukturált rekordként, kapcsolt idővonal-eseménnyel megmaradt. A végső összevonás feltétele a GitHub/Vercel build check sikeres állapota.
