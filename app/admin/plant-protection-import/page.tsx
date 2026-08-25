@@ -1,0 +1,14 @@
+import {redirect} from "next/navigation";
+import {createClient} from "@/lib/supabase/server";
+import {AdminNav} from "@/components/AdminNav";
+import {ImportForm} from "./ImportForm";
+
+export default async function PlantProtectionImportPage(){
+ const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:me}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor")redirect("/dashboard");
+ const[{data:sources},{data:batches}]=await Promise.all([supabase.from("operation_catalog_sources").select("country_code,source_name,source_url,last_imported_at,product_count,use_count,status,notes").in("country_code",["HU","SK"]).order("country_code"),supabase.from("plant_protection_import_batches").select("id,country_code,source_name,imported_at,row_count,product_count,use_count,ingredient_count").order("imported_at",{ascending:false}).limit(10)]);
+ return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">HIVATALOS KATALÓGUS</span><h1>Növényvédőszer-import</h1><p>Nébih és ÚKSÚP/ISPOR exportok betöltése a készítmény–kultúra–felhasználás–dózis katalógusba.</p></div></header><AdminNav active="plant-protection-import"/>
+ <section className="panel"><div className="panel-heading"><div><span className="eyebrow">ÁLLAPOT</span><h2>Betöltött katalógusok</h2></div></div><div className="stats-grid">{["HU","SK"].map(c=>{const s=sources?.find(x=>x.country_code===c);return <article className="stat-card" key={c}><span>{c==="HU"?"Magyarország":"Szlovákia"}</span><strong>{s?.product_count??0}</strong><small>{s?.use_count??0} felhasználás · {s?.status||"nincs import"}</small></article>})}</div><p style={{marginTop:12}}>A Nébih keresője hivatalos magyar adatbázis, de a felhasználásnál minden esetben a hatályos engedélyokirat az irányadó. Az ÚKSÚP ISPOR oldal exportálható Excel-adatokat biztosít. A rendszer csak a betöltött forrásadatokat jeleníti meg hivatalos katalógusként.</p></section>
+ <section className="panel"><div className="panel-heading"><div><span className="eyebrow">IMPORT</span><h2>CSV / Excel-táblázat betöltése</h2></div></div><ImportForm/></section>
+ <section className="panel"><div className="panel-heading"><div><span className="eyebrow">ELŐZMÉNY</span><h2>Legutóbbi importok</h2></div></div>{batches?.length?<div className="inspection-list">{batches.map(b=><article className="inspection-card" key={b.id}><div className="inspection-head"><div><strong>{b.country_code} · {b.source_name}</strong><small>{new Date(b.imported_at).toLocaleString("hu-HU")}</small></div><span className="field-total">{b.row_count} sor</span></div><p>{b.product_count} új készítmény · {b.use_count} új felhasználás · {b.ingredient_count} új hatóanyag</p></article>)}</div>:<div className="empty-state">Még nincs katalógusimport.</div>}</section>
+ </main>
+}
