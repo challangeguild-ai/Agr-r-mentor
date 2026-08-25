@@ -2,7 +2,6 @@
 import csv
 import html
 import re
-import sys
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -18,6 +17,11 @@ MONTHS = {
     "május": 5, "június": 6, "július": 7, "augusztus": 8,
     "szeptember": 9, "október": 10, "november": 11, "december": 12,
 }
+
+BAD_MARKERS = (
+    "maxhidefiltersindex", "showexpansion", "colheaders", "function(",
+    "javascript", "<script", "var ", "push("
+)
 
 class TableParser(HTMLParser):
     def __init__(self):
@@ -65,6 +69,11 @@ def parse_hu_date(text):
     return ""
 
 
+def contaminated(*values):
+    joined = " ".join(values).casefold()
+    return any(marker in joined for marker in BAD_MARKERS)
+
+
 def status_for(grace_text, grace_date, now_date):
     low = grace_text.lower()
     if grace_date:
@@ -84,10 +93,18 @@ def main():
     parser.feed(text)
     rows = []
     seen = set()
+    rejected = 0
     today = datetime.now(timezone.utc).date().isoformat()
+    snapshot_at = datetime.now(timezone.utc).isoformat()
     for row in parser.rows:
         name, permit_type, permit_validity, sales_grace, use_grace = [x.strip() for x in row]
-        if not name or name.lower() == "készítmény neve":
+        if not name or name.casefold() == "készítmény neve":
+            continue
+        if contaminated(name, permit_type, permit_validity, sales_grace, use_grace):
+            rejected += 1
+            continue
+        if len(name) > 250:
+            rejected += 1
             continue
         key = (name.casefold(), permit_type.casefold(), permit_validity.casefold(), use_grace.casefold())
         if key in seen:
@@ -104,22 +121,25 @@ def main():
             "grace_period_until": grace,
             "status_note": f"Nébih visszavont/lejárt lista; engedély típusa: {permit_type}; engedély érvényessége: {permit_validity}; kereskedelmi türelmi idő: {sales_grace}; felhasználási türelmi idő: {use_grace}",
             "source_url": SOURCE_URL,
-            "source_snapshot_at": datetime.now(timezone.utc).isoformat(),
+            "source_snapshot_at": snapshot_at,
             "source_grace_text": use_grace,
             "source_permit_type": permit_type,
         })
     if len(rows) < 50:
         raise SystemExit(f"Gyanúsan kevés Nébih sor: {len(rows)}")
+    if any(contaminated(*(str(v) for v in row.values())) for row in rows):
+        raise SystemExit("Nébih snapshot validációs hiba: HTML/JavaScript szennyeződés maradt az adatokban")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     fields = list(rows[0].keys())
     with OUT_CSV.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader(); w.writerows(rows)
+        w.writeheader()
+        w.writerows(rows)
     OUT_META.write_text(
-        f"source=NEBIH withdrawn and expired products\nsource_url={SOURCE_URL}\ndownloaded_at={datetime.now(timezone.utc).isoformat()}\nrows={len(rows)}\nbytes={len(raw)}\n",
+        f"source=NEBIH withdrawn and expired products\nsource_url={SOURCE_URL}\ndownloaded_at={snapshot_at}\nrows={len(rows)}\nrejected_contaminated_rows={rejected}\nbytes={len(raw)}\n",
         encoding="utf-8",
     )
-    print(f"Nébih snapshot: {len(rows)} sor")
+    print(f"Nébih snapshot: {len(rows)} tiszta sor; elutasítva: {rejected}")
 
 if __name__ == "__main__":
     main()
