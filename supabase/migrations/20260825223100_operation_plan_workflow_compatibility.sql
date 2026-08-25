@@ -1,0 +1,62 @@
+-- Compatibility and hardening for planned-operation workflow
+alter table public.tasks drop constraint if exists tasks_status_check;
+alter table public.tasks add constraint tasks_status_check check (status in ('open','in_progress','submitted','done','cancelled'));
+
+alter table public.timeline_events drop constraint if exists timeline_events_event_type_check;
+alter table public.timeline_events add constraint timeline_events_event_type_check check (event_type in (
+'inspection','inspection_followup','task','task_completed','task_accepted','task_started','task_completed_verified','task_submitted_review','task_review_approved','task_review_rejected','operation_plan_created','crop','note','document','farmer_report','advisor_reply','report_closed','field_operation','supervision_config','field_hotspot','advisor_visit_plan'
+));
+
+alter table public.field_operations drop constraint if exists field_operations_catalog_mode_check;
+alter table public.field_operations add constraint field_operations_catalog_mode_check check (catalog_mode in ('official','catalog','manual','planned_task'));
+alter table public.field_operations drop constraint if exists field_operations_dose_mode_check;
+alter table public.field_operations add constraint field_operations_dose_mode_check check (dose_mode is null or dose_mode in ('official_max','custom','executed'));
+
+create unique index if not exists machine_usage_logs_task_uidx on public.machine_usage_logs(task_id) where task_id is not null;
+
+do $$ begin
+ if not exists(select 1 from pg_constraint where conname='tasks_linked_operation_fk') then
+  alter table public.tasks add constraint tasks_linked_operation_fk foreign key(linked_operation_id) references public.field_operations(id) on delete set null;
+ end if;
+end $$;
+
+create or replace function public.review_task_execution(p_task_id uuid,p_approve boolean,p_note text default null)
+returns uuid
+language plpgsql security definer set search_path='public','pg_temp' as $$
+declare
+ v_task public.tasks%rowtype; v_plan public.task_operation_plans%rowtype; v_report public.task_execution_reports%rowtype;
+ v_operation_id uuid; v_machine_id uuid; v_machine public.machines%rowtype; v_start numeric; v_operator_name text; v_has_plan boolean:=false;
+begin
+ if not (select app_private.is_advisor()) then raise exception 'Szaktanácsadói jogosultság szükséges'; end if;
+ select * into v_task from public.tasks where id=p_task_id for update;
+ if not found then raise exception 'A teendő nem található'; end if;
+ select * into v_report from public.task_execution_reports where task_id=p_task_id for update;
+ if not found or v_task.status<>'submitted' then raise exception 'Nincs ellenőrzésre váró végrehajtás'; end if;
+ select * into v_plan from public.task_operation_plans where task_id=p_task_id; v_has_plan:=found;
+ if not p_approve then
+  update public.task_execution_reports set review_status='rejected',reviewed_by=auth.uid(),reviewed_at=now(),review_note=nullif(trim(p_note),''),updated_at=now() where task_id=p_task_id;
+  update public.tasks set status='open',review_status='rejected',reviewed_by=auth.uid(),reviewed_at=now(),review_note=nullif(trim(p_note),''),updated_at=now() where id=p_task_id;
+  insert into public.timeline_events(farm_id,field_id,event_type,title,description,event_at,created_by,source_id) values(v_task.farm_id,v_task.field_id,'task_review_rejected',concat('Végrehajtás javításra visszaküldve: ',v_task.title),nullif(trim(p_note),''),now(),auth.uid(),v_task.id);
+  return null;
+ end if;
+ select full_name into v_operator_name from public.profiles where id=v_report.reported_by;
+ if v_task.task_kind='operation' and v_task.field_id is not null and v_has_plan then
+  insert into public.field_operations(farm_id,field_id,operation_date,operation_type,country_code,subtype,product_id,plant_protection_use_id,product_name,authorization_number,crop,target,active_ingredient,dose,dose_unit,quantity,quantity_unit,treated_area,machine_id,machine_name,operator_name,weather,notes,catalog_mode,created_by,dose_mode,official_dose_max,approval_required,approval_status,requested_approver_id,regulatory_snapshot,catalog_snapshot,source_task_id)
+  values(v_task.farm_id,v_task.field_id,v_report.operation_date,v_plan.operation_type,v_plan.country_code,v_plan.subtype,v_plan.product_id,v_plan.plant_protection_use_id,v_plan.product_name,v_plan.authorization_number,v_plan.crop,v_plan.target,v_plan.active_ingredient,coalesce(v_report.actual_dose,v_plan.planned_dose),coalesce(v_report.dose_unit,v_plan.dose_unit),coalesce(v_report.actual_quantity,v_plan.planned_quantity),coalesce(v_report.quantity_unit,v_plan.quantity_unit),coalesce(v_report.actual_area,v_plan.planned_area),(select machine_id from public.task_machine_assignments where task_id=p_task_id limit 1),(select name from public.machines where id=(select machine_id from public.task_machine_assignments where task_id=p_task_id limit 1)),coalesce(v_operator_name,'Végrehajtó'),v_report.weather,concat_ws(' · ',nullif(v_report.notes,''),nullif(p_note,'')),'planned_task',auth.uid(),case when v_report.actual_dose is null then null else 'executed' end,v_plan.dose_max,v_plan.approval_required,case when v_plan.approval_required then 'pending' else 'not_required' end,v_plan.requested_approver_id,v_plan.regulatory_snapshot,v_plan.catalog_snapshot,v_task.id)
+  returning id into v_operation_id;
+ end if;
+ select machine_id into v_machine_id from public.task_machine_assignments where task_id=p_task_id limit 1;
+ if v_machine_id is not null then
+  select * into v_machine from public.machines where id=v_machine_id for update;
+  if found then
+   v_start:=v_machine.current_hours;
+   if v_report.finished_hours is not null and v_report.finished_hours<coalesce(v_start,0) then raise exception 'A záró üzemóra nem lehet kisebb a nyilvántartott értéknél'; end if;
+   insert into public.machine_usage_logs(machine_id,task_id,field_id,operator_id,started_hours,finished_hours,worked_hectares,completed_at) values(v_machine.id,v_task.id,v_task.field_id,v_report.reported_by,v_start,v_report.finished_hours,v_report.worked_hectares,now()) on conflict(task_id) where task_id is not null do nothing;
+   update public.machines set current_hours=coalesce(v_report.finished_hours,current_hours),current_hectares=coalesce(current_hectares,0)+case when exists(select 1 from public.machine_usage_logs where task_id=v_task.id and created_at>=now()-interval '2 seconds') then coalesce(v_report.worked_hectares,0) else 0 end,updated_at=now() where id=v_machine.id;
+  end if;
+ end if;
+ update public.task_execution_reports set review_status='approved',reviewed_by=auth.uid(),reviewed_at=now(),review_note=nullif(trim(p_note),''),operation_id=v_operation_id,updated_at=now() where task_id=p_task_id;
+ update public.tasks set status='done',review_status='approved',reviewed_by=auth.uid(),reviewed_at=now(),review_note=nullif(trim(p_note),''),linked_operation_id=v_operation_id,completed_at=now(),updated_at=now() where id=p_task_id;
+ insert into public.timeline_events(farm_id,field_id,event_type,title,description,event_at,created_by,source_id) values(v_task.farm_id,v_task.field_id,'task_review_approved',concat('Végrehajtás visszaigazolva: ',v_task.title),nullif(trim(p_note),''),now(),auth.uid(),v_task.id);
+ return v_operation_id;
+end $$;
