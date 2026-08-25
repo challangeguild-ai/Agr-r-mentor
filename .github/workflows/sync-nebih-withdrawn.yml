@@ -18,6 +18,8 @@ jobs:
           python-version: '3.12'
       - name: Build official Nébih snapshot
         run: python scripts/sync_nebih_withdrawn.py
+      - name: Validate official Nébih snapshot
+        run: python scripts/validate_nebih_snapshot.py
       - name: Commit snapshot when changed
         run: |
           git config user.name "agrar-mentor-bot"
