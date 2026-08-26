@@ -3,6 +3,7 @@ import "./globals.css";
 import "./notifications.css";
 import "./portal-final.css";
 import "./public-site.css";
+import "./mobile-hardening.css";
 
 export const metadata: Metadata = {
   title: "Agrár Mentor | Személyes agrár-szaktanácsadás",
