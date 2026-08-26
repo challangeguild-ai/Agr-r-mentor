@@ -1,8 +1,8 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {createPersonalFollowup,markCommunicationSeen} from "@/app/contact-actions";
 
-export function CommunicationSeenMarker({entityType,entityId}:{entityType:"farmer_report"|"inspection"|"task"|"advisor_message";entityId:string}){useEffect(()=>{markCommunicationSeen(entityType,entityId).catch(()=>{})},[entityType,entityId]);return null}
+export function CommunicationSeenMarker({entityType,entityId}:{entityType:"farmer_report"|"inspection"|"task"|"advisor_message";entityId:string}){const ref=useRef<HTMLSpanElement|null>(null);useEffect(()=>{const el=ref.current;if(!el)return;let sent=false;const obs=new IntersectionObserver(entries=>{if(!sent&&entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.35)){sent=true;markCommunicationSeen(entityType,entityId).catch(()=>{});obs.disconnect()}},{threshold:[.35]});obs.observe(el);return()=>obs.disconnect()},[entityType,entityId]);return <span ref={ref} aria-hidden="true" style={{position:"absolute",width:1,height:1,overflow:"hidden",pointerEvents:"none"}}/>}
 
 function localDateTime(ms:number){const d=new Date(Date.now()+ms);const off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,16)}
 export function RemindLaterButton({entityType,entityId,title,href}:{entityType:"farmer_report"|"inspection"|"task"|"advisor_message";entityId:string;title:string;href:string}){
