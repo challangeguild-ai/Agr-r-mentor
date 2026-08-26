@@ -56,9 +56,10 @@ create table if not exists public.personal_followups (
   title text not null,
   href text not null,
   remind_at timestamptz not null,
-  status text not null default 'pending' check (status in ('pending','done','cancelled')),
+  status text not null default 'pending' check (status in ('pending','done','cancelled','notified')),
   created_at timestamptz not null default now(),
   completed_at timestamptz,
+  notified_at timestamptz,
   unique(user_id,entity_type,entity_id,remind_at)
 );
 create index if not exists personal_followups_due_idx on public.personal_followups(user_id,status,remind_at);
@@ -80,3 +81,26 @@ begin
 end;$$;
 revoke all on function public.mark_communication_seen(text,uuid) from public,anon;
 grant execute on function public.mark_communication_seen(text,uuid) to authenticated;
+
+create or replace function public.dispatch_due_personal_followups()
+returns integer language plpgsql security definer set search_path='public','pg_temp' as $$
+declare v_uid uuid:=auth.uid(); v_count integer:=0;
+begin
+  if v_uid is null then raise exception 'Bejelentkezés szükséges'; end if;
+  with due as (
+    select id,title,href from public.personal_followups
+    where user_id=v_uid and status='pending' and remind_at<=now()
+    for update skip locked
+  ), ins as (
+    insert into public.notifications(user_id,kind,title,message,href,event_key)
+    select v_uid,'personal_followup','Emlékeztető',d.title,d.href,'followup:'||d.id::text from due d
+    on conflict (user_id,event_key) where event_key is not null do nothing
+    returning event_key
+  ), upd as (
+    update public.personal_followups p set status='notified',notified_at=now()
+    from due d where p.id=d.id returning p.id
+  ) select count(*) into v_count from upd;
+  return v_count;
+end;$$;
+revoke all on function public.dispatch_due_personal_followups() from public,anon;
+grant execute on function public.dispatch_due_personal_followups() to authenticated;
