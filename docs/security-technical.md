@@ -2,188 +2,133 @@
 
 ## 1. Cél és hatókör
 
-Ez a dokumentum az Agrár Mentor alkalmazás biztonsági architektúráját, védelmi rétegeit, ellenőrzési pontjait és incidenskezelési logikáját foglalja össze. A cél nem az, hogy a rendszert „feltörhetetlennek” minősítse – ilyen rendszer nem létezik –, hanem hogy dokumentálja, milyen kontrollok csökkentik az illetéktelen hozzáférés, adatlopás, jogosultság-megkerülés és automatizált támadás kockázatát.
+Ez a dokumentum az Agrár Mentor alkalmazás biztonsági architektúráját, védelmi rétegeit, ellenőrzési pontjait és incidenskezelési logikáját foglalja össze. A cél nem a „feltörhetetlenség” ígérete, hanem a jogosulatlan hozzáférés, adatlopás, jogosultság-megkerülés és automatizált támadások kockázatának rétegzett csökkentése.
 
-A dokumentumot minden olyan fejlesztésnél felül kell vizsgálni, amely az authentikációt, jogosultságkezelést, fájlfeltöltést, exportot, adminfunkciókat, adatbázis-hozzáférést, értesítéseket vagy biztonsági naplózást érinti.
+A dokumentumot minden authentikációt, jogosultságkezelést, fájlfeltöltést, exportot, adminfunkciót, adatbázis-hozzáférést, értesítést vagy biztonsági naplózást érintő fejlesztésnél felül kell vizsgálni.
 
 ## 2. Fő architektúra
 
-- Frontend / szerveralkalmazás: Next.js 15, Vercel.
+- Frontend és szerveralkalmazás: Next.js 15, Vercel.
 - Authentikáció és adatbázis: Supabase Auth + PostgreSQL.
-- Jogosultságvédelem: PostgreSQL Row Level Security (RLS), szerveroldali szerepkör-ellenőrzések, célzott SECURITY DEFINER függvények.
+- Jogosultságvédelem: PostgreSQL Row Level Security (RLS), szerveroldali szerepkör- és objektumjogosultság-ellenőrzések, célzott SECURITY DEFINER függvények.
 - Fájltárolás: Supabase Storage, jogosultságvezérelt hozzáféréssel.
-- Fő szerepkörök: szaktanácsadó, gazdálkodó / gazdasági felhasználó; egyes gazdasági funkcióknál további jogosultsági szintek.
+- Fő szerepkörök: szaktanácsadó, gazdálkodó/gazdasági felhasználó, valamint egyes funkcióknál további gazdasági jogosultsági szintek.
+- Érzékeny szerveroldali műveletekhez külön service-role kliens használható; service-role kulcs kliensoldalra nem kerülhet.
 
-## 3. Hitelesítés és munkamenet
+## 3. Hitelesítés, MFA és munkamenet
 
-A bejelentkezést Supabase Auth kezeli. A routing middleware csak gyors előszűrést végez az auth-cookie meglétére; a hitelesítés és a jogosultság ellenőrzése szerveroldalon történik a Supabase által ellenőrzött aktuális felhasználó alapján.
+A bejelentkezést Supabase Auth kezeli. A routing middleware csak gyors előszűrést végez; a hitelesítés és jogosultság ellenőrzése szerveroldalon történik a Supabase által ellenőrzött aktuális felhasználó alapján.
 
-Biztonsági elv:
+A jelszavas belépés AAL1 szintű munkamenetet jelent. A védett üzleti adatokhoz TOTP-alapú többtényezős hitelesítés után AAL2 szükséges. Első beállításkor a felhasználó QR-kód segítségével párosíthat kompatibilis authenticator alkalmazást, majd 6 jegyű TOTP-kóddal hitelesíti a faktort. A későbbi belépéseknél a jelszó mellett ez a második faktor is szükséges.
+
+Biztonsági alapelvek:
 - kliensoldali állításban nem bízunk meg;
-- érzékeny szerver action előtt ismételten ellenőrizni kell a felhasználót és szerepkörét;
-- jogosultságot objektumazonosító alapján is ellenőrizni kell, nem elég azt ellenőrizni, hogy a felhasználó általában be van jelentkezve.
+- érzékeny szerverművelet előtt ismételten ellenőrizni kell a felhasználót és szerepkörét;
+- jogosultságot objektumazonosító alapján is ellenőrizni kell;
+- az üzleti adatokhoz való hozzáférésnél az AAL2 követelmény adatbázisszinten is érvényesül;
+- MFA nélkül egy ellopott vagy megszerzett jelszó önmagában nem adhat teljes üzleti adathozzáférést.
 
-## 4. Row Level Security
+## 4. Row Level Security és AAL2-korlát
 
 Az üzleti adatokat tartalmazó public táblákon RLS aktív. A cél, hogy a felhasználó akkor se olvashassa vagy módosíthassa más gazdaság adatait, ha közvetlenül a Supabase API-t hívja meg vagy manipulálja a frontend kérést.
+
+A fontos üzleti táblákon restriktív MFA-policy ellenőrzi az access token `aal` claimjét. A védett adatokhoz csak `aal2` munkamenet férhet hozzá. Így a második faktor nem pusztán felületi követelmény: közvetlen API-hívással sem kerülhető meg.
 
 Kiemelt ellenőrzési esetek:
 - Gazda A nem olvashatja Gazda B gazdaságát, földtábláit, szemléit, dokumentumait, teendőit, értesítéseit vagy műveleteit.
 - Gazdasági munkatárs csak az általa elérhető gazdaság adatait láthatja.
 - Szaktanácsadói jogosultság csak a szükséges szakmai adatokhoz ad hozzáférést.
-- Admin vagy emelt jogosultság kizárólag kifejezetten indokolt szerveroldali folyamatban használható.
+- Admin vagy emelt jogosultság kizárólag indokolt szerveroldali folyamatban használható.
+- AAL1 munkamenet a védett üzleti adatokhoz nem elegendő.
 
 ## 5. SECURITY DEFINER és RPC hardening
 
-A rendszer használ SECURITY DEFINER adatbázis-függvényeket olyan műveleteknél, amelyekhez RLS feletti kontrollált végrehajtás szükséges.
+A rendszer SECURITY DEFINER adatbázis-függvényeket használhat olyan műveleteknél, amelyekhez RLS feletti kontrollált végrehajtás szükséges.
 
-Követelmények minden ilyen függvénynél:
+Követelmények:
 - rögzített `search_path`;
-- anon és public EXECUTE jog visszavonása, ha nincs kifejezetten szükség rá;
-- a hívó felhasználó `auth.uid()` / `auth.role()` alapú ellenőrzése;
-- a célobjektumhoz való jogosultság explicit ellenőrzése;
-- inputok érvényesítése és hosszkorlátozása;
-- a függvény ne adjon ki a szükségesnél több adatot.
+- anon és public EXECUTE jog visszavonása, ha nincs rá szükség;
+- `auth.uid()` / `auth.role()` alapú hívóellenőrzés;
+- explicit objektumszintű jogosultság-ellenőrzés;
+- inputvalidáció és hosszkorlátozás;
+- minimális adatkibocsátás;
+- minden SECURITY DEFINER függvény külön jogosultsági auditja.
 
-A hardening audit során minden SECURITY DEFINER függvényt külön jogosultsági tesztnek kell alávetni.
+A biztonsági eseménynapló írása különösen védett: a nyers `security_events` napló nem általános authenticated kliens-RPC. A naplóírást szerveroldali, service-role jogosultságú folyamat végzi, így normál felhasználó nem tudja közvetlenül manipulálni vagy teleszemetelni a security ledgert.
 
-## 6. HTTP és böngészőoldali biztonsági fejlécek
+## 6. HTTP és böngészőoldali védelem
 
-Az alkalmazás globális biztonsági HTTP headereket használ:
-- HSTS;
-- X-Content-Type-Options: nosniff;
-- X-Frame-Options: DENY;
-- szigorított Referrer-Policy;
-- Permissions-Policy;
-- Cross-Origin-Opener-Policy;
-- Cross-Origin-Resource-Policy;
-- a technológiát feleslegesen felfedő `X-Powered-By` fejléc kikapcsolása.
+Az alkalmazás globális biztonsági HTTP headereket használ, többek között HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, Cross-Origin-Opener-Policy és Cross-Origin-Resource-Policy beállításokkal. Az `X-Powered-By` fejléc kikapcsolása csökkenti a felesleges technológiai információszivárgást.
 
-A Content Security Policy külön felülvizsgálandó minden külső térkép-, média-, analytics- vagy más integráció módosításakor, mert túl szigorú CSP funkcióhibát, túl laza CSP XSS-kockázatot okozhat.
+A Content Security Policy minden külső térkép-, média-, analytics- vagy más integráció módosításakor külön felülvizsgálandó.
 
 ## 7. Inputvalidáció és kimeneti biztonság
 
-Alapelv: minden felhasználói input nem megbízható adat.
-
-Kontrollok:
-- típus- és formátumellenőrzés;
-- szöveghossz-korlátok;
-- e-mail és telefonszám validáció / normalizálás;
-- fájl típus- és méretkorlátok;
-- azonosítókhoz kapcsolódó objektumszintű jogosultság-ellenőrzés;
-- felhasználói HTML közvetlen renderelésének kerülése;
-- nyers technikai JSON vagy belső auditadat nem jelenhet meg ügyféloldalon.
+Minden felhasználói input nem megbízható adatnak minősül. Kötelező a típus- és formátumellenőrzés, szöveghossz-korlát, e-mail/telefonszám normalizálás, fájlméret- és fájltípus-korlát, valamint az objektumazonosítókhoz tartozó jogosultság ellenőrzése. Felhasználói HTML közvetlen renderelése kerülendő, belső audit- vagy technikai JSON ügyféloldalon nem jelenhet meg indokolatlanul.
 
 ## 8. Fájlok és dokumentumok
 
-A szemlefotók, videók és dokumentumok érzékeny üzleti adatok lehetnek.
+A szemlefotók, videók és dokumentumok érzékeny üzleti adatok lehetnek. A bucketek és objektumok nem lehetnek indokolatlanul publikusak; az olvasási és írási jogosultság gazdaság és szerepkör alapján korlátozandó. Fájlnév vagy objektumazonosító kitalálása nem eredményezhet hozzáférést idegen gazdaság fájljához.
 
-Követelmények:
-- a bucketek és objektumok ne legyenek indokolatlanul publikusak;
-- olvasási és írási jogosultság gazdaság / szerepkör alapján legyen korlátozva;
-- feltöltésnél fájltípus- és méretkorlát;
-- fájlnév alapján ne lehessen jogosultságot kitalálni vagy megkerülni;
-- idegen gazdaság objektumazonosítójával ne lehessen fájlt elérni.
+## 9. Export, backup és step-up hitelesítés
 
-## 9. Export, backup és tömeges adatkiadás
+Az export és backup kiemelt kockázatú, mert egyetlen hibával nagy mennyiségű adat kerülhet ki. A teljes backup/export ezért akkor is friss MFA-megerősítést igényel, ha a munkamenet már AAL2.
 
-Az export és backup funkciók kiemelt kockázatúak, mert egyetlen jogosultsági hiba nagy mennyiségű adat kiszivárgását okozhatja.
+A felhasználó újra megadja az authenticator aktuális 6 jegyű kódját. Sikeres ellenőrzés után a szerver rövid, 5 perces, HMAC-aláírt step-up grantet ad HttpOnly, SameSite=Strict cookie-ban. A grant csak a backup útvonalra és kifejezetten export műveletre érvényes.
 
-Követelmények:
-- csak jogosult szerepkör hívhatja;
-- minden export esemény naplózandó;
-- tömeges vagy szokatlan exportpróba emelje a kockázati pontszámot;
-- backup funkció anonim vagy normál felhasználói RPC-ként nem érhető el;
-- service-role / secret kulcs soha nem kerülhet kliensoldali bundle-be vagy repositoryba.
+Az export route ellenőrzi:
+- a bejelentkezett felhasználót;
+- az AAL2 munkamenetet;
+- a szükséges szaktanácsadói szerepkört;
+- a friss, szerver által aláírt step-up grantet;
+- a grant lejáratát és műveleti célját.
 
-## 10. Biztonsági eseménynapló
+Sikeres export után a step-up cookie törlődik. A friss megerősítés tehát nem használható korlátlan, ismételt mentésekre. A friss MFA nélküli exportpróba, sikertelen step-up, sikeres export és exporthiba biztonsági eseményként naplózható.
 
-A hardening réteg `security_events` naplót használ. Tipikus mezők:
-- időpont;
-- felhasználói azonosító, ha ismert;
-- eseménytípus;
-- súlyosság;
-- 0–100 kockázati pontszám;
-- IP-cím;
-- IP-alapú közelítő ország / régió / város;
-- user-agent;
-- kért útvonal és HTTP-módszer;
-- érintett objektum típusa / azonosítója;
-- technikai részletek;
-- eseményfingerprint;
-- riasztás időpontja;
-- megőrzési határidő.
+## 10. Titkok kezelése
 
-A raw security ledger nem általános felhasználói adatforrás. Normál gazdálkodói vagy szaktanácsadói szerepkör ne kapjon közvetlen SELECT hozzáférést.
+A step-up token HMAC-aláírásához külön `SECURITY_STEPUP_SECRET` szerveroldali környezeti változó szükséges, legalább 32 bájt véletlen entrópiával. A security ledger szerveroldali írásához `SUPABASE_SERVICE_ROLE_KEY` használható. Ezek nem kerülhetnek `NEXT_PUBLIC_` változóba, kliensoldali bundle-be vagy repositoryba.
 
-## 11. Riasztási és kockázatértékelési modell
+A naplóba nem kerülhet jelszó, TOTP-kód, access/refresh token, service-role secret vagy teljes session cookie.
 
-A rendszer nem egyetlen hibás próbálkozásra riaszt. A cél a zaj csökkentése és a valóban gyanús minták felismerése.
+## 11. Biztonsági eseménynapló
 
-Példák kockázati jelekre:
-- rövid időn belül sok sikertelen bejelentkezés;
-- ugyanarról az IP-ről több fiók próbálgatása;
-- ugyanarra a fiókra sok különböző IP-ről érkező hibás próbálkozás;
-- ismételt jogosultság-megtagadás más gazdaság objektumaira;
-- tömeges export vagy backup próba;
-- szokatlanul nagy fájlfeltöltési aktivitás;
-- tiltott RPC vagy adminútvonal ismételt hívása;
-- rövid idő alatt nagy számú, magas kockázatú esemény.
+A hardening réteg `security_events` naplót használ. Tipikus mezők: időpont, felhasználói azonosító, eseménytípus, súlyosság, 0–100 kockázati pontszám, IP-cím, közelítő ország/régió/város, user-agent, útvonal, HTTP-módszer, érintett objektum, technikai részletek, fingerprint, riasztási időpont és megőrzési határidő.
 
-Az admin riasztás küszöbértékhez és mintához kötött. Egyedi hibák naplózódnak, de nem feltétlenül küldenek e-mailt.
+A raw security ledgerhez normál gazdálkodói vagy szaktanácsadói szerepkör nem kap közvetlen SELECT/INSERT jogosultságot.
 
-## 12. IP-cím és helyadat
+## 12. Riasztási és kockázatértékelési modell
 
-Az IP-cím biztonsági incidensvizsgálati adatként naplózható. Az IP-alapú földrajzi hely csak becslés: VPN, mobilhálózat, NAT, szolgáltatói routing és vállalati hálózat miatt eltérhet a valós helytől.
+A rendszer nem egyetlen hibás próbálkozásra riaszt, hanem mintákat keres. Kockázati jel lehet sok sikertelen belépés, több fiók próbálgatása egy IP-ről, ugyanazon fiók támadása sok IP-ről, ismételt jogosultság-megtagadás, MFA/step-up hibák, tömeges exportpróba, szokatlan fájlfeltöltés, tiltott RPC/adminútvonal ismételt hívása vagy rövid idő alatt sok magas kockázatú esemény.
 
-Fontos:
-- az IP-cím nem bizonyítja önmagában, hogy melyik konkrét személy hajtotta végre a műveletet;
-- jogi eljárás esetén a szolgáltatói naplók és hivatalos adatkérés lehet szükséges;
-- az IP-adat személyes adatnak minősülhet, ezért hozzáférése és megőrzése korlátozandó.
+Az adminriasztás küszöbértékhez és mintához kötött; egyedi felhasználói hibák naplózódhatnak riasztás nélkül.
 
-## 13. Megőrzés és adatminimalizálás
+## 13. IP-cím és helyadat
 
-Alap biztonsági naplómegőrzés: 90 nap. Tényleges incidenshez kapcsolódó rekord külön incidenskezelési döntés alapján hosszabb ideig megőrizhető, jogi és adatvédelmi követelmények figyelembevételével.
+Az IP-cím incidensvizsgálati adatként naplózható. Az IP-alapú földrajzi hely csak becslés; VPN, mobilhálózat, NAT és szolgáltatói routing miatt eltérhet a valós helytől. Az IP-cím önmagában nem bizonyítja, mely személy hajtotta végre a műveletet, és személyes adatnak minősülhet, ezért hozzáférése és megőrzése korlátozandó.
 
-Nem naplózandó:
-- jelszó;
-- access token / refresh token;
-- service-role secret;
-- teljes session cookie;
-- szükségtelenül teljes kérésbody, ha személyes vagy üzleti titkot tartalmaz.
+## 14. Megőrzés és adatminimalizálás
 
-## 14. Incidenskezelés
+Alap biztonsági naplómegőrzés: 90 nap. Valós incidenshez kapcsolódó rekord külön döntés alapján, jogi és adatvédelmi követelmények figyelembevételével hosszabb ideig őrizhető.
+
+## 15. Incidenskezelés
 
 Magas vagy kritikus riasztás esetén javasolt folyamat:
 1. esemény és kapcsolódó IP/fiók/időablak azonosítása;
-2. kapcsolódó security_events lekérése;
-3. érintett felhasználói sessionök és jogosultságok ellenőrzése;
-4. szükség esetén jelszócsere / session visszavonás / ideiglenes hozzáférés-korlátozás;
+2. kapcsolódó security események lekérése;
+3. érintett sessionök, MFA-állapot és jogosultságok ellenőrzése;
+4. szükség esetén jelszócsere, session-visszavonás vagy hozzáférés-korlátozás;
 5. export-, dokumentum- és auditnaplók ellenőrzése;
 6. érintett adatok körének meghatározása;
 7. bizonyítékok megőrzése;
 8. szükség esetén adatvédelmi és jogi incidensfolyamat elindítása.
 
-## 15. Fejlesztési biztonsági szabály
+## 16. Fejlesztési biztonsági szabály
 
-Minden új funkció implementációjánál kötelező security check:
-- új tábla → RLS és policy ellenőrzés;
-- új RPC → EXECUTE és SECURITY DEFINER audit;
-- új fájlfunkció → Storage policy audit;
-- új user input → validáció és XSS ellenőrzés;
-- új export → jogosultság + auditnapló;
-- új adminművelet → objektumszintű authorization;
-- új külső szolgáltatás → secret és CSP ellenőrzés;
-- a technikai biztonsági dokumentáció szükség szerinti frissítése.
+Minden új funkciónál kötelező security check: új tábla esetén RLS/policy audit; új RPC esetén EXECUTE és SECURITY DEFINER audit; új fájlfunkciónál Storage policy audit; új inputnál validáció/XSS ellenőrzés; új exportnál jogosultság + friss MFA + auditnapló; új adminműveletnél objektumszintű authorization; új külső szolgáltatásnál secret és CSP ellenőrzés; szükség szerint a biztonsági dokumentáció frissítése.
 
-## 16. Maradó kockázatok
+## 17. Maradó kockázatok
 
-A rendszer hardening után sem tekinthető támadhatatlannak. Maradó kockázat például:
-- ellopott vagy adathalászattal megszerzett felhasználói hitelesítő adat;
-- null-day sérülékenység egy függőségben vagy platformszolgáltatásban;
-- kompromittált adminfiók;
-- hibás infrastrukturális vagy DNS-beállítás;
-- rosszul kezelt külső titok / API-kulcs;
-- social engineering.
+A rendszer hardening után sem támadhatatlan. Maradó kockázat az adathalászat, kompromittált végpont vagy authenticator, null-day sérülékenység, kompromittált adminfiók, hibás infrastruktúra/DNS, rosszul kezelt külső titok, social engineering vagy platformszolgáltatói incidens.
 
-A védelem ezért rétegzett: authentikáció + RLS + szerveroldali authorization + inputvalidáció + biztonsági headerek + naplózás + riasztás + audit + mentések.
+A védelem ezért rétegzett: jelszó + TOTP MFA + AAL2 adatbázis-korlát + RLS + szerveroldali authorization + friss step-up hitelesítés exporthoz + inputvalidáció + biztonsági headerek + védett security ledger + riasztás + audit + mentések.
