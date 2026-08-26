@@ -1,0 +1,25 @@
+import Link from "next/link";
+import {createClient} from "@/lib/supabase/server";
+
+export default async function SystemAdminPage(){
+ const supabase=await createClient();
+ const[{count:users},{count:farms},{count:fields},{count:tasks},{count:openTasks},{count:reports},{count:securityHigh},{data:recentAudit}]=await Promise.all([
+  supabase.from("profiles").select("id",{count:"exact",head:true}),
+  supabase.from("farms").select("id",{count:"exact",head:true}),
+  supabase.from("fields").select("id",{count:"exact",head:true}),
+  supabase.from("tasks").select("id",{count:"exact",head:true}),
+  supabase.from("tasks").select("id",{count:"exact",head:true}).neq("status","done"),
+  supabase.from("farmer_reports").select("id",{count:"exact",head:true}).neq("status","closed"),
+  supabase.from("security_events").select("id",{count:"exact",head:true}).gte("risk_score",70),
+  supabase.from("admin_audit_events").select("id,created_at,action,target_type,target_id,reason").order("created_at",{ascending:false}).limit(8)
+ ]);
+ const cards=[
+  ["Felhasználók",users??0,"/system-admin/users","Gazdák, szaktanácsadók és rendszerjogok"],
+  ["Gazdaságok",farms??0,"/system-admin/support","Teljes támogatási és hibajavítási nézet"],
+  ["Földtáblák",fields??0,"/admin/map","A teljes szakmai térkép megnyitása"],
+  ["Nyitott feladatok",openTasks??0,"/system-admin/support","Elakadt munkafolyamatok vizsgálata"],
+  ["Nyitott jelzések",reports??0,"/admin/reports","Gazdálkodói kommunikáció"],
+  ["Magas kockázat",securityHigh??0,"/system-admin/security","Biztonsági események ellenőrzése"],
+ ] as const;
+ return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">RENDSZERADMINISZTRÁTORI PORTÁL</span><h1>Agrár Mentor rendszerfelügyelet</h1><p>Teljes rendszeráttekintés, támogatás, incidensvizsgálat és auditált adminisztrátori beavatkozás.</p></div></header><section className="admin-summary">{cards.slice(0,3).map(([label,count])=><div key={label}><span>{label}</span><strong>{count}</strong></div>)}</section><section style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:14,marginBottom:14}}>{cards.map(([label,count,href,meta])=><Link key={label} href={href} className="panel" style={{display:"block",padding:18}}><span className="eyebrow">ADMIN</span><h2 style={{margin:"7px 0",fontSize:20}}>{label}</h2><strong style={{display:"block",fontSize:34,color:"#8f2631"}}>{count}</strong><small style={{color:"#75666a"}}>{meta}</small></Link>)}</section><section className="panel"><div className="panel-heading"><div><span className="eyebrow">AUDIT</span><h2>Legutóbbi admin beavatkozások</h2></div><span className="user-pill">Összes feladat: {tasks??0}</span></div>{recentAudit?.length?<div>{recentAudit.map(e=><div key={e.id} style={{padding:"12px 0",borderTop:"1px solid #eee1e3"}}><strong>{e.action}</strong><small style={{display:"block",color:"#75666a",marginTop:3}}>{e.target_type}{e.target_id?` · ${e.target_id}`:""} · {new Date(e.created_at).toLocaleString("hu-HU")}</small><p style={{margin:"5px 0 0"}}>{e.reason}</p></div>)}</div>:<div className="notice">Még nincs adminisztrátori beavatkozás naplózva.</div>}</section></main>
+}
