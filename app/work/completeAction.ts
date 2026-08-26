@@ -3,6 +3,7 @@
 import {revalidatePath} from "next/cache";
 import {createClient} from "@/lib/supabase/server";
 import {encodeTaskProof,pointInBoundary,nearestBoundaryDistance,distanceMeters} from "@/lib/taskProof";
+import {notifyAdvisors} from "@/lib/workflowNotifications";
 
 function optionalNumber(v:FormDataEntryValue|null,label="érték"){const s=String(v||"").trim().replace(",",".");if(!s)return null;const n=Number(s);if(!Number.isFinite(n)||n<0)throw new Error(`Érvénytelen ${label}.`);return n}
 
@@ -22,7 +23,7 @@ export async function completeVerifiedTask(formData:FormData){
   else throw new Error("Ehhez a táblához még nincs térképi adat. GPS-validált beküldés előtt rögzíteni kell a táblahatárt vagy középpontot.");
   if(!validation)throw new Error(`A GPS alapján nem vagy a munkaterületen${distance!==null?` (kb. ${Math.round(distance)} m távolság)`:""}.`);
   const now=new Date().toISOString(),proof=encodeTaskProof({lat,lng,accuracy,photoPath,photoName,capturedAt:now,distanceMeters:distance,validation});const{error}=await supabase.rpc("submit_verified_task_execution",{p_task_id:taskId,p_proof:proof,p_operation_date:operationDate,p_actual_dose:actualDose,p_dose_unit:doseUnit||null,p_actual_area:actualArea,p_actual_quantity:actualQuantity,p_quantity_unit:quantityUnit||null,p_weather:weather||null,p_notes:notes||null,p_finished_hours:finishedHours,p_worked_hectares:workedHectares});if(error)throw new Error(error.message);
-  const href=`/admin/tasks?view=submitted`;const{data:advisors}=await supabase.from("profiles").select("id").eq("role","advisor");if(advisors?.length){await supabase.from("notifications").insert(advisors.map(a=>({user_id:a.id,kind:"task_submitted_review",title:"Munka ellenőrzésre vár",message:`${task.title} · ${field.name}`,href})));for(const a of advisors){try{await supabase.functions.invoke("send-notification-email",{body:{target_user_id:a.id,subject:"Munka ellenőrzésre vár",message:`${task.title}\n${field.name}\nGPS és helyszíni fotó rögzítve. A végrehajtás szaktanácsadói visszaigazolásra vár.`,href}})}catch(e){console.error(e)}}}
+  const href="/admin/tasks?view=submitted";await notifyAdvisors(supabase,{kind:"task_submitted_review",title:"Munka ellenőrzésre vár",message:`${task.title} · ${field.name}`,href,eventKey:`task:${task.id}:submitted`,emailSubject:"Munka ellenőrzésre vár",emailMessage:`${task.title}\n${field.name}\nGPS és helyszíni fotó rögzítve. A végrehajtás szaktanácsadói visszaigazolásra vár.`});
   revalidatePath(`/fields/${task.field_id}`);revalidatePath("/dashboard");revalidatePath("/tasks");revalidatePath("/work");revalidatePath("/admin");revalidatePath("/admin/workday");revalidatePath("/admin/tasks");return{ok:true,submitted:true};
  }catch(e){console.error("completeVerifiedTask",e);return{ok:false,submitted:false,error:e instanceof Error?e.message:"A munka beküldése sikertelen."};}
 }
