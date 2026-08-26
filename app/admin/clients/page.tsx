@@ -3,7 +3,8 @@ import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {AdminNav} from "@/components/AdminNav";
 import {AdminDeleteButton} from "@/components/AdminDeleteButton";
-import {inviteFarmer,createFarm,createField} from "../actions";
+import {FarmCreateWithContacts} from "@/components/FarmCreateWithContacts";
+import {inviteFarmer,createField} from "../actions";
 import styles from "./clients.module.css";
 
 function dateLabel(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
@@ -57,7 +58,7 @@ export default async function ClientsPage(){
   </section>
   <details className="panel" style={{marginTop:14}}><summary style={{cursor:"pointer",padding:18,fontWeight:800}}>＋ Ügyfél, gazdaság vagy földtábla felvétele</summary><div style={{padding:"0 18px 18px"}}><div className="admin-grid">
    <article><span className="eyebrow">ÚJ ÜGYFÉL</span><h2>Gazdálkodó meghívása</h2><form action={inviteFarmer} className="admin-form"><label>Gazdálkodó neve<input name="full_name" required/></label><label>E-mail cím<input name="email" type="email" required/></label><button className="btn btn-primary">Meghívó küldése</button></form></article>
-   <article><span className="eyebrow">ÚJ GAZDASÁG</span><h2>Gazdaság felvétele</h2><form action={createFarm} className="admin-form"><label>Gazdálkodó<select name="owner_id" required><option value="">Válassz ügyfelet</option>{farmers?.map(f=><option key={f.id} value={f.id}>{f.full_name}</option>)}</select></label><label>Gazdaság neve<input name="name" required/></label><label>Település<input name="settlement"/></label><label>Cím<input name="address"/></label><button className="btn btn-secondary">Gazdaság létrehozása</button></form></article>
+   <article><span className="eyebrow">ÚJ GAZDASÁG</span><h2>Gazdaság felvétele</h2><FarmCreateWithContacts farmers={farmers??[]}/></article>
   </div><hr style={{border:0,borderTop:"1px solid #e5e9e5",margin:"20px 0"}}/><div style={{maxWidth:620}}><span className="eyebrow">ÚJ FÖLDTÁBLA</span><h2>Földtábla felvétele</h2><form action={createField} className="admin-form"><label>Gazdaság<select name="farm_id" required><option value="">Válassz gazdaságot</option>{farms?.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Tábla neve<input name="name" required/></label><label>Terület (ha)<input name="area_ha" inputMode="decimal"/></label><label>Kultúra<input name="current_crop"/></label><button className="btn btn-secondary">Tábla létrehozása</button></form></div></div></details>
  </main>;
 }
