@@ -8,6 +8,8 @@ export default async function AdminLayout({children}:{children:ReactNode}){
   const supabase=await createClient();
   const{data:{user}}=await supabase.auth.getUser();
   if(!user)redirect("/login");
+  const{data:aal}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aal?.currentLevel!=="aal2")redirect("/mfa?next=/admin");
   const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
   if(profile?.role!=="advisor")redirect("/dashboard");
   return <div className={styles.app}><AdvisorSidebar/><section className={styles.content}>{children}</section></div>
