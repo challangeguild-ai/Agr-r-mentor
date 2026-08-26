@@ -8,7 +8,7 @@ export type TaskProof={
  photoName:string;
  capturedAt:string;
  distanceMeters?:number|null;
- validation:"inside_boundary"|"near_boundary"|"near_center";
+ validation:"inside_boundary"|"near_boundary"|"near_center"|"demo_override";
 };
 
 export function encodeTaskProof(proof:TaskProof){return `TASKPROOF:${JSON.stringify(proof)}`}
