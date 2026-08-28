@@ -1,0 +1,25 @@
+import {createClient} from "@/lib/supabase/server";
+import {inviteAdvisor} from "../actions";
+
+type Props={searchParams:Promise<{invite?:string;email?:string}>};
+
+export default async function UsersPage({searchParams}:Props){
+ const supabase=await createClient();
+ const{data:profiles}=await supabase.from("profiles").select("id,full_name,role,system_role,phone,created_at").order("created_at",{ascending:false});
+ const params=await searchParams;
+ const sent=params.invite==="sent"&&params.email;
+ return <main className="admin-shell">
+  <header className="admin-header"><div><span className="eyebrow">FELHASZNÁLÓK</span><h1>Szerepkörök és rendszerjogok</h1><p>A szakmai szerepkör és a rendszeradminisztrátori jogosultság külön kezelhető.</p></div></header>
+  <section className="panel" style={{marginBottom:16}}>
+   <h2>Szaktanácsadó meghívása</h2>
+   <p>A meghívás csak friss kétfaktoros hitelesítéssel és rendszeradminisztrátori jogosultsággal hajtható végre.</p>
+   {sent?<div className="notice" style={{marginBottom:16}}><strong>Meghívó elküldve:</strong> {params.email}</div>:null}
+   <form action={inviteAdvisor} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,alignItems:"end"}}>
+    <label>Név<input name="full_name" autoComplete="name" placeholder="Szaktanácsadó neve" style={{display:"block",width:"100%",marginTop:6}} /></label>
+    <label>E-mail<input name="email" type="email" autoComplete="email" required placeholder="nev@pelda.hu" style={{display:"block",width:"100%",marginTop:6}} /></label>
+    <button type="submit">Szaktanácsadó meghívása</button>
+   </form>
+  </section>
+  <section className="panel"><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th style={{textAlign:"left",padding:10}}>Név</th><th style={{textAlign:"left",padding:10}}>Szakmai szerep</th><th style={{textAlign:"left",padding:10}}>Rendszerjog</th><th style={{textAlign:"left",padding:10}}>Telefon</th><th style={{textAlign:"left",padding:10}}>Létrehozva</th></tr></thead><tbody>{(profiles??[]).map(p=><tr key={p.id} style={{borderTop:"1px solid #eee1e3"}}><td style={{padding:10}}><strong>{p.full_name||"Névtelen felhasználó"}</strong><small style={{display:"block",color:"#75666a"}}>{p.id}</small></td><td style={{padding:10}}>{p.role==="advisor"?"Szaktanácsadó":"Gazdálkodó"}</td><td style={{padding:10}}><b style={{color:p.system_role==="admin"?"#922b36":"#75666a"}}>{p.system_role==="admin"?"Rendszeradmin":"Normál"}</b></td><td style={{padding:10}}>{p.phone||"—"}</td><td style={{padding:10}}>{p.created_at?new Date(p.created_at).toLocaleDateString("hu-HU"):"—"}</td></tr>)}</tbody></table></div><div className="notice" style={{marginTop:16}}>Adminjog kiosztását szándékosan nem tesszük egyszerű kapcsolóvá ezen az oldalon. A jogosultság-emelés kritikus művelet, ezért külön friss MFA-val védett folyamatként kezelendő.</div></section>
+ </main>
+}

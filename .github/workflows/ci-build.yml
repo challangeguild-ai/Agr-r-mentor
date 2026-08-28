@@ -11,6 +11,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-build-placeholder-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-build-placeholder-service-role-key
+      SECURITY_STEPUP_SECRET: ci-build-placeholder-secret-at-least-32-bytes-long
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

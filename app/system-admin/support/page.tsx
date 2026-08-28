@@ -1,0 +1,15 @@
+import Link from "next/link";
+import {createClient} from "@/lib/supabase/server";
+import {adminUpdateTaskStatus} from "../actions";
+
+export default async function SupportPage(){
+ const supabase=await createClient();
+ const[{data:tasks},{data:farms},{data:fields},{data:profiles}]=await Promise.all([
+  supabase.from("tasks").select("id,title,status,priority,due_date,farm_id,field_id,assigned_to,created_at").order("created_at",{ascending:false}).limit(120),
+  supabase.from("farms").select("id,name,owner_id"),
+  supabase.from("fields").select("id,name,farm_id"),
+  supabase.from("profiles").select("id,full_name,role,system_role")
+ ]);
+ const farmMap=new Map((farms??[]).map(x=>[x.id,x])),fieldMap=new Map((fields??[]).map(x=>[x.id,x])),personMap=new Map((profiles??[]).map(x=>[x.id,x.full_name||x.role]));
+ return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">TÁMOGATÁSI KÖZPONT</span><h1>Felhasználói munkafolyamatok javítása</h1><p>Az admin itt vizsgálhat elakadt feladatot és indoklással korrigálhat állapotot. A beavatkozás auditnaplóba kerül.</p></div></header><section className="panel"><div className="notice" style={{marginBottom:16}}><strong>Admin támogatási mód.</strong> Ne módosíts adatot csak azért, mert technikailag lehetséges. Minden változtatásnak legyen konkrét támogatási oka.</div><div style={{display:"grid",gap:12}}>{(tasks??[]).map(t=>{const field=t.field_id?fieldMap.get(t.field_id):null;const farm=farmMap.get(t.farm_id||field?.farm_id);return <article key={t.id} style={{border:"1px solid #eadcdf",borderRadius:12,padding:14,background:"#fff"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{t.title}</strong><small style={{display:"block",marginTop:4,color:"#75666a"}}>{farm?.name||"Gazdaság"} · {field?.name||"Teljes gazdaság"} · {personMap.get(t.assigned_to)||"nincs végrehajtó"}</small></div><span className="user-pill">{t.status}</span></div><form action={adminUpdateTaskStatus} style={{display:"grid",gridTemplateColumns:"minmax(140px,.7fr) minmax(220px,2fr) auto",gap:10,marginTop:12,alignItems:"end"}}><input type="hidden" name="task_id" value={t.id}/><label style={{fontSize:12,fontWeight:800}}>Javított állapot<select name="status" defaultValue={t.status} style={{display:"block",width:"100%",marginTop:5,padding:10,border:"1px solid #dfd2d5",borderRadius:8}}><option value="open">Nyitott</option><option value="in_progress">Folyamatban</option><option value="submitted">Ellenőrzésre vár</option><option value="done">Lezárt</option></select></label><label style={{fontSize:12,fontWeight:800}}>Admin indoklás<input name="reason" placeholder="Miért szükséges a javítás?" minLength={8} required style={{display:"block",width:"100%",marginTop:5,padding:10,border:"1px solid #dfd2d5",borderRadius:8}}/></label><button className="btn btn-primary">Állapot javítása</button></form></article>})}</div></section><div style={{marginTop:14}}><Link className="ghost-btn" href="/system-admin">← Rendszeráttekintés</Link></div></main>
+}
