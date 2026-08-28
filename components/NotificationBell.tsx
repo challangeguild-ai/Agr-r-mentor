@@ -13,7 +13,8 @@ export function NotificationBell(){
   (async()=>{
    const{data:{user}}=await supabase.auth.getUser();
    if(!user){if(alive)setLoading(false);return}
-   await supabase.rpc("dispatch_due_personal_followups").catch(()=>{});
+   const{error:dispatchError}=await supabase.rpc("dispatch_due_personal_followups");
+   if(dispatchError)console.warn("A személyes emlékeztetők feldolgozása most nem sikerült.",dispatchError.message);
    const[{data,error:loadError},{count,error:countError}]=await Promise.all([
     supabase.from("notifications").select("id,user_id,kind,title,message,href,read_at,created_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20),
     supabase.from("notifications").select("id",{count:"exact",head:true}).eq("user_id",user.id).is("read_at",null),
