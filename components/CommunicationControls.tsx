@@ -1,15 +1,28 @@
 "use client";
-import {useState} from "react";
+import {ReactNode,useState} from "react";
 import {cancelPersonalFollowup,createPersonalFollowup,markCommunicationSeen} from "@/app/contact-actions";
 
-export function CommunicationSeenMarker({entityType,entityId}:{entityType:"farmer_report"|"inspection"|"task"|"advisor_message";entityId:string}){
+type CommunicationEntityType="farmer_report"|"inspection"|"task"|"advisor_message";
+
+export function CommunicationSeenMarker({entityType,entityId}:{entityType:CommunicationEntityType;entityId:string}){
  const[opened,setOpened]=useState(false),[busy,setBusy]=useState(false);
  async function open(){if(opened||busy)return;setBusy(true);try{await markCommunicationSeen(entityType,entityId);setOpened(true)}finally{setBusy(false)}}
  return opened?<span className="user-pill">✓ Megnyitva</span>:<button type="button" className="ghost-btn" onClick={open} disabled={busy}>{busy?"Megnyitás…":"Bejegyzés megnyitása"}</button>
 }
 
+export function CommunicationDisclosure({entityType,entityId,summary,children}:{entityType:CommunicationEntityType;entityId:string;summary:ReactNode;children:ReactNode}){
+ const[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ async function toggle(){
+  if(open){setOpen(false);return}
+  if(busy)return;
+  setBusy(true);setError("");
+  try{await markCommunicationSeen(entityType,entityId);setOpen(true)}catch(e){setError(e instanceof Error?e.message:"A bejegyzés nem nyitható meg.")}finally{setBusy(false)}
+ }
+ return <div><button type="button" onClick={toggle} disabled={busy} aria-expanded={open} className="communication-disclosure" style={{width:"100%",textAlign:"left",border:0,background:"transparent",padding:0,cursor:busy?"wait":"pointer"}}>{summary}</button>{error&&<small style={{display:"block",color:"#a72f27",marginTop:8}}>{error}</small>}{open&&<div style={{marginTop:12}}>{children}</div>}</div>
+}
+
 function localDateTime(ms:number){const d=new Date(Date.now()+ms);const off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,16)}
-export function RemindLaterButton({entityType,entityId,title,href}:{entityType:"farmer_report"|"inspection"|"task"|"advisor_message";entityId:string;title:string;href:string}){
+export function RemindLaterButton({entityType,entityId,title,href}:{entityType:CommunicationEntityType;entityId:string;title:string;href:string}){
  const[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[followupId,setFollowupId]=useState<string|null>(null),[error,setError]=useState("");
  async function schedule(remindAt:string){setBusy(true);setError("");const f=new FormData();f.set("entity_type",entityType);f.set("entity_id",entityId);f.set("title",title);f.set("href",href);f.set("remind_at",new Date(remindAt).toISOString());try{const r=await createPersonalFollowup(f);setFollowupId(r.id);setOpen(false)}catch(e){setError(e instanceof Error?e.message:"Az emlékeztető nem menthető.")}finally{setBusy(false)}}
  async function cancel(){if(!followupId)return;setBusy(true);setError("");const f=new FormData();f.set("followup_id",followupId);try{await cancelPersonalFollowup(f);setFollowupId(null)}catch(e){setError(e instanceof Error?e.message:"Az emlékeztető nem törölhető.")}finally{setBusy(false)}}
