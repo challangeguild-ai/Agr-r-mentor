@@ -15,8 +15,8 @@ export default async function UsersPage({searchParams}:Props){
    <p>A meghívás csak friss kétfaktoros hitelesítéssel és rendszeradminisztrátori jogosultsággal hajtható végre.</p>
    {sent?<div className="notice" style={{marginBottom:16}}><strong>Meghívó elküldve:</strong> {params.email}</div>:null}
    <form action={inviteAdvisor} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,alignItems:"end"}}>
-    <label>Név<input name="full_name" placeholder="Szaktanácsadó neve" style={{display:"block",width:"100%",marginTop:6}} /></label>
-    <label>E-mail<input name="email" type="email" required placeholder="nev@pelda.hu" style={{display:"block",width:"100%",marginTop:6}} /></label>
+    <label>Név<input name="full_name" autoComplete="name" placeholder="Szaktanácsadó neve" style={{display:"block",width:"100%",marginTop:6}} /></label>
+    <label>E-mail<input name="email" type="email" autoComplete="email" required placeholder="nev@pelda.hu" style={{display:"block",width:"100%",marginTop:6}} /></label>
     <button type="submit">Szaktanácsadó meghívása</button>
    </form>
   </section>
