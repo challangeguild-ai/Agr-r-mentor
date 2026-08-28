@@ -20,5 +20,5 @@ as $$
      );
 $$;
 
-revoke all on function app_private.is_advisor() from public, anon, authenticated;
-grant execute on function app_private.is_advisor() to service_role;
+revoke all on function app_private.is_advisor() from public, anon;
+grant execute on function app_private.is_advisor() to authenticated, service_role;
