@@ -17,9 +17,10 @@ export async function GET(){
  const cookieStore=await cookies();
  let fresh=false;try{fresh=verifyStepUpGrant(cookieStore.get(STEP_UP_COOKIE)?.value,user.id,"export")}catch{return NextResponse.json({error:"A biztonsági exportkulcs nincs beállítva."},{status:503})}
  if(!fresh){await log(user.id,"backup_export_without_fresh_mfa","high",60,{blocked:true});return NextResponse.json({error:"Az exporthoz friss authenticator-megerősítés szükséges."},{status:428})}
- const{data,error}=await supabase.rpc("export_app_backup");
+ const admin=createAdminClient();
+ const{data,error}=await admin.rpc("export_app_backup_service",{p_actor:user.id});
  if(error){await log(user.id,"backup_export_failed","high",45,{reason:error.message});return NextResponse.json({error:error.message},{status:500})}
- await log(user.id,"backup_export_success","medium",10,{fresh_mfa:true,system_admin:true});
+ await log(user.id,"backup_export_success","medium",10,{fresh_mfa:true,system_admin:true,service_route:true});
  cookieStore.delete(STEP_UP_COOKIE);
  const stamp=new Date().toISOString().replace(/[:.]/g,"-");
  return new NextResponse(JSON.stringify(data,null,2),{status:200,headers:{"Content-Type":"application/json; charset=utf-8","Content-Disposition":`attachment; filename="agrar-mentor-backup-${stamp}.json"`,"Cache-Control":"no-store, private","Pragma":"no-cache"}});
