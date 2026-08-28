@@ -4,6 +4,8 @@ import {createClient} from "@/lib/supabase/server";
 import {SystemAdminSidebar} from "@/components/SystemAdminSidebar";
 import styles from "./SystemAdminLayout.module.css";
 
+export const dynamic="force-dynamic";
+
 export default async function SystemAdminLayout({children}:{children:ReactNode}){
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");

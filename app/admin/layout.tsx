@@ -10,7 +10,8 @@ export default async function AdminLayout({children}:{children:ReactNode}){
   if(!user)redirect("/login");
   const{data:aal}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if(aal?.currentLevel!=="aal2")redirect("/mfa?next=/admin");
-  const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  const{data:profile}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
+  if(profile?.system_role==="admin")redirect("/system-admin");
   if(profile?.role!=="advisor")redirect("/dashboard");
   return <div className={styles.app}><AdvisorSidebar/><section className={styles.content}>{children}</section></div>
 }

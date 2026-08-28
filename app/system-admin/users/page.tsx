@@ -1,15 +1,15 @@
-import {createClient} from "@/lib/supabase/server";
+import {createAdminClient} from "@/lib/supabase/admin";
 import {inviteAdvisor} from "../actions";
 
 type Props={searchParams:Promise<{invite?:string;email?:string}>};
 
 export default async function UsersPage({searchParams}:Props){
- const supabase=await createClient();
+ const supabase=createAdminClient();
  const{data:profiles}=await supabase.from("profiles").select("id,full_name,role,system_role,phone,created_at").order("created_at",{ascending:false});
  const params=await searchParams;
  const sent=params.invite==="sent"&&params.email;
  return <main className="admin-shell">
-  <header className="admin-header"><div><span className="eyebrow">FELHASZNÁLÓK</span><h1>Szerepkörök és rendszerjogok</h1><p>A szakmai szerepkör és a rendszeradminisztrátori jogosultság külön kezelhető.</p></div></header>
+  <header className="admin-header"><div><span className="eyebrow">FELHASZNÁLÓK</span><h1>Szerepkörök és rendszerjogok</h1><p>A szakmai szerepkör és a rendszeradminisztrátori jogosultság elkülönül. A rendszeradmin nem használja a szaktanácsadói munkateret.</p></div></header>
   <section className="panel" style={{marginBottom:16}}>
    <h2>Szaktanácsadó meghívása</h2>
    <p>A meghívás csak friss kétfaktoros hitelesítéssel és rendszeradminisztrátori jogosultsággal hajtható végre.</p>

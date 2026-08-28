@@ -11,8 +11,7 @@ const items=[
  ["/system-admin/support","⌘","Támogatási központ","admin-support"],
  ["/system-admin/users","♙","Felhasználók","admin-users"],
  ["/system-admin/security","⚠","Biztonsági események","admin-security"],
- ["/admin","↗","Szaktanácsadói rendszer","admin-advisor"],
- ["/admin/backup","▤","Biztonsági mentés","admin-backup"],
+ ["/system-admin/backup","▤","Biztonsági mentés","admin-backup"],
 ] as const;
 
 export function SystemAdminSidebar(){
