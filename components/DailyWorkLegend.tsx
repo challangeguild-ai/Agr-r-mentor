@@ -1,0 +1,1 @@
+export function DailyWorkLegend(){return <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}><span className="user-pill">Azonnali</span><span className="user-pill">Magas</span><span className="user-pill">Normál</span><span className="user-pill">Alacsony</span></div>}

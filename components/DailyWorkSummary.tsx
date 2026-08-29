@@ -1,0 +1,6 @@
+import type {DailyWorkPriority} from "@/lib/dailyWorkPriority";
+
+export function DailyWorkSummary({items}:{items:DailyWorkPriority[]}){
+ const critical=items.filter(i=>i.severity==="critical").length,high=items.filter(i=>i.severity==="high").length,overdue=items.filter(i=>i.overdue).length,today=items.filter(i=>i.dueToday).length;
+ return <section className="admin-overview-grid" data-help-block="daily-work-summary"><article className="admin-overview-card"><span>Azonnali</span><strong>{critical}</strong><small>kritikus prioritás</small></article><article className="admin-overview-card"><span>Magas</span><strong>{high}</strong><small>kiemelt tétel</small></article><article className="admin-overview-card"><span>Lejárt</span><strong>{overdue}</strong><small>határidőn túli</small></article><article className="admin-overview-card"><span>Ma esedékes</span><strong>{today}</strong><small>mai munkatétel</small></article></section>;
+}
