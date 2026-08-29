@@ -1,6 +1,6 @@
 import {NextResponse,type NextRequest} from "next/server";
 
-const protectedPrefixes=["/dashboard","/admin","/system-admin","/farms","/fields","/map","/operations","/tasks","/team","/dispatch","/machines","/work","/timeline","/documents","/invoices","/messages","/notifications"];
+const protectedPrefixes=["/dashboard","/daily-work","/admin","/system-admin","/farms","/fields","/map","/operations","/tasks","/team","/dispatch","/machines","/work","/timeline","/documents","/invoices","/messages","/notifications"];
 
 export function middleware(request:NextRequest){
  const pathname=request.nextUrl.pathname;
@@ -13,4 +13,4 @@ export function middleware(request:NextRequest){
  return NextResponse.next();
 }
 
-export const config={matcher:["/dashboard/:path*","/admin/:path*","/system-admin/:path*","/farms/:path*","/fields/:path*","/map/:path*","/operations/:path*","/tasks/:path*","/team/:path*","/dispatch/:path*","/machines/:path*","/work/:path*","/timeline/:path*","/documents/:path*","/invoices/:path*","/messages/:path*","/notifications/:path*"]};
+export const config={matcher:["/dashboard/:path*","/daily-work/:path*","/admin/:path*","/system-admin/:path*","/farms/:path*","/fields/:path*","/map/:path*","/operations/:path*","/tasks/:path*","/team/:path*","/dispatch/:path*","/machines/:path*","/work/:path*","/timeline/:path*","/documents/:path*","/invoices/:path*","/messages/:path*","/notifications/:path*"]};

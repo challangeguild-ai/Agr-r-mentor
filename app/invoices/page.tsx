@@ -8,7 +8,8 @@ export default async function InvoicesPage(){
   const supabase=await createClient();
   const{data:{user}}=await supabase.auth.getUser();
   if(!user)redirect("/login");
-  const{data:profile}=await supabase.from("profiles").select("full_name,role").eq("id",user.id).maybeSingle();
+  const{data:profile}=await supabase.from("profiles").select("full_name,role,system_role").eq("id",user.id).maybeSingle();
+  if(profile?.system_role==="admin")redirect("/system-admin");
   if(profile?.role==="advisor")redirect("/admin/documents");
   const{data:farms}=await supabase.from("farms").select("id").eq("owner_id",user.id);
   const farmIds=(farms??[]).map(f=>f.id);

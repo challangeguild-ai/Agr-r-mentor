@@ -23,9 +23,10 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   if(!user)redirect("/login");
 
   const[{data:profile},{data:field}]=await Promise.all([
-    supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle(),
+    supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle(),
     supabase.from("fields").select("id,farm_id,name,area_ha,current_crop,crop_year,sowing_date,status,notes,center_lat,center_lng,boundary_geojson").eq("id",id).maybeSingle()
   ]);
+  if(profile?.system_role==="admin")redirect("/system-admin");
   if(!field)notFound();
 
   const[{data:farm},{data:tasks},{data:inspections},{data:timeline},{data:reports},{data:documents}]=await Promise.all([

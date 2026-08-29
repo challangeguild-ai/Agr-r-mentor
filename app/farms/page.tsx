@@ -6,7 +6,7 @@ import {BlockHelpButton} from "@/components/GuidedTour";
 import {savePlantProtectionApprover,deactivatePlantProtectionApprover} from "./plant-protection-actions";
 
 export default async function FarmsPage(){
- const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();if(profile?.role==="advisor")redirect("/admin/clients");
+ const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();if(profile?.system_role==="admin")redirect("/system-admin");if(profile?.role==="advisor")redirect("/admin/clients");
  const{data:farms,error}=await supabase.from("farms").select("id,name,settlement,address,owner_id,created_at").eq("owner_id",user.id).order("created_at",{ascending:true});if(error)throw new Error(error.message);const farmIds=(farms??[]).map(f=>f.id);
  const[{data:fields},{data:tasks},{data:members},{data:authorizations}]=farmIds.length?await Promise.all([
   supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,status").in("farm_id",farmIds).order("created_at",{ascending:true}),
