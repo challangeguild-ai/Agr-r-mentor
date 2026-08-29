@@ -29,7 +29,7 @@ export default async function AdvisorDailyWorkPage(){
   ...(inspections??[]).map(i=>({id:i.id,kind:"inspection" as const,title:i.condition==="critical"?"Kritikus táblaállapot":"Szemle / visszaellenőrzés",dueAt:i.next_check_at,createdAt:i.inspected_at,condition:i.condition,status:i.issue_status,fieldId:i.field_id})),
   ...(reports??[]).map(r=>({id:r.id,kind:"report" as const,title:r.title,dueAt:null,createdAt:r.created_at,status:r.status,unread:true,fieldId:r.field_id}))
  ];
- const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey());
+ const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey(),"advisor");
  const lifecycleTasks=(tasks??[]).map(t=>({id:t.id,title:t.title,status:t.status,reviewStatus:t.review_status,completedAt:t.completed_at,fieldId:t.field_id,dueDate:t.due_date}));
  const followUps=buildFollowUpSuggestions((recentInspections??[]).map(i=>({id:i.id,source:"inspection" as const,title:"Szemle",completedAt:i.inspected_at,condition:i.condition,fieldId:i.field_id})));
  return <main className="admin-shell">
@@ -38,7 +38,7 @@ export default async function AdvisorDailyWorkPage(){
   <DailyWorkSummary items={prioritized}/>
   <DailyAlertStrip alerts={alerts}/>
   <TaskLifecycleBoard tasks={lifecycleTasks} scope="advisor"/>
-  <FollowUpSuggestionBoard items={followUps}/>
+  <FollowUpSuggestionBoard items={followUps} scope="advisor"/>
   <DailyPriorityBoard items={items} title="Mai szaktanácsadói prioritások" scope="advisor"/>
   <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FELELŐSSÉGI HATÁR</span><h2>Döntéstámogatás, nem automatikus döntés</h2></div></div><div style={{padding:14,lineHeight:1.65}}><p>A pontszám a határidőt, prioritást, kritikus állapotot, új gazdálkodói jelzést és szükséges visszaellenőrzést súlyozza.</p><p style={{marginBottom:0}}><strong>A szaktanácsadó szakmai sorrendet állít fel.</strong> A rendszer nem ad gazdasági növényvédelmi jóváhagyási jogot, nem hajt végre műveletet és nem zár le feladatot automatikusan.</p></div></section>
  </main>;

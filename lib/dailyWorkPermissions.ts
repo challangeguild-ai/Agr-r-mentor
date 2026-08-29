@@ -4,7 +4,7 @@ export type DailyWorkAction="view"|"assign"|"execute"|"verify"|"approve_plant_pr
 const matrix:Record<DailyWorkRole,DailyWorkAction[]>={
  farmer:["view","assign","execute","approve_plant_protection"],
  advisor:["view","assign","verify"],
- "system-admin":["view","manage_system"]
+ "system-admin":["manage_system"]
 };
 
 export function canDailyWork(role:DailyWorkRole,action:DailyWorkAction){return matrix[role].includes(action);}
