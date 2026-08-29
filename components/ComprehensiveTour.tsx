@@ -8,6 +8,7 @@ type Step={id:string;title:string;body:string;selector:string;href?:string;menu?
 
 const farmer:Module[]=[
  {id:"dashboard",label:"Áttekintés",href:"/dashboard",menu:'[data-tour="farmer-dashboard"]',summary:"A gazdaság napi állapotképe, figyelmeztetései, határidői és munkaterülete."},
+ {id:"daily-work",label:"Mai prioritások",href:"/daily-work",menu:'[data-tour="farmer-daily-work"]',summary:"A napi teendők intelligens prioritási sorrendje, kritikus jelzésekkel, határidőkkel, végrehajtási állapotokkal és utánkövetéssel.",important:"Először a kritikus és lejárt tételeket kezeld, majd ellenőrizd a végrehajtási bizonyítékokat és az esetleges visszaellenőrzési javaslatokat."},
  {id:"fields",label:"Táblák",href:"/fields",menu:'[data-tour="farmer-fields"]',summary:"A földtáblák, kultúrák, szakmai állapotok és előzmények nyilvántartása."},
  {id:"operations",label:"Műveleti napló",href:"/operations",menu:'[data-tour="farmer-operations"]',summary:"A tervezett és elvégzett agrár műveletek teljes naplója.",important:"Növényvédelemnél mindig ellenőrizd a hivatalos korlátokat és a szükséges gazdasági jogosultságot."},
  {id:"approvals",label:"Jóváhagyások",href:"/operations/approvals",menu:'[data-tour="farmer-approvals"]',summary:"A jogosultsághoz kötött műveletek felelős gazdasági jóváhagyása.",important:"Jóváhagyás előtt ellenőrizd a készítményt, kultúrát, célt, dózist és saját jogosultságodat."},
@@ -25,6 +26,7 @@ const farmer:Module[]=[
 ];
 const advisor:Module[]=[
  {id:"home",label:"Kezdőlap",href:"/admin",menu:'[data-tour="advisor-home"]',summary:"A napi szaktanácsadói munka, prioritások és gyorsmodulok kiindulópontja."},
+ {id:"daily-work",label:"Mai prioritások",href:"/admin/daily-work",menu:'[data-tour="advisor-daily-work"]',summary:"A szaktanácsadói napi munkasor intelligens prioritási nézete, kritikus ügyekkel, lejárt feladatokkal, visszaellenőrzésekkel és jóváhagyási jelzésekkel.",important:"A napi sorrendet a kritikus és lejárt ügyekkel kezdd, majd ellenőrizd a gazdálkodói végrehajtásokat és a szükséges visszaellenőrzéseket."},
  {id:"clients",label:"Ügyfelek",href:"/admin/clients",menu:'[data-tour="advisor-clients"]',summary:"Gazdálkodók, gazdaságok, földtáblák és szakmai dossziék kezelése."},
  {id:"contacts",label:"Elérhetőségek",href:"/admin/contacts",menu:'[data-tour="advisor-contacts"]',summary:"Kapcsolattartási adatok és közvetlen ügyfélkommunikáció."},
  {id:"workday",label:"Munkanap",href:"/admin/workday",menu:'[data-tour="advisor-workday"]',summary:"Napi szemlék, feladatok, látogatások, visszaellenőrzések és elmaradások."},
@@ -47,7 +49,7 @@ function build(modules:Module[],role:Role):Step[]{return modules.flatMap(m=>[
  {id:`${m.id}-primary`,title:`${m.label} – első munkablokk`,body:"Ez az oldal első érdemi munkablokkja: itt találod az adott modul legfontosabb összesítő, rögzítő vagy navigációs funkcióját.",href:m.href,selector:"main > section:nth-of-type(1), main > div:nth-of-type(1), main form",optional:true},
  {id:`${m.id}-detail`,title:`${m.label} – részletes munkaterület`,body:"Itt dolgozol az adott modul részletes adataival, listáival, státuszaival és kapcsolódó műveleteivel. A túra csak bemutatja a felületet, nem hajt végre mentést vagy jóváhagyást.",href:m.href,selector:"main > section:last-of-type, main > div:last-of-type, main form:last-of-type",optional:true,important:m.important}
 ]);}
-const config={farmer:{version:9,name:"Gazdálkodói teljes rendszerbemutató",steps:build(farmer,"farmer")},advisor:{version:9,name:"Szaktanácsadói teljes rendszerbemutató",steps:build(advisor,"advisor")},"system-admin":{version:5,name:"Rendszeradminisztrátori teljes rendszerbemutató",steps:build(admin,"system-admin")}};
+const config={farmer:{version:10,name:"Gazdálkodói teljes rendszerbemutató",steps:build(farmer,"farmer")},advisor:{version:10,name:"Szaktanácsadói teljes rendszerbemutató",steps:build(advisor,"advisor")},"system-admin":{version:5,name:"Rendszeradminisztrátori teljes rendszerbemutató",steps:build(admin,"system-admin")}};
 
 export function ComprehensiveTour({role}:{role:Role}){const cfg=config[role];const steps=useMemo(()=>cfg.steps,[cfg.steps]);const router=useRouter();const pathname=usePathname();const doneKey=`agrar-comprehensive-tour:${role}:v${cfg.version}`;const stateKey=`${doneKey}:state`;const[index,setIndex]=useState<number|null>(null);const[welcome,setWelcome]=useState(false);const[rect,setRect]=useState<DOMRect|null>(null);
  useEffect(()=>{try{const raw=sessionStorage.getItem(stateKey);if(raw!==null){const n=Number(raw);if(Number.isInteger(n)&&n>=0&&n<steps.length){setIndex(n);return}}if(!localStorage.getItem(doneKey))setWelcome(true)}catch{}},[doneKey,stateKey,steps.length]);
