@@ -3,6 +3,8 @@ import {redirect,notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
 import {BlockHelpButton} from "@/components/GuidedTour";
+import {OperationCompliancePanel} from "@/components/OperationCompliancePanel";
+import {complianceFromOperationSnapshot} from "@/lib/operationComplianceSnapshot";
 import {operationLabel} from "@/lib/operations";
 
 function huDate(v:string|null){return v?new Date(v.includes("T")?v:`${v}T12:00:00`).toLocaleString("hu-HU"):"—"}
@@ -28,6 +30,7 @@ export default async function OperationDetailPage({params}:{params:Promise<{id:s
  const composition=(op.composition&&typeof op.composition==="object"?op.composition:{}) as Record<string,any>;
  const nutrients=Object.entries(composition).filter(([k,v])=>["N","P2O5","K2O","CaO","MgO","S"].includes(k)&&typeof v==="number");
  const isPlant=op.operation_type==="spraying"||op.operation_type==="plant_protection";
+ const complianceChecks=isPlant?complianceFromOperationSnapshot({country:op.country_code||farm?.country_code,operationDate:op.operation_date,dose:op.dose,doseUnit:op.dose_unit,approvalRequired:op.approval_required,approvalStatus:op.approval_status,regulatory:reg}):[];
  return <div className="app-shell farmer-app"><Sidebar active="operations" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard">
   <header className="topbar"><div><span className="eyebrow">MŰVELETI ADATLAP</span><h1>{operationLabel(op.operation_type)}</h1><p>{farm?.name||"Gazdaság"} · {field?.name||"Földtábla"} · {op.country_code}</p></div><Link className="ghost-btn" href={profile?.role==="advisor"?"/admin/operations":"/operations"}>Vissza a naplóhoz</Link></header>
 
@@ -37,6 +40,8 @@ export default async function OperationDetailPage({params}:{params:Promise<{id:s
    {op.quantity!=null&&<p>Mennyiség: <b>{op.quantity} {op.quantity_unit||""}</b></p>}{op.machine_name&&<p>Gép: <b>{op.machine_name}</b></p>}{op.weather&&<p>Időjárás / körülmények: <b>{op.weather}</b></p>}{op.notes&&<p>Megjegyzés: {op.notes}</p>}
    {op.approval_required&&<p>Gazdasági jóváhagyó: <b>{op.approver_name||"kijelölve"}</b> · állapot: <b>{op.approval_status}</b>{op.approved_at?` · ${huDate(op.approved_at)}`:""}</p>}
   </section>
+
+  {isPlant&&<OperationCompliancePanel checks={complianceChecks} title="A rögzített növényvédelmi művelet megfelelősége"/>}
 
   {isPlant&&Object.keys(reg).length>0&&<section className="panel"><div className="panel-heading"><div><span className="eyebrow">HIVATALOS PILLANATKÉP</span><h2>{op.country_code==="SK"?"ÚKSÚP":"Magyar"} engedélyezési adatok a rögzítéskor</h2></div><span className="user-pill">{reg.source_name||"Hivatalos katalógus"}</span></div>
    <div className="field-meta"><span><b>{reg.product_name||op.product_name||"—"}</b><small>Készítmény</small></span><span><b>{reg.authorization_number||op.authorization_number||"—"}</b><small>Engedélyszám</small></span><span><b>{reg.crop||op.crop||"—"}</b><small>Engedélyezett kultúra</small></span><span><b>{reg.target||op.target||"—"}</b><small>Cél / károsító</small></span></div>
