@@ -14,7 +14,8 @@ function dayKey(date=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZon
 export default async function FarmerDailyWorkPage(){
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
- const{data:profile}=await supabase.from("profiles").select("full_name,role").eq("id",user.id).maybeSingle();
+ const{data:profile}=await supabase.from("profiles").select("full_name,role,system_role").eq("id",user.id).maybeSingle();
+ if(profile?.system_role==="admin")redirect("/system-admin");
  if(profile?.role==="advisor")redirect("/admin/daily-work");
  const[{data:tasks},{data:inspections},{data:reports}]=await Promise.all([
   supabase.from("tasks").select("id,title,due_date,priority,status,review_status,completed_at,farm_id,field_id,created_at").eq("assigned_to",user.id).neq("status","done").limit(300),
@@ -26,7 +27,7 @@ export default async function FarmerDailyWorkPage(){
   ...(inspections??[]).filter(i=>i.condition==="critical"||!!i.next_check_at).map(i=>({id:i.id,kind:"inspection" as const,title:`${i.condition==="critical"?"Kritikus szemle":"Visszaellenőrzés"}`,dueAt:i.next_check_at,createdAt:i.inspected_at,condition:i.condition,status:i.issue_status,fieldId:i.field_id})),
   ...(reports??[]).filter(r=>!!r.advisor_reply).map(r=>({id:r.id,kind:"report" as const,title:r.title,dueAt:null,createdAt:r.created_at,status:r.status,unread:true,fieldId:r.field_id}))
  ];
- const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey());
+ const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey(),"farmer");
  const lifecycleTasks=(tasks??[]).map(t=>({id:t.id,title:t.title,status:t.status,reviewStatus:t.review_status,completedAt:t.completed_at,fieldId:t.field_id,dueDate:t.due_date}));
  return <div className="app-shell farmer-app"><Sidebar active="daily-work" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard">
   <header className="topbar"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.0</span><h1>Mai munkaközpont</h1><p>A határidők, kritikus táblák, visszaellenőrzések és új szakmai jelzések automatikus prioritási sorrendben.</p></div><DailyWorkLegend/></header>
