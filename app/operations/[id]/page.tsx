@@ -15,7 +15,8 @@ const auditLabel:Record<string,string>={created:"Létrehozva",updated:"Módosít
 export default async function OperationDetailPage({params}:{params:Promise<{id:string}>}){
  const{id}=await params,supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
- const{data:profile}=await supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();
+ const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();
+ if(profile?.system_role==="admin")redirect("/system-admin");
  const{data:op}=await supabase.from("field_operations").select("*").eq("id",id).maybeSingle();if(!op)notFound();
  const[{data:farm},{data:field},{data:audit}]=await Promise.all([
   supabase.from("farms").select("name,country_code").eq("id",op.farm_id).maybeSingle(),
