@@ -13,11 +13,12 @@ export function SystemAdminTour(){
  const[key]=useState("agrar-mentor-system-admin-tour:v1");
  const[index,setIndex]=useState<number|null>(null);
  useEffect(()=>{try{if(!localStorage.getItem(key))setIndex(0)}catch{}},[key]);
- if(index===null)return null;
+ function restart(){try{localStorage.removeItem(key)}catch{}setIndex(0)}
+ function close(){try{localStorage.setItem(key,new Date().toISOString())}catch{}setIndex(null)}
+ function next(){setIndex(prev=>{if(prev===null)return null;if(prev>=steps.length-1){try{localStorage.setItem(key,new Date().toISOString())}catch{}return null}return prev+1})}
+ if(index===null)return <button type="button" onClick={restart} aria-label="Rendszeradmin virtuális túra újraindítása" style={{position:"fixed",right:18,bottom:18,zIndex:190,border:"1px solid #8f2631",borderRadius:999,padding:"10px 14px",background:"white",color:"#8f2631",fontWeight:800,boxShadow:"0 8px 28px rgba(50,0,7,.16)",cursor:"pointer"}}>Virtuális túra</button>;
  const currentIndex=index;
  const step=steps[currentIndex];
  if(!step)return null;
- function close(){try{localStorage.setItem(key,new Date().toISOString())}catch{}setIndex(null)}
- function next(){setIndex(prev=>{if(prev===null)return null;if(prev>=steps.length-1){try{localStorage.setItem(key,new Date().toISOString())}catch{}return null}return prev+1})}
  return <div style={{position:"fixed",right:18,bottom:18,zIndex:200,width:"min(390px,calc(100vw - 36px))",background:"white",border:"2px solid #9b2c37",borderRadius:16,padding:18,boxShadow:"0 18px 55px rgba(50,0,7,.24)"}}><small style={{fontWeight:900,color:"#9b2c37"}}>RENDSZERADMIN TÚRA · {currentIndex+1}/{steps.length}</small><h3 style={{margin:"8px 0"}}>{step.title}</h3><p style={{margin:"0 0 14px",lineHeight:1.55,color:"#5f5557"}}>{step.text}</p><div style={{display:"flex",gap:8,justifyContent:"space-between"}}><button type="button" className="ghost-btn" onClick={close}>Kihagyás</button><button type="button" className="btn btn-primary" style={{background:"#8f2631"}} onClick={next}>{currentIndex===steps.length-1?"Befejezés":"Tovább"}</button></div></div>
 }
