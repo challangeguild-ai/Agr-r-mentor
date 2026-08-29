@@ -1,0 +1,3 @@
+import {complianceSummary,type ComplianceCheck} from "@/lib/operationCompliance";
+export type ExecutionReadiness={ready:boolean;status:"ready"|"review"|"blocked";label:string;reasons:string[]};
+export function operationExecutionReadiness(checks:ComplianceCheck[]):ExecutionReadiness{const summary=complianceSummary(checks);const reasons=checks.filter(x=>x.level!=="ok").map(x=>x.detail);if(summary==="blocked")return{ready:false,status:"blocked",label:"Nem végrehajtható",reasons};if(summary==="warning")return{ready:false,status:"review",label:"Ellenőrzés / jóváhagyás szükséges",reasons};return{ready:true,status:"ready",label:"Végrehajtásra kész",reasons:[]}}
