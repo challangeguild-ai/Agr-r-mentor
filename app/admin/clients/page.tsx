@@ -4,6 +4,7 @@ import {createClient} from "@/lib/supabase/server";
 import {AdminNav} from "@/components/AdminNav";
 import {AdminDeleteButton} from "@/components/AdminDeleteButton";
 import {FarmCreateWithContacts} from "@/components/FarmCreateWithContacts";
+import {BlockHelpButton} from "@/components/GuidedTour";
 import {inviteFarmer,createField} from "../actions";
 import styles from "./clients.module.css";
 
@@ -36,14 +37,14 @@ export default async function ClientsPage(){
  return <main className={`admin-shell ${styles.scope}`}>
   <header className="admin-header"><div><span className="eyebrow">SZAKTANÁCSADÓI ÜGYFÉLKÖZPONT</span><h1>Ügyfelek</h1><p>Innen indul az ügyfél → gazdaság → földtábla → szakmai előzmény munkafolyamat.</p></div></header>
   <AdminNav active="clients"/>
-  <section className="admin-overview-grid">
+  <section className="admin-overview-grid" data-help-block="client-summary"><div style={{gridColumn:"1/-1",display:"flex",justifyContent:"flex-end"}}><BlockHelpButton label="Az ügyfél-összesítő magyarázata" content={{title:"Ügyfélállomány összesítése",body:"A négy kártya a kezelt ügyfelek, hozzájuk rendelt gazdaságok, földtáblák és teljes kezelt terület számát mutatja. Az Ügyfelek kártya külön jelzi, hány gazdálkodónál van kritikus vagy figyelmet igénylő állapot, lejárt feladat, nyitott jelzés vagy esedékes visszaellenőrzés.",important:"Ez az összesítő munkaszervezési áttekintés. A konkrét szakmai okot mindig az ügyfélkártyán vagy a dossziéban ellenőrizd."}}/></div>
    <article className="admin-overview-card"><span>Ügyfelek</span><strong>{farmers?.length??0}</strong><small>{problemClients} figyelmet igényel</small></article>
    <article className="admin-overview-card"><span>Gazdaságok</span><strong>{farms?.length??0}</strong><small>ügyfelekhez rendelve</small></article>
    <article className="admin-overview-card"><span>Földtáblák</span><strong>{fields?.length??0}</strong><small>szakmai nyilvántartásban</small></article>
    <article className="admin-overview-card"><span>Kezelt terület</span><strong>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:1})}</strong><small>hektár összesen</small></article>
   </section>
-  <section className="panel">
-   <div className="panel-heading"><div><span className="eyebrow">ÜGYFÉLLISTA</span><h2>Gazdálkodók, gazdaságok és aktuális szakmai állapot</h2></div><Link className="ghost-btn" href="/admin/priorities">Mai prioritások →</Link></div>
+  <section className="panel" data-help-block="client-list">
+   <div className="panel-heading"><div><span className="eyebrow">ÜGYFÉLLISTA</span><h2>Gazdálkodók, gazdaságok és aktuális szakmai állapot</h2></div><div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}><BlockHelpButton label="Az ügyféllista magyarázata" content={{title:"Gazdálkodói ügyféllista",body:"Az ügyfelek sürgősségi pontszám szerint rendezve jelennek meg. Kártyánként látszik a gazdálkodó elérhetősége, gazdaságai, földtáblái, kezelt területe, kritikus és figyelmeztető táblaállapotai, esedékes visszaellenőrzései, nyitott és lejárt feladatai, valamint nyitott gazdálkodói jelzései.",important:"A sorrend munkaszervezési döntéstámogatás. A Dosszié megnyitása oldalon kell ellenőrizni a teljes szakmai előzményt és a konkrét beavatkozási okot."}}/><Link className="ghost-btn" href="/admin/priorities">Mai prioritások →</Link></div></div>
    {clientRows.length?<div className="advisor-client-list">{clientRows.map(r=>{const state=r.critical?"🔴 Kritikus":r.attention||r.overdue||r.dueChecks?"🟡 Figyelmet igényel":"🟢 Rendben";return <article className="advisor-client-card" key={r.farmer.id}>
     <span className="advisor-client-avatar">{(r.farmer.full_name||"G").slice(0,2).toUpperCase()}</span>
     <div style={{minWidth:0}}><strong>{r.farmer.full_name||"Névtelen ügyfél"}</strong><small>{r.farmer.phone||"Nincs telefonszám"}</small><small>{r.ownFarms.length} gazdaság · {r.ownFields.length} tábla · {r.area.toLocaleString("hu-HU",{maximumFractionDigits:1})} ha</small>
@@ -56,7 +57,7 @@ export default async function ClientsPage(){
     <Link href={`/admin/clients/${r.farmer.id}`} className="ghost-btn">Dosszié megnyitása →</Link>
    </article>})}</div>:<div className="empty-state">Még nincs ügyfél.</div>}
   </section>
-  <details className="panel" style={{marginTop:14}}><summary style={{cursor:"pointer",padding:18,fontWeight:800}}>＋ Ügyfél, gazdaság vagy földtábla felvétele</summary><div style={{padding:"0 18px 18px"}}><div className="admin-grid">
+  <details className="panel" data-help-block="client-create" style={{marginTop:14}}><summary style={{cursor:"pointer",padding:18,fontWeight:800}}>＋ Ügyfél, gazdaság vagy földtábla felvétele</summary><div style={{padding:"0 18px 18px"}}><div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><BlockHelpButton label="Az ügyfél-, gazdaság- és táblafelvétel magyarázata" content={{title:"Új ügyfélstruktúra létrehozása",body:"Ebben a kinyitható blokkban három külön művelet érhető el: új gazdálkodó meghívása, új gazdaság létrehozása egy gazdálkodóhoz, illetve új földtábla felvétele egy meglévő gazdaságba.",important:"Tartsd meg a hierarchiát: először gazdálkodó, utána hozzá tartozó gazdaság, majd a gazdaság földtáblái. Így a későbbi szemlék, feladatok, dokumentumok és műveletek megfelelő ügyfélhez kapcsolódnak."}}/></div><div className="admin-grid">
    <article><span className="eyebrow">ÚJ ÜGYFÉL</span><h2>Gazdálkodó meghívása</h2><form action={inviteFarmer} className="admin-form"><label>Gazdálkodó neve<input name="full_name" required/></label><label>E-mail cím<input name="email" type="email" required/></label><button className="btn btn-primary">Meghívó küldése</button></form></article>
    <article><span className="eyebrow">ÚJ GAZDASÁG</span><h2>Gazdaság felvétele</h2><FarmCreateWithContacts farmers={farmers??[]}/></article>
   </div><hr style={{border:0,borderTop:"1px solid #e5e9e5",margin:"20px 0"}}/><div style={{maxWidth:620}}><span className="eyebrow">ÚJ FÖLDTÁBLA</span><h2>Földtábla felvétele</h2><form action={createField} className="admin-form"><label>Gazdaság<select name="farm_id" required><option value="">Válassz gazdaságot</option>{farms?.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Tábla neve<input name="name" required/></label><label>Terület (ha)<input name="area_ha" inputMode="decimal"/></label><label>Kultúra<input name="current_crop"/></label><button className="btn btn-secondary">Tábla létrehozása</button></form></div></div></details>
