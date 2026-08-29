@@ -1,0 +1,1 @@
+A jelen csomagban auditált és explicit túracélponttal ellátott gazdálkodói blokkok: napi prioritások, táblajegyzék, műveletrögzítés, műveleti napló, növényvédelmi jóváhagyás, üzenetek, dokumentumfeltöltés, dokumentumtár, gazdasági összesítők/adatok/táblák/jóváhagyók, munkatárs-meghívás és csapatlista, munkakiosztás, gépfelvétel és géplista, idővonal, számlatár.
