@@ -6,7 +6,7 @@ import {inviteFarmMember,updateFarmMember} from "./actions";
 
 export default async function TeamPage(){
  const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
- const{data:profile}=await supabase.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();if(profile?.role==="advisor")redirect("/admin");
+ const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();if(profile?.system_role==="admin")redirect("/system-admin");if(profile?.role==="advisor")redirect("/admin");
  const{data:farms}=await supabase.from("farms").select("id,name").eq("owner_id",user.id).order("name");const farmIds=(farms??[]).map(f=>f.id);
  const[{data:members},{data:invites}]=farmIds.length?await Promise.all([supabase.from("farm_members").select("id,farm_id,user_id,member_role,active,created_at").in("farm_id",farmIds).order("created_at"),supabase.from("farm_member_invites").select("id,farm_id,email,full_name,member_role,created_at,accepted_at").in("farm_id",farmIds).is("accepted_at",null).order("created_at",{ascending:false})]):[{data:[]},{data:[]}];
  const userIds=[...new Set((members??[]).map(m=>m.user_id))];const{data:people}=userIds.length?await supabase.from("profiles").select("id,full_name,phone").in("id",userIds):{data:[]};const personMap=new Map((people??[]).map(p=>[p.id,p]));const farmMap=new Map((farms??[]).map(f=>[f.id,f]));
