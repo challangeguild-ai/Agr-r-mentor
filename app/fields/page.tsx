@@ -13,7 +13,8 @@ export default async function FieldsPage({ searchParams }: { searchParams: Searc
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: profile } = await supabase.from("profiles").select("role,full_name").eq("id", user.id).maybeSingle();
+  const { data: profile } = await supabase.from("profiles").select("role,system_role,full_name").eq("id", user.id).maybeSingle();
+  if(profile?.system_role==="admin") redirect("/system-admin");
   if(profile?.role==="advisor") redirect("/admin/map");
 
   const {data:farms,error:farmError}=await supabase.from("farms").select("id,name,settlement").eq("owner_id",user.id).order("name");
