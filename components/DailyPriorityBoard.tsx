@@ -1,9 +1,10 @@
 import Link from "next/link";
 import {dailyWorkSeverityLabel,prioritizeDailyWork,type DailyWorkInput} from "@/lib/dailyWorkPriority";
+import {BlockHelpButton} from "@/components/GuidedTour";
 
 type Scope="farmer"|"advisor";
 function itemHref(item:DailyWorkInput,scope:Scope){
- if(item.fieldId)return `/fields/${item.fieldId}`;
+ if(item.fieldId)return scope==="advisor"?`/admin/fields/${item.fieldId}`:`/fields/${item.fieldId}`;
  if(item.kind==="report")return scope==="advisor"?"/admin/reports":"/messages";
  if(item.kind==="inspection")return scope==="advisor"?"/admin/inspections":"/fields";
  if(item.kind==="approval")return "/operations/approvals";
@@ -13,7 +14,7 @@ function itemHref(item:DailyWorkInput,scope:Scope){
 export function DailyPriorityBoard({items,title="Mai prioritások",limit=8,scope="advisor"}:{items:DailyWorkInput[];title?:string;limit?:number;scope?:Scope}){
  const prioritized=prioritizeDailyWork(items).slice(0,limit);
  return <section className="panel" data-help-block="daily-priority-board">
-  <div className="panel-heading"><div><span className="eyebrow">NAPI PRIORITÁSI MOTOR</span><h2>{title}</h2></div><span className="user-pill">{prioritized.length} kiemelt tétel</span></div>
+  <div className="panel-heading"><div><span className="eyebrow">NAPI PRIORITÁSI MOTOR</span><h2>{title}</h2></div><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="user-pill">{prioritized.length} kiemelt tétel</span><BlockHelpButton content={{title:"Mai prioritások",body:"Ez a lista nem egyszerű időrendi felsorolás. A rendszer pontozza a nyitott feladatokat, kritikus szemléket, visszaellenőrzéseket és szakmai jelzéseket, majd a legsürgősebbeket teszi előre. Minden tételnél látható a prioritási szint, a pontszám és az is, miért került előre.",important:"A pontszám döntéstámogatás: nem hagy jóvá műveletet és nem módosít szakmai adatot. A Megnyitás mindig az adott ügy tényleges munkafelületére visz."}}/></div></div>
   <div style={{display:"grid",gap:9,padding:14}}>
    {prioritized.map(item=>{
     const href=itemHref(item,scope);
