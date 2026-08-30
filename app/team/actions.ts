@@ -23,7 +23,7 @@ export async function inviteFarmMember(formData:FormData){
   const{supabase,user}=await ownerContext(farmId);
   const{data:existing}=await supabase.from("farm_member_invites").select("id").eq("farm_id",farmId).eq("email",email).is("accepted_at",null).maybeSingle();
   if(existing)throw new Error("Erre az e-mail címre már van függő meghívó ennél a gazdaságnál.");
-  const{data,error}=await supabase.functions.invoke("invite-farmer",{body:{email,full_name:fullName,redirect_to:"https://agr-r-mentor.vercel.app/invite"}});
+  const{data,error}=await supabase.functions.invoke("invite-farmer",{body:{email,full_name:fullName,farm_id:farmId,redirect_to:"https://agr-r-mentor.vercel.app/invite"}});
   if(error)throw new Error(`A fiókmeghívás sikertelen: ${error.message}`);if(data?.error)throw new Error(`A fiókmeghívás sikertelen: ${data.error}`);
   const{error:inviteError}=await supabase.from("farm_member_invites").insert({farm_id:farmId,email,full_name:fullName,member_role:memberRole,invited_by:user.id});
   if(inviteError)throw new Error(inviteError.message);
