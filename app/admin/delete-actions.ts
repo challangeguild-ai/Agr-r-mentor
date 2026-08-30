@@ -8,8 +8,8 @@ async function requireAdvisor(){
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();
  if(!user)redirect("/login");
- const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
- if(profile?.role!=="advisor")redirect("/dashboard");
+ const{data:profile}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
+ if(profile?.role!=="advisor"||profile?.system_role==="admin")redirect(profile?.system_role==="admin"?"/system-admin":"/dashboard");
  return{supabase,user};
 }
 
