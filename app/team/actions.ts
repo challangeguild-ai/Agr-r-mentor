@@ -21,6 +21,7 @@ export async function inviteFarmMember(formData:FormData){
   if(!isFarmMemberRole(memberRole))throw new Error("Érvénytelen munkatársi szerepkör.");
   if(fullName.length>120||email.length>250)throw new Error("A megadott adat túl hosszú.");
   const{supabase,user}=await ownerContext(farmId);
+  const{data:aal}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();if(aal?.currentLevel!=="aal2")redirect("/mfa?next=/team");
   const{data:existing}=await supabase.from("farm_member_invites").select("id").eq("farm_id",farmId).eq("email",email).is("accepted_at",null).maybeSingle();
   if(existing)throw new Error("Erre az e-mail címre már van függő meghívó ennél a gazdaságnál.");
   const{data,error}=await supabase.functions.invoke("invite-farmer",{body:{email,full_name:fullName,farm_id:farmId,redirect_to:"https://agr-r-mentor.vercel.app/invite"}});
