@@ -1,6 +1,6 @@
-source=NEBIH withdrawn and expired products
-source_url=https://portal.nebih.gov.hu/visszavont-es-lejart-ervenyessegu-novenyvedo-szerek
-downloaded_at=2026-08-31T10:58:26.609451+00:00
-rows=588
-rejected_contaminated_rows=1
-bytes=612859
+source=NEBIH public plant protection sources
+checked_at=2026-08-31T11:00:55Z
+product_database=https://novenyvedoszer.nebih.gov.hu/engedelykereso/Kereso
+active_ingredients=https://portal.nebih.gov.hu/hu/novenyvedo-szer-hatoanyag-lista
+mode=controlled_snapshot
+note=Only source-verifiable data may be marked official; current authorization document remains authoritative.
