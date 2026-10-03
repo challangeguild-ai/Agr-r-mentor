@@ -38,7 +38,7 @@ export default async function MessagesPage({searchParams}:{searchParams:SearchPa
 
    <nav className={styles.tabs}><Link className={view==="all"?styles.active:""} href="/messages?view=all">Összes <span>{all.length}</span></Link><Link className={view==="waiting"?styles.active:""} href="/messages?view=waiting">Válaszra vár <span>{waiting.length}</span></Link><Link className={view==="answered"?styles.active:""} href="/messages?view=answered">Megválaszolva <span>{answered.length}</span></Link><Link className={view==="closed"?styles.active:""} href="/messages?view=closed">Lezárt <span>{closed.length}</span></Link></nav>
 
-   <section className={styles.workspace}>
+   <section className={`${styles.workspace} ${selected?styles.hasSelection:""}`}>
     <aside className={styles.conversations}>
      {visible.length?visible.map(r=><Link key={r.id} href={hrefFor(r.id)} className={`${styles.conversation} ${selected?.id===r.id?styles.selected:""}`}>
       <span className={styles.avatar}>{r.advisor_reply?"A":"!"}</span>
@@ -49,7 +49,7 @@ export default async function MessagesPage({searchParams}:{searchParams:SearchPa
 
     <article className={styles.thread}>
      {selected?<><CommunicationOpenMarker entityType="farmer_report" entityId={selected.id}/>
-      <header className={styles.threadHead}><div><span className={styles.threadAvatar}>A</span><div><strong>Szaktanácsadói beszélgetés</strong><small>{selectedField||"Földtábla"} · {statusLabel(selected.status)}</small></div></div><div className={styles.threadTools}>{selected.field_id&&<Link href={`/fields/${selected.field_id}`}>Tábla megnyitása</Link>}<RemindLaterButton entityType="farmer_report" entityId={selected.id} title={selected.title} href={hrefFor(selected.id)}/></div></header>
+      <header className={styles.threadHead}><div className={styles.threadIdentity}><Link className={styles.mobileBack} href={`/messages?view=${encodeURIComponent(view)}`}>←</Link><span className={styles.threadAvatar}>A</span><div><strong>Szaktanácsadói beszélgetés</strong><small>{selectedField||"Földtábla"} · {statusLabel(selected.status)}</small></div></div><div className={styles.threadTools}>{selected.field_id&&<Link href={`/fields/${selected.field_id}`}>Tábla megnyitása</Link>}<RemindLaterButton entityType="farmer_report" entityId={selected.id} title={selected.title} href={hrefFor(selected.id)}/></div></header>
       <div className={styles.threadBody}>
        <div className={styles.dayLabel}>{new Date(selected.created_at).toLocaleDateString("hu-HU",{year:"numeric",month:"long",day:"numeric"})}</div>
        <div className={styles.outgoing}><div><strong>{profile?.full_name||"Gazdálkodó"}</strong><p>{selected.message}</p><small>{new Date(selected.created_at).toLocaleTimeString("hu-HU",{hour:"2-digit",minute:"2-digit"})}</small></div></div>
