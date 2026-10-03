@@ -58,33 +58,13 @@
   border-radius:18px;
   color:#fff;
   background:
-    linear-gradient(90deg,rgba(6,49,32,.97) 0%,rgba(14,63,42,.89) 46%,rgba(21,73,45,.50) 72%,rgba(27,79,47,.35) 100%),
-    radial-gradient(circle at 84% 18%,rgba(250,210,111,.95) 0 2.6%,rgba(249,197,78,.25) 6%,transparent 14%),
-    linear-gradient(176deg,transparent 0 44%,rgba(86,115,64,.74) 44% 55%,rgba(65,102,56,.88) 55% 67%,rgba(46,88,48,.98) 67% 100%);
+    linear-gradient(90deg,rgba(6,49,32,.96) 0%,rgba(10,54,36,.88) 40%,rgba(17,62,40,.56) 65%,rgba(18,62,38,.28) 100%),
+    url("https://upload.wikimedia.org/wikipedia/commons/f/f6/Field_in_sunrise_%28Unsplash%29.jpg") center 58%/cover no-repeat,
+    linear-gradient(135deg,#17452f,#587345);
   box-shadow:0 15px 38px rgba(13,51,34,.17)
 }
-.hero:before{
-  content:"";
-  position:absolute;
-  z-index:-2;
-  inset:42% -4% -18% 34%;
-  opacity:.48;
-  transform:skewY(-4deg);
-  background:
-    repeating-linear-gradient(166deg,rgba(223,194,96,.0) 0 16px,rgba(235,207,112,.24) 17px 20px,rgba(36,85,43,.0) 21px 35px),
-    linear-gradient(168deg,#728b4e,#4f713e 52%,#315836)
-}
-.hero:after{
-  content:"";
-  position:absolute;
-  z-index:-1;
-  right:-6%;
-  top:-40%;
-  width:38%;
-  aspect-ratio:1;
-  border-radius:50%;
-  background:radial-gradient(circle,rgba(241,208,104,.38) 0 9%,rgba(226,184,71,.13) 24%,transparent 55%)
-}
+.hero:before{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(180deg,rgba(11,48,31,.02) 0%,rgba(8,45,29,.18) 65%,rgba(7,42,27,.38) 100%)}
+.hero:after{content:"";position:absolute;z-index:-1;right:-8%;top:-55%;width:40%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(244,211,108,.30) 0 8%,rgba(225,181,68,.10) 25%,transparent 58%)}
 .heroTitleRow{display:flex;align-items:center;gap:14px;margin-bottom:10px}
 .heroTitleRow strong{font-size:18px;letter-spacing:-.02em}
 .heroTitleRow span{padding-left:14px;border-left:1px solid rgba(255,255,255,.32);font-size:10px;color:#d4dfd7;text-transform:capitalize}
