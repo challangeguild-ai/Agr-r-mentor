@@ -3,7 +3,7 @@
 .search>span{font-size:20px;line-height:1;color:#294b39;transform:rotate(-18deg)}
 .search input{flex:1;min-width:0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font:inherit;font-size:11px;color:#34443a}
 .search input::placeholder{color:#8a908b}
-.search button{border:0;border-radius:7px;background:#e8f0e6;color:#17583a;padding:7px 10px;font-size:8px;font-weight:850;cursor:pointer}
+.search button{display:none}
 .actions{display:flex;align-items:center;gap:9px;min-width:0}
 .profile{display:flex;align-items:center;gap:8px;padding-left:10px;border-left:1px solid #e0ddd3;min-width:0}
 .avatar{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#d9e8d6,#96b68d);color:#153e2c;font-size:10px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.1)}
