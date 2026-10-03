@@ -29,13 +29,14 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   if(profile?.system_role==="admin")redirect("/system-admin");
   if(!field)notFound();
 
-  const[{data:farm},{data:tasks},{data:inspections},{data:timeline},{data:reports},{data:documents}]=await Promise.all([
+  const[{data:farm},{data:tasks},{data:inspections},{data:timeline},{data:reports},{data:documents},{data:weather}]=await Promise.all([
     supabase.from("farms").select("name,settlement,address").eq("id",field.farm_id).maybeSingle(),
     supabase.from("tasks").select("id,title,description,due_date,priority,status,created_at,assigned_to,completed_at").eq("field_id",id).order("created_at",{ascending:false}),
     supabase.from("inspections").select("id,inspected_at,condition,notes,recommendation,created_at,follow_up_status,next_check_at,issue_status,previous_inspection_id").eq("field_id",id).order("inspected_at",{ascending:false}),
     supabase.from("timeline_events").select("id,event_type,title,description,event_at,created_at").eq("field_id",id).order("event_at",{ascending:false}),
     supabase.from("farmer_reports").select("id,title,message,status,created_at,advisor_reply,replied_at,closed_at").eq("field_id",id).order("created_at",{ascending:false}),
-    supabase.from("documents").select("id,title,category,file_name,created_at,file_size").eq("field_id",id).order("created_at",{ascending:false}).limit(8)
+    supabase.from("documents").select("id,title,category,file_name,created_at,file_size").eq("field_id",id).order("created_at",{ascending:false}).limit(8),
+    supabase.from("field_weather_daily").select("id,weather_date,source_type,provider,station_number,station_name,distance_km,precipitation_mm,temperature_min_c,temperature_max_c,source_url,fetched_at").eq("field_id",id).order("weather_date",{ascending:false}).limit(35)
   ]);
 
   const inspectionIds=(inspections??[]).map(i=>i.id);
@@ -47,6 +48,11 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
 
   const openTasks=(tasks??[]).filter(t=>t.status!=="done");
   const latestInspection=(inspections??[])[0];
+  const weatherRows=weather??[];
+  const weatherAge=(date:string)=>Math.floor((Date.now()-new Date(date+"T12:00:00").getTime())/86400000);
+  const rain7=weatherRows.filter(w=>weatherAge(w.weather_date)<=7).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
+  const rain30=weatherRows.filter(w=>weatherAge(w.weather_date)<=30).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
+  const lastRain=weatherRows.find(w=>Number(w.precipitation_mm)>0);
   const openReports=(reports??[]).filter(r=>r.status!=="closed");
   const operations=(timeline??[]).filter(x=>x.event_type==="field_operation");
   const hotspots=(timeline??[]).map(hotspotFromEvent).filter(Boolean) as {lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"}[];
@@ -66,6 +72,17 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <section className="field-detail-stats"><article className="stat-card"><span>Terület</span><strong>{field.area_ha?`${field.area_ha} ha`:"—"}</strong><small>{field.crop_year?`${field.crop_year}. gazdasági év`:""}</small></article><article className="stat-card"><span>Aktuális kultúra</span><strong className="field-stat-text">{field.current_crop||"—"}</strong><small>Vetés: {formatDate(field.sowing_date)}</small></article><article className="stat-card"><span>Utolsó szemle</span><strong className="field-stat-text">{formatDate(latestInspection?.inspected_at)}</strong><small>{conditionLabel(latestInspection?.condition)}</small></article><article className="stat-card"><span>Nyitott ügyek</span><strong>{openTasks.length+openReports.length}</strong><small>{openTasks.length} teendő · {openReports.length} bejelentés · {operations.length} művelet</small></article></section>
 
       <FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots}/>
+
+      <section className="panel" style={{marginTop:14}}>
+       <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
+       <div className="field-detail-stats" style={{margin:"14px 0 0"}}>
+        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>MÉRT állomási adat</small></article>
+        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>HungaroMet automata állomás</small></article>
+        <article className="stat-card"><span>Utolsó mért csapadék</span><strong className="field-stat-text">{lastRain?Number(lastRain.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})+" mm":"—"}</strong><small>{lastRain?formatDate(lastRain.weather_date):"Még nincs szinkronizált adat"}</small></article>
+        <article className="stat-card"><span>Adatforrás</span><strong className="field-stat-text">{lastRain?.station_name||"—"}</strong><small>{lastRain?("MÉRT · "+Number(lastRain.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})+" km a táblától"):"A szinkron után jelenik meg"}</small></article>
+       </div>
+       {weatherRows.length>0&&<div className="task-list" style={{marginTop:14}}>{weatherRows.filter(w=>Number(w.precipitation_mm)>0).slice(0,8).map(w=><div className="task-row" key={w.id}><span className="dot normal"/><div><strong>🌧 {Number(w.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>{formatDate(w.weather_date)} · {w.provider} · {w.station_name||w.station_number||"állomás"} · {Number(w.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})} km</small></div><span className="task-status">{w.source_type==="measured"?"MÉRT":w.source_type==="calculated"?"SZÁMÍTOTT":"ELŐREJELZETT"}</span></div>)}</div>}
+      </section>
 
       {profile?.role!=="advisor"&&<section className="panel farmer-report-panel"><span className="eyebrow">KAPCSOLAT A SZAKTANÁCSADÓVAL</span><h2>Bejelentés küldése</h2><FarmerReportForm fieldId={field.id}/></section>}
 
