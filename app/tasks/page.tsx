@@ -45,6 +45,13 @@ export default async function TasksPage({searchParams}:{searchParams:SearchParam
    <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés teendők, határidők vagy táblák között…"/>
    <section className={styles.titleRow}><div><h1>Teendők</h1><p>Kövesd a feladataidat és a megoldási folyamatot.</p></div><BlockHelpButton label="A teendők magyarázata" content={{title:"Teendők és műveleti tervek",body:"A feladatok a szakmai tervtől a végrehajtáson át a visszaigazolásig követhetők.",important:"Az ellenőrzésre váró tétel még nem végleges naplóbejegyzés."}}/></section>
 
+   <section className={styles.summary}>
+    <article><span className={styles.sumGreen}>✓</span><div><small>Összes teendő</small><strong>{tasks?.length??0}</strong></div></article>
+    <article><span className={styles.sumBlue}>▷</span><div><small>Nyitott</small><strong>{open.length}</strong></div></article>
+    <article><span className={styles.sumOrange}>↗</span><div><small>Ellenőrzésre vár</small><strong>{submitted.length}</strong></div></article>
+    <article><span className={styles.sumRed}>!</span><div><small>Késedelmes</small><strong>{overdue.length}</strong></div></article>
+   </section>
+
    <nav className={styles.tabs}>{tabs.map(([key,label,count])=><Link className={view===key?styles.active:""} key={key} href={`/tasks?view=${key}`}>{label}<span>{count}</span></Link>)}<Link className={view==="upcoming"?styles.active:""} href="/tasks?view=upcoming">7 napon belül<span>{upcoming.length}</span></Link><Link className={view==="all"?styles.active:""} href="/tasks?view=all">Mind<span>{tasks?.length??0}</span></Link></nav>
 
    <section className={styles.listPanel}>
