@@ -5,6 +5,7 @@ import {LogoutButton} from "@/components/LogoutButton";
 import {ComprehensiveTour,ComprehensiveTourRestart} from "@/components/ComprehensiveTour";
 import {ProcessGuideButton,ProcessGuideProvider} from "@/components/ProcessGuide";
 import {HelpCenter} from "@/components/HelpCenter";
+import {NotificationBell} from "@/components/NotificationBell";
 import styles from "./FarmerSidebar.module.css";
 
 const primary=[
@@ -33,6 +34,7 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
  const initials=userName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"G";
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
+  <div className={styles.mobileHeader}><Link href="/dashboard" className={styles.mobileBrand}><span>◒</span><div><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div></Link><div className={styles.mobileHeaderActions}><NotificationBell/></div></div>
   <button className={styles.launch} type="button" aria-label="Menü megnyitása" onClick={()=>setOpen(true)}><span/><span/><span/></button>
   {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
   <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
