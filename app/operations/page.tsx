@@ -46,7 +46,7 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
   <main className={`dashboard ${styles.page}`}>
    <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés műveletek, táblák vagy anyagok között…"/>
    <section className={styles.titleRow}>
-    <div><h1>Műveleti napló</h1><p>Nyugdíj és kövesd a mezőgazdasági műveleteidet egy egységes naplóban.</p></div>
+    <div><h1>Műveleti napló</h1><p>Rögzítsd és kövesd a mezőgazdasági műveleteidet egy egységes naplóban.</p></div>
     <div className={styles.titleActions}><OperationExportButton rows={exportRows}/><a className={styles.primary} href="#uj-muvelet">+ Új művelet</a></div>
    </section>
 
