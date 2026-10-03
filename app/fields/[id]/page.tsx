@@ -12,6 +12,7 @@ import {completeTask} from "./actions";
 
 function formatDate(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
 function conditionLabel(v:string|null|undefined){if(v==="good")return"Jó állapot";if(v==="attention")return"Figyelmet igényel";if(v==="critical")return"Kritikus";return"Nincs szemle"}
+function statusLabel(v:string|null|undefined){if(v==="inactive")return"Inaktív";if(v==="archived")return"Archivált";return"Aktív"}
 function followLabel(v:string|null|undefined){if(v==="improved")return"↑ Javult";if(v==="unchanged")return"→ Változatlan";if(v==="worsened")return"↓ Romlott";return null}
 function issueLabel(v:string|null|undefined){if(v==="resolved")return"Lezárt";if(v==="monitoring")return"Megfigyelés alatt";return"Nyitott"}
 function eventTypeLabel(v:string|null|undefined){const m:Record<string,string>={inspection:"Szemle",inspection_followup:"Visszaellenőrzés",task:"Teendő",task_completed:"Teendő elvégezve",farmer_report:"Gazdálkodói bejelentés",advisor_reply:"Szaktanácsadói válasz",report_closed:"Bejelentés lezárva",field_operation:"Gazdálkodási művelet",field_hotspot:"GPS problémagóc"};return m[v||""]||"Napló"}
