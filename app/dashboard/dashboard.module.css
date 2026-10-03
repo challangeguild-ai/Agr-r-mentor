@@ -14,7 +14,7 @@
   max-width:none!important;
   min-width:0;
   min-height:100vh;
-  margin-left:240px!important;
+  margin-left:0!important;
   padding:0 34px 44px!important;
   background:
     radial-gradient(circle at 72% 3%,rgba(216,181,93,.09),transparent 24rem),
@@ -191,14 +191,14 @@
 .doc strong,.doc small{display:block}.doc strong{font-size:11px}.doc small{font-size:9px;color:#7a817b;margin-top:2px}
 
 @media(max-width:1199px){
- .page{margin-left:0!important;padding:0 24px 34px!important}
+ .page:global(.dashboard){margin-left:0!important;padding:0 24px 34px!important}
  .topbar{margin:0 -24px 20px;padding-left:82px;padding-right:24px}
  .summaryGrid{grid-template-columns:repeat(2,1fr)}
  .commandGrid,.workAndFields,.lowerGrid{grid-template-columns:1fr}
  .resumeGrid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:700px){
- .page{padding:0 13px 24px!important}
+ .page:global(.dashboard){padding:0 13px 24px!important}
  .topbar{min-height:70px;margin:0 -13px 14px;padding:12px 12px 12px 67px;align-items:flex-start}
  .topbar h1{font-size:21px}.topbar p,.userChip{display:none}
  .hero{grid-template-columns:1fr;min-height:0;padding:22px 18px;border-radius:18px}
