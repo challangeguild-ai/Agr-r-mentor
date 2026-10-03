@@ -44,7 +44,7 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
    <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés táblák, növények vagy feladatok között…"/>
    <section className={styles.titleRow}>
     <div><h1>Táblák</h1><p>Kezeld a tábláidat, nézd meg adataikat és tervezd a következő lépéseket.</p></div>
-    <Link className={styles.primary} href="/map">+ Új tábla</Link>
+    <Link className={styles.primary} href="/map">⌖ Térképi áttekintés</Link>
    </section>
 
    <section className={styles.toolbar}>
