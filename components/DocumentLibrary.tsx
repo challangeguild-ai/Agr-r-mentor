@@ -11,6 +11,7 @@ function fileSize(v:number|null|undefined){if(!v)return"—";if(v<1024)return`${
 export function DocumentLibrary({items}:{items:any[]}){
  const router=useRouter();
  const[query,setQuery]=useState(""),[category,setCategory]=useState("all"),[scope,setScope]=useState("all"),[busy,setBusy]=useState<string|null>(null);
+ const categoryTabs=useMemo(()=>{const counts=new Map<string,number>();items.forEach(d=>{const key=String(d.category||"egyeb");counts.set(key,(counts.get(key)||0)+1)});return[...counts.entries()].sort((a,b)=>(labels[a[0]]||a[0]).localeCompare(labels[b[0]]||b[0],"hu"))},[items]);
  const scopes=useMemo(()=>{const map=new Map<string,string>();items.forEach(d=>{if(d.field_id&&d.fields?.name)map.set(`field:${d.field_id}`,`Tábla: ${d.fields.name}`);else if(d.farm_id&&d.farms?.name)map.set(`farm:${d.farm_id}`,`Gazdaság: ${d.farms.name}`)});return[...map.entries()].sort((a,b)=>a[1].localeCompare(b[1],"hu"))},[items]);
  const visible=useMemo(()=>items.filter(d=>{const q=query.trim().toLocaleLowerCase("hu-HU");const hay=[d.title,d.notes,d.file_name,d.fields?.name,d.farms?.name,labels[d.category]].filter(Boolean).join(" ").toLocaleLowerCase("hu-HU");const scopeMatch=scope==="all"||(scope.startsWith("field:")&&d.field_id===scope.slice(6))||(scope.startsWith("farm:")&&d.farm_id===scope.slice(5));return(category==="all"||d.category===category)&&scopeMatch&&(!q||hay.includes(q))}),[items,query,category,scope]);
 
@@ -18,6 +19,7 @@ export function DocumentLibrary({items}:{items:any[]}){
  async function deleteDoc(d:any){if(!confirm(`Biztosan törlöd ezt a dokumentumot?\n\n${d.title}`))return;setBusy(`delete-${d.id}`);try{await deleteDocument(d.id);router.refresh()}catch(error){alert(`A dokumentum törlése sikertelen: ${error instanceof Error?error.message:"Ismeretlen hiba"}`)}finally{setBusy(null)}}
 
  return <>
+  <div className={styles.categoryTabs}><button type="button" className={category==="all"?styles.categoryActive:""} onClick={()=>setCategory("all")}>Összes <span>{items.length}</span></button>{categoryTabs.map(([key,count])=><button type="button" key={key} className={category===key?styles.categoryActive:""} onClick={()=>setCategory(key)}>{labels[key]||key} <span>{count}</span></button>)}</div>
   <div className={styles.toolbar}>
    <div className={styles.searchWrap}><span>⌕</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Keresés név vagy fájl alapján…"/></div>
    <select value={category} onChange={e=>setCategory(e.target.value)}><option value="all">Fájl típus</option><option value="talajvizsgalat">Talajvizsgálat</option><option value="permetezes">Permetezés</option><option value="szerzodes">Szerződés</option><option value="szamla">Számla</option><option value="foto">Fotó</option><option value="egyeb">Egyéb</option></select>
