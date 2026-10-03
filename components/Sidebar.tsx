@@ -42,6 +42,7 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
     <div className={styles.sectionLabel}>GAZDASÁGOM</div>
     <div className={styles.secondaryList}>{secondary.map(row)}</div>
    </nav>
+   <div className={styles.promo}><span>◒</span><strong>Hatékonyabb gazdálkodás<br/>egy fenntarthatóbb<br/>jövőért.</strong></div>
    <div className={styles.help}><strong>Segítség</strong><small>Az útmutató mindig az aktuális feladathoz igazodik.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolatfelvétel</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
    <div className={styles.bottom}><div className={styles.user}><span className={styles.avatar}>{initials}</span><div><strong>{userName}</strong><small>Gazdálkodó</small></div></div><LogoutButton className={styles.logout}/><small className={styles.version}>Agrár Mentor</small></div>
   </aside>
