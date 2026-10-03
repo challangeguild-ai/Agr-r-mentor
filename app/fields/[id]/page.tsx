@@ -87,10 +87,9 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
 
       <section id="attekintes" className={styles.overviewGrid}>
        <article className={styles.infoCard}><h2>Tábla adatok</h2><dl><div><dt>Gazdaság</dt><dd>{farm?.name||"—"}</dd></div><div><dt>Kataszter</dt><dd>{farm?.settlement||"—"}</dd></div><div><dt>Gazdasági év</dt><dd>{field.crop_year||"—"}</dd></div><div><dt>Vetés</dt><dd>{formatDate(field.sowing_date)}</dd></div><div><dt>Megjegyzés</dt><dd>{field.notes||"—"}</dd></div></dl></article>
+       <article id="terkep" className={styles.mapCard}><div className={styles.cardTitle}><h2>Térképi nézet</h2><span>{field.area_ha?field.area_ha+" ha":""}</span></div><FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots} compact/></article>
        <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>30 nap csapadék</dt><dd>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
       </section>
-
-      <div id="terkep" className={styles.mapWrap}><FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots}/></div>
 
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
        <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
