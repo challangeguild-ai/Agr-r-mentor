@@ -13,7 +13,9 @@ function conditionLabel(v:string|null|undefined){return v==="critical"?"Kritikus
 function isAfter(a:string|null|undefined,b:string|null|undefined){return !!a&&!!b&&new Date(a).getTime()>=new Date(b).getTime()}
 function eventLabel(v:string|null){const m:Record<string,string>={inspection:"Helyszíni szemle",inspection_followup:"Visszaellenőrzés",task:"Teendő",task_completed:"Teendő elvégezve",task_submitted_review:"Végrehajtás beküldve",task_review_approved:"Végrehajtás jóváhagyva",task_review_rejected:"Végrehajtás javításra visszaküldve",farmer_report:"Bejelentés",advisor_reply:"Szaktanácsadói válasz",field_operation:"Gazdálkodási művelet",weather_observation:"Időjárási esemény"};return m[v||""]||"Gazdasági esemény"}
 
-export default async function DashboardPage(){
+export default async function DashboardPage({searchParams}:{searchParams:Promise<{q?:string}>}){
+ const{q=""}=await searchParams;
+ const query=q.trim().toLocaleLowerCase("hu-HU");
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
  const{data:profile}=await supabase.from("profiles").select("full_name,role,system_role").eq("id",user.id).maybeSingle();
@@ -73,14 +75,20 @@ export default async function DashboardPage(){
  const action=(item:DailyWorkInput)=>item.kind==="report"?"Üzenet":item.kind==="inspection"?"Szemle":"Feladat";
  const today=new Intl.DateTimeFormat("hu-HU",{timeZone:"Europe/Budapest",year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(new Date());
  const attentionCount=critical.length+overdue.length+waitingReview.length+unreadReplies.length;
+ const searchResults=query?[
+  ...(fields??[]).filter(x=>[x.name,x.current_crop].some(v=>String(v||"").toLocaleLowerCase("hu-HU").includes(query))).slice(0,4).map(x=>({key:"field-"+x.id,title:x.name,meta:(x.current_crop||"Földtábla")+" · "+(x.area_ha?String(x.area_ha)+" ha":"terület"),href:"/fields/"+x.id,kind:"Tábla"})),
+  ...openTasks.filter(x=>x.title.toLocaleLowerCase("hu-HU").includes(query)).slice(0,4).map(x=>({key:"task-"+x.id,title:x.title,meta:loc({id:x.id,kind:"task",title:x.title,farmId:x.farm_id,fieldId:x.field_id}),href:"/tasks",kind:"Feladat"})),
+  ...(reports??[]).filter(x=>x.title.toLocaleLowerCase("hu-HU").includes(query)).slice(0,4).map(x=>({key:"report-"+x.id,title:x.title,meta:fieldMap.get(x.field_id)?.name||"Gazdálkodói bejelentés",href:"/messages",kind:"Üzenet"}))
+ ].slice(0,8):[];
 
  return <div className="app-shell farmer-app"><Sidebar active="dashboard" userName={name}/><main className={["dashboard",styles.page].join(" ")}>
   <header className={styles.topbar}>
-   <div className={styles.searchBar}><span className={styles.searchIcon}>⌕</span><span>Keresés táblák, feladatok és események között…</span></div>
+   <form className={styles.searchBar} action="/dashboard" method="get"><span className={styles.searchIcon}>⌕</span><input name="q" defaultValue={q} placeholder="Keresés táblák, feladatok és események között…" aria-label="Keresés"/><button type="submit">Keresés</button></form>
    <div className={styles.topActions}><BlockHelpButton label="A munkaközpont magyarázata" content={{title:"Mai munkaközpont",body:"A kezdőlap azt mutatja, mi igényel figyelmet, mit lehet folytatni, és mi a következő konkrét lépés.",important:"A prioritás döntéstámogatás; a rendszer nem hagy jóvá műveletet és nem zár le feladatot automatikusan."}}/><NotificationBell/><div className={styles.userChip}><span className={styles.userAvatar}>{name.slice(0,1).toUpperCase()}</span><span><strong>{name}</strong><small>Gazdálkodó</small></span></div></div>
   </header>
 
   <div className={styles.viewport}>
+   {query&&<section className={styles.searchResults}><div className={styles.searchResultsHead}><strong>Keresési találatok</strong><Link href="/dashboard">Bezárás ×</Link></div>{searchResults.length?<div className={styles.searchResultsGrid}>{searchResults.map(r=><Link href={r.href} key={r.key}><span>{r.kind}</span><strong>{r.title}</strong><small>{r.meta}</small></Link>)}</div>:<div className={styles.searchEmpty}>Nincs találat erre: <b>{q}</b></div>}</section>}
    <section className={styles.hero}>
     <div>
      <div className={styles.heroTitleRow}><strong>Mai munkaközpont</strong><span>{today}</span></div>
