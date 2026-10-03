@@ -93,7 +93,7 @@ export default async function DashboardPage(){
      </div>
      <div className={styles.heroActions}><Link className={styles.primaryCta} href="/daily-work">Mai munkám megnyitása <b>→</b></Link><Link className={styles.secondaryCta} href="/messages">Új bejelentés <b>+</b></Link></div>
     </div>
-    <div className={styles.heroAside}><span>Gazdaság összesen</span><strong>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:2})} ha</strong><small>{fields?.length??0} tábla · {openTasks.length} nyitott teendő</small></div>
+    <div className={styles.heroAside}><blockquote>„Jobb döntések.<br/>Eredményesebb gazdálkodás.”</blockquote><span className={styles.heroRule}/><small>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:2})} ha · {fields?.length??0} tábla</small></div>
    </section>
 
    <section className={styles.summaryGrid}>
