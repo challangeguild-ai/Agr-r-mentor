@@ -37,8 +37,9 @@
   z-index:25;
   backdrop-filter:blur(16px)
 }
-.searchBar{width:min(520px,52vw);min-height:42px;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid #dcd9cf;border-radius:11px;background:#faf9f5;color:#7d827d;font-size:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.65)}
-.searchIcon{font-size:22px;line-height:1;color:#294b39;transform:rotate(-18deg)}
+.searchBar{width:min(520px,52vw);min-height:42px;display:flex;align-items:center;gap:10px;padding:0 8px 0 14px;border:1px solid #dcd9cf;border-radius:11px;background:#faf9f5;color:#7d827d;font-size:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.65)}
+.searchBar input{flex:1;min-width:0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;font:inherit;color:#34443a;padding:0}.searchBar input::placeholder{color:#878d88}.searchBar button{border:0;border-radius:7px;background:#e8efe5;color:#1b5a39;padding:7px 10px;font-size:8px;font-weight:850;cursor:pointer}.searchIcon{font-size:22px;line-height:1;color:#294b39;transform:rotate(-18deg)}
+.searchResults{margin-bottom:12px;padding:12px;border:1px solid #dfe3d9;border-radius:12px;background:#fffdf8;box-shadow:0 8px 24px rgba(26,54,37,.07)}.searchResultsHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}.searchResultsHead strong{font-size:12px}.searchResultsHead a{font-size:9px;font-weight:800;color:#2f7049}.searchResultsGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.searchResultsGrid a{display:grid;gap:2px;padding:9px 10px;border:1px solid #e6e4dc;border-radius:8px;background:#fff}.searchResultsGrid span{font-size:7px;font-weight:900;color:#397552;text-transform:uppercase}.searchResultsGrid strong{font-size:9px}.searchResultsGrid small{font-size:7px;color:#7d847e}.searchEmpty{padding:10px;color:#69726b;font-size:9px}
 .topActions{display:flex;align-items:center;gap:9px}
 .userChip{display:flex;align-items:center;gap:9px;min-height:42px;padding:5px 11px 5px 6px;border-left:1px solid #e2ded3;color:#233a2d;font-size:10px}
 .userChip>span:last-child{display:grid;gap:1px}.userChip strong{font-size:11px}.userChip small{color:#7e867f;font-size:9px}
@@ -157,7 +158,7 @@
  .page:global(.dashboard){padding:0 22px 30px!important}
  .viewport{width:min(100%,980px)}
  .topbar{margin:0 -22px 16px;padding:12px 22px 12px 78px;min-height:72px}
- .searchBar{width:min(420px,56vw)}
+ .searchBar{width:min(420px,56vw)} .searchResultsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .hero{grid-template-columns:minmax(0,1fr) 170px;min-height:235px;padding:24px}.hero h1{font-size:36px}.heroAside strong{font-size:24px}
  .summaryGrid{grid-template-columns:1fr 1fr}
  .commandGrid{grid-template-columns:1fr}
@@ -173,7 +174,7 @@
 @media(max-width:767px){
  .page:global(.dashboard){padding:0 12px 22px!important}
  .viewport{width:100%}
- .topbar{min-height:68px;margin:0 -12px 12px;padding:11px 12px 11px 66px}.searchBar{display:none}.topActions{margin-left:auto}.userChip{padding-right:0;border-left:0}.userChip>span:last-child{display:none}
+ .topbar{min-height:68px;margin:0 -12px 12px;padding:11px 12px 11px 66px}.searchBar{display:none}.searchResultsGrid{grid-template-columns:1fr}.topActions{margin-left:auto}.userChip{padding-right:0;border-left:0}.userChip>span:last-child{display:none}
  .hero{display:block;min-height:0;padding:19px 16px;border-radius:14px}.heroTitleRow{display:block}.heroTitleRow strong{font-size:14px}.heroTitleRow span{display:block;margin-top:3px;padding:0;border:0;font-size:8px}.hero h1{font-size:30px;margin-top:8px}.heroSignals{display:grid;grid-template-columns:1fr;gap:6px}.heroSignals span{width:max-content;max-width:100%;font-size:8px;padding:6px 8px}
  .heroActions{display:grid;grid-template-columns:1fr;margin-top:14px}.primaryCta,.secondaryCta{width:100%;min-width:0}.secondaryCta{display:none}
  .heroAside{margin-top:13px;padding:10px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.2);display:flex;align-items:baseline;gap:7px}.heroAside span{font-size:8px}.heroAside strong{font-size:17px;margin:0}.heroAside small{margin-left:auto;font-size:7px}
