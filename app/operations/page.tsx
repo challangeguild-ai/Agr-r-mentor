@@ -56,9 +56,9 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
    </section>
 
    <section className={styles.tablePanel}>
-    <div className={styles.tableHead}><span>Dátum</span><span>Tábla</span><span>Művelet</span><span>Input</span><span>Megjegyzés</span><span>Státusz</span><span/></div>
+    <div className={styles.tableHead}><span>Dátum</span><span>Tábla</span><span>Művelet</span><span>Input / Anyag</span><span>Mennyiség</span><span>Megjegyzés</span><span>Státusz</span><span/></div>
     <div className={styles.tableBody}>
-     {visible.length?visible.map(e=>{const fr=fieldMap.get(e.field_id);const input=e.product_name||(e.dose!=null?`${e.dose} ${e.dose_unit||""}`:e.quantity!=null?`${e.quantity} ${e.quantity_unit||""}`:"—");const status=e.approval_status==="pending"?"Jóváhagyásra vár":e.approval_status==="approved"?"Jóváhagyva":"Bejegyezve";return <article className={styles.row} key={e.id}>
+     {visible.length?visible.map(e=>{const fr=fieldMap.get(e.field_id);const input=e.product_name||e.subtype||"—";const amount=e.dose!=null?`${e.dose} ${e.dose_unit||""}`:e.quantity!=null?`${e.quantity} ${e.quantity_unit||""}`:e.treated_area!=null?`${e.treated_area} ha`:"—";const status=e.approval_status==="pending"?"Jóváhagyásra vár":e.approval_status==="approved"?"Jóváhagyva":"Bejegyezve";return <article className={styles.row} key={e.id}>
       <time>{dateHu(e.operation_date)}</time>
       <Link href={`/fields/${e.field_id}`}><strong>{fr?.name||"Földtábla"}</strong><small>{fr?.area_ha?`${fr.area_ha} ha`:""}</small></Link>
       <div className={styles.op}><span>{opIcon(e.operation_type)}</span><strong>{operationLabel(e.operation_type)}</strong></div>
