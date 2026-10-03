@@ -129,8 +129,8 @@
 
 /* MOBILE */
 @media(max-width:767px){
- .page{width:100%;padding:0 12px 86px!important}
- .topbar{min-height:68px;margin:0 -12px 12px;padding:11px 12px 11px 66px;align-items:flex-start}
+ .page{width:100%;padding:70px 12px 86px!important}
+ .topbar{min-height:68px;margin:0 -12px 12px;padding:11px 12px;align-items:flex-start}
  .topbar h1{font-size:21px}.topbar p{font-size:9px;line-height:1.35}.adminMode{display:none}
  .hero{display:block;min-height:0;padding:18px 15px;border-radius:13px}.hero h2{font-size:24px}.hero p{font-size:8px;line-height:1.4}.hero>a{margin-top:13px;width:100%}
  .summaryGrid{grid-template-columns:1fr 1fr;gap:7px}.summaryCard{grid-template-columns:34px minmax(0,1fr);min-height:74px;padding:9px}.summaryCard>span{width:32px;height:32px;font-size:13px}.summaryCard strong{font-size:18px}.summaryCard>b{display:none}
