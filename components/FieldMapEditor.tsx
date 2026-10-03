@@ -7,9 +7,9 @@ import {BlockHelpButton} from "@/components/GuidedTour";
 declare global{interface Window{L:any}}
 
 type Hotspot={lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"};
-type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;hotspots?:Hotspot[]};
+type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;hotspots?:Hotspot[];compact?:boolean};
 
-export function FieldMapEditor({fieldId,lat,lng,boundary,editable,hotspots=[]}:Props){
+export function FieldMapEditor({fieldId,lat,lng,boundary,editable,hotspots=[],compact=false}:Props){
   const mapRef=useRef<HTMLDivElement|null>(null);
   const mapInstance=useRef<any>(null);
   const drawnLayer=useRef<any>(null);
@@ -47,15 +47,15 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,hotspots=[]}:P
     return()=>{cancelled=true;if(mapInstance.current){mapInstance.current.remove();mapInstance.current=null}};
   },[]);
 
-  return <section className="panel field-map-panel" data-help-block="field-map">
-    <div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A térképen rögzítheted a tábla középpontját és – szerkesztési jogosultság esetén – a tényleges táblahatárt is. A problémagócok külön színes pontként jelennek meg.",important:"A táblahatárt a lehető legpontosabban rajzold körbe, mert később a helyszíni munkák, problémagócok és területi ellenőrzések ehhez a térképi adathoz kapcsolódhatnak.",example:"Példa: a Déli 12 tábla határát a bal oldali rajzeszközzel körberajzolod a légifelvétel alapján, majd elmented. A később rögzített gyomosodási pont külön jelölésként jelenik meg rajta.",steps:["Nagyíts a földtábla területére.","Ha még nincs határ, válaszd a rajzeszközt és rajzold körbe a táblát.","Ha már van határ, a szerkesztő eszközzel pontosíthatod a töréspontokat.","Határ nélküli esetben a térképre kattintva középpontot adhatsz meg.","Ellenőrizd a koordinátát és a megjelenő problémagócokat.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>
-    <div ref={mapRef} style={{height:420,width:"100%",borderRadius:12,overflow:"hidden",background:"#e7ece7"}}/>
-    {!ready&&<p style={{color:"#6f7c74",fontSize:12}}>Térkép betöltése…</p>}
-    {hotspots.length>0&&<p style={{margin:"10px 0 0",color:"#6f7c74",fontSize:12}}>A színes pontok helyszíni GPS-szel rögzített problémagócokat jelölnek. Kattints a pontra a részletekért.</p>}
-    {editable?<form action={saveFieldMap} style={{display:"grid",gap:10,marginTop:14}}>
+  return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map">
+    {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A térképen rögzítheted a tábla középpontját és – szerkesztési jogosultság esetén – a tényleges táblahatárt is. A problémagócok külön színes pontként jelennek meg.",important:"A táblahatárt a lehető legpontosabban rajzold körbe, mert később a helyszíni munkák, problémagócok és területi ellenőrzések ehhez a térképi adathoz kapcsolódhatnak.",example:"Példa: a Déli 12 tábla határát a bal oldali rajzeszközzel körberajzolod a légifelvétel alapján, majd elmented. A később rögzített gyomosodási pont külön jelölésként jelenik meg rajta.",steps:["Nagyíts a földtábla területére.","Ha még nincs határ, válaszd a rajzeszközt és rajzold körbe a táblát.","Ha már van határ, a szerkesztő eszközzel pontosíthatod a töréspontokat.","Határ nélküli esetben a térképre kattintva középpontot adhatsz meg.","Ellenőrizd a koordinátát és a megjelenő problémagócokat.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
+    <div ref={mapRef} style={{height:compact?260:420,width:"100%",borderRadius:compact?9:12,overflow:"hidden",background:"#e7ece7"}}/>
+    {!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
+    {!compact&&hotspots.length>0&&<p style={{margin:"10px 0 0",color:"#6f7c74",fontSize:12}}>A színes pontok helyszíni GPS-szel rögzített problémagócokat jelölnek. Kattints a pontra a részletekért.</p>}
+    {!compact&&editable?<form action={saveFieldMap} style={{display:"grid",gap:10,marginTop:14}}>
       <input type="hidden" name="field_id" value={fieldId}/><input type="hidden" name="center_lat" value={centerLat}/><input type="hidden" name="center_lng" value={centerLng}/><input type="hidden" name="boundary_geojson" value={geojson}/>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}><span className="user-pill">{centerLat.toFixed(6)}, {centerLng.toFixed(6)}</span><small style={{color:"#6f7c74"}}>Kattints a térképre a középpont megadásához, vagy a bal oldali rajzeszközzel rajzold körbe a táblát.</small></div>
       <button className="btn btn-primary" type="submit" style={{justifySelf:"start"}}>Térképi adatok mentése</button>
-    </form>:<p style={{marginTop:12,color:"#6f7c74",fontSize:12}}>{boundary?"A rögzített táblahatár megjelenik a térképen.":lat!=null&&lng!=null?"A tábla rögzített térképi helye látható.":"Ehhez a táblához még nincs térképi hely rögzítve."}</p>}
+    </form>:!compact?<p style={{marginTop:12,color:"#6f7c74",fontSize:12}}>{boundary?"A rögzített táblahatár megjelenik a térképen.":lat!=null&&lng!=null?"A tábla rögzített térképi helye látható.":"Ehhez a táblához még nincs térképi hely rögzítve."}</p>:null}
   </section>
 }

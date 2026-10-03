@@ -1,0 +1,12 @@
+.bar{position:sticky;top:0;z-index:35;min-height:68px;margin:0 0 16px;padding:11px 0;display:flex;align-items:center;justify-content:space-between;gap:18px;background:rgba(248,246,240,.96);border-bottom:1px solid #e2dfd4;backdrop-filter:blur(16px)}
+.search{width:min(560px,58vw);min-height:40px;display:flex;align-items:center;gap:9px;padding:0 7px 0 13px;border:1px solid #dcd9cf;border-radius:10px;background:#fffdf8;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.search>span{font-size:20px;line-height:1;color:#294b39;transform:rotate(-18deg)}
+.search input{flex:1;min-width:0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font:inherit;font-size:11px;color:#34443a}
+.search input::placeholder{color:#8a908b}
+.search button{display:none}
+.actions{display:flex;align-items:center;gap:9px;min-width:0}
+.profile{display:flex;align-items:center;gap:8px;padding-left:10px;border-left:1px solid #e0ddd3;min-width:0}
+.avatar{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#d9e8d6,#96b68d);color:#153e2c;font-size:10px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.1)}
+.profileText{min-width:0}.profileText strong,.profileText small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.profileText strong{max-width:150px;font-size:10px;color:#233a2d}.profileText small{margin-top:1px;font-size:8px;color:#7e867f}
+@media(min-width:768px) and (max-width:1199px){.bar{min-height:70px;padding:11px 0 11px 66px}.search{width:min(520px,62vw)}.profileText{display:none}.profile{padding-left:7px}}
+@media(max-width:767px){.bar{top:0;z-index:32;min-height:58px;margin:0 0 12px;padding:8px 0 8px 62px;gap:8px;background:rgba(248,246,240,.98)}.search{width:auto;flex:1;min-height:38px;padding-left:10px}.search>span{font-size:18px}.search input{font-size:9px}.search button{display:none}.actions{gap:5px}.profile{padding-left:5px;border-left:0}.avatar{width:29px;height:29px}.profileText{display:none}.bar :global(.notification-bell){width:34px!important;height:34px!important;min-height:34px!important}}
