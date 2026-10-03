@@ -1,1 +1,59 @@
-.app{min-height:100vh;background:#f8f1f2;color:#251a1c}.content{min-width:0;margin-left:250px;width:calc(100% - 250px);min-height:100vh;background:#f8f1f2}.content :global(.admin-shell){max-width:none!important;margin:0!important;padding:28px 28px 40px!important;background:#f8f1f2}.content :global(.admin-header){min-height:86px;margin:-28px -28px 18px!important;padding:16px 28px!important;background:#fff;border-bottom:1px solid #eadcdf}.content :global(.admin-header h1){color:#4f141b}.content :global(.eyebrow){color:#962d38}.content :global(.panel),.content :global(.admin-summary>div){background:#fff!important;border:1px solid #eadcdf!important;border-radius:12px!important;box-shadow:0 3px 14px rgba(85,10,20,.05)!important}.content :global(.btn-primary){background:#8f2631!important}.content :global(.ghost-btn){color:#8f2631!important;border-color:#e5cdd1!important}.content :global(input:focus),.content :global(select:focus),.content :global(textarea:focus){outline:none!important;border-color:#bb5963!important;box-shadow:0 0 0 3px rgba(143,38,49,.09)!important}@media(max-width:1000px){.content{margin-left:0;width:100%}.content :global(.admin-shell){padding:72px 16px 24px!important}}
+.app{
+  --role-accent:#922f3a;
+  --role-accent-2:#a43b46;
+  --role-soft:#f8e9eb;
+  --role-canvas:#f4f1ed;
+  --role-ink:#342126;
+  --role-muted:#796b6e;
+  --role-line:#e8dbdd;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 82% 2%,rgba(150,45,56,.075),transparent 24rem),
+    linear-gradient(180deg,#f8f6f1,#f4f1ed);
+  color:var(--role-ink)
+}
+.content{min-width:0;margin-left:250px;width:calc(100% - 250px);min-height:100vh;background:transparent}
+.content :global(.admin-shell){max-width:none!important;margin:0!important;padding:0 30px 42px!important;background:transparent}
+.content :global(.admin-header){
+  min-height:88px;
+  margin:0 -30px 22px!important;
+  padding:17px 30px!important;
+  background:rgba(255,253,248,.96);
+  border-bottom:1px solid var(--role-line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  position:sticky;
+  top:0;
+  z-index:18;
+  backdrop-filter:blur(18px)
+}
+.content :global(.admin-header h1){font-size:28px!important;line-height:1.08;margin:4px 0 4px!important;letter-spacing:-.03em;color:#4f1d24}
+.content :global(.admin-header p){margin:0!important;font-size:12px;color:var(--role-muted)}
+.content :global(.eyebrow){color:var(--role-accent);font-size:9px!important;letter-spacing:.14em!important}
+.content :global(.panel),.content :global(.admin-summary>div){
+  background:#fffdf8!important;
+  border:1px solid var(--role-line)!important;
+  border-radius:18px!important;
+  box-shadow:0 7px 22px rgba(91,30,39,.045)!important
+}
+.content :global(.panel){padding:18px!important}
+.content :global(.admin-summary>div){padding:18px!important}
+.content :global(.admin-summary strong){color:var(--role-accent)!important}
+.content :global(.btn-primary){background:var(--role-accent)!important;box-shadow:0 7px 18px rgba(146,47,58,.14)}
+.content :global(.ghost-btn),.content :global(.btn-secondary){color:var(--role-accent)!important;border-color:#e5cdd1!important;background:#fffdf8!important}
+.content :global(input:focus),.content :global(select:focus),.content :global(textarea:focus){outline:none!important;border-color:#bb5963!important;box-shadow:0 0 0 3px rgba(143,38,49,.09)!important}
+.content :global(.user-pill){background:var(--role-soft)!important;color:var(--role-accent)!important;border-color:#ecd8db!important}
+.content :global(.notice){background:#fbf0f1!important;border-color:#eed9dc!important;color:#6f3b43!important}
+@media(max-width:1000px){
+ .content{margin-left:0;width:100%}
+ .content :global(.admin-shell){padding:0 16px 26px!important}
+ .content :global(.admin-header){margin:0 -16px 16px!important;padding:14px 16px 14px 68px!important;min-height:72px}
+}
+@media(max-width:650px){
+ .content :global(.admin-shell){padding:0 12px 20px!important}
+ .content :global(.admin-header){margin:0 -12px 12px!important;padding:13px 12px 13px 66px!important;min-height:68px}
+ .content :global(.admin-header h1){font-size:22px!important}
+ .content :global(.panel){padding:14px!important}
+}
