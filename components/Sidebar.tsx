@@ -5,7 +5,6 @@ import {LogoutButton} from "@/components/LogoutButton";
 import {ComprehensiveTour,ComprehensiveTourRestart} from "@/components/ComprehensiveTour";
 import {ProcessGuideButton,ProcessGuideProvider} from "@/components/ProcessGuide";
 import {HelpCenter} from "@/components/HelpCenter";
-import {NotificationBell} from "@/components/NotificationBell";
 import styles from "./FarmerSidebar.module.css";
 
 const primary=[
@@ -34,7 +33,7 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
  const initials=userName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"G";
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
-  <div className={styles.mobileHeader}><Link href="/dashboard" className={styles.mobileBrand}><span>◒</span><div><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div></Link><div className={styles.mobileHeaderActions}><NotificationBell/></div></div>
+  <div className={styles.mobileHeader}><Link href="/dashboard" className={styles.mobileBrand}><span>◒</span><div><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div></Link></div>
   <button className={styles.launch} type="button" aria-label="Menü megnyitása" onClick={()=>setOpen(true)}><span/><span/><span/></button>
   {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
   <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
@@ -48,11 +47,5 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
    <div className={styles.help}><strong>Segítség</strong><small>Az útmutató mindig az aktuális feladathoz igazodik.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolatfelvétel</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
    <div className={styles.bottom}><div className={styles.user}><span className={styles.avatar}>{initials}</span><div><strong>{userName}</strong><small>Gazdálkodó</small></div></div><LogoutButton className={styles.logout}/><small className={styles.version}>Agrár Mentor</small></div>
   </aside>
-  <nav className={styles.mobileNav} aria-label="Gyors mobil navigáció">
-   <Link className={active==="dashboard"?styles.mobileActive:""} href="/dashboard"><span>⌂</span><small>Áttekintés</small></Link>
-   <Link className={active==="tasks"||active==="daily-work"?styles.mobileActive:""} href="/tasks"><span>☑</span><small>Teendők</small></Link>
-   <Link className={active==="fields"?styles.mobileActive:""} href="/fields"><span>◩</span><small>Táblák</small></Link>
-   <Link className={active==="messages"?styles.mobileActive:""} href="/messages"><span>✉</span><small>Üzenetek</small></Link>
-  </nav>
  </>;
 }
