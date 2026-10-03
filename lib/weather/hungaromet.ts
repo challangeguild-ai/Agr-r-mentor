@@ -104,9 +104,9 @@ export async function fetchHungaroMetDaily(stationNumber:string){
  if(!res.ok)throw new Error(`HungaroMet napi adat nem elérhető (${stationNumber}): ${res.status}`);
  const text=unzipSingleText(await res.arrayBuffer());
  const lines=parseSemicolon(text);
- const header=findHeader(lines,["stationnumber","time","r"]);
+ const header=findHeader(lines,["stationnumber","time","rau"]);
  if(!header)throw new Error(`HungaroMet napi CSV fejléc nem azonosítható (${stationNumber}).`);
- const stationIdx=header.keys.indexOf("stationnumber"),timeIdx=header.keys.indexOf("time"),rainIdx=header.keys.indexOf("r"),tnIdx=header.keys.indexOf("tn"),txIdx=header.keys.indexOf("tx");
+ const stationIdx=header.keys.indexOf("stationnumber"),timeIdx=header.keys.indexOf("time"),rainIdx=header.keys.indexOf("rau"),tnIdx=header.keys.indexOf("tn"),txIdx=header.keys.indexOf("tx");
  const observations:HungaroMetDailyObservation[]=[];
  for(const line of lines.slice(header.index+1)){
   if(line.startsWith("#"))continue;
