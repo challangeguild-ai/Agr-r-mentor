@@ -2,8 +2,8 @@ import Link from "next/link";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
-import {NotificationBell} from "@/components/NotificationBell";
 import {BlockHelpButton} from "@/components/GuidedTour";
+import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {dailyWorkSeverityLabel,prioritizeDailyWork,type DailyWorkInput} from "@/lib/dailyWorkPriority";
 import styles from "./dashboard.module.css";
 
@@ -82,10 +82,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
  ].slice(0,8):[];
 
  return <div className="app-shell farmer-app"><Sidebar active="dashboard" userName={name}/><main className={["dashboard",styles.page].join(" ")}>
-  <header className={styles.topbar}>
-   <form className={styles.searchBar} action="/dashboard" method="get"><span className={styles.searchIcon}>⌕</span><input name="q" defaultValue={q} placeholder="Keresés táblák, feladatok és események között…" aria-label="Keresés"/><button type="submit">Keresés</button></form>
-   <div className={styles.topActions}><BlockHelpButton label="A munkaközpont magyarázata" content={{title:"Mai munkaközpont",body:"A kezdőlap azt mutatja, mi igényel figyelmet, mit lehet folytatni, és mi a következő konkrét lépés.",important:"A prioritás döntéstámogatás; a rendszer nem hagy jóvá műveletet és nem zár le feladatot automatikusan."}}/><NotificationBell/><div className={styles.userChip}><span className={styles.userAvatar}>{name.slice(0,1).toUpperCase()}</span><span><strong>{name}</strong><small>Gazdálkodó</small></span></div></div>
-  </header>
+  <FarmerTopbar userName={name} placeholder="Keresés táblák, feladatok és események között…" defaultQuery={q}/>
 
   <div className={styles.viewport}>
    {query&&<section className={styles.searchResults}><div className={styles.searchResultsHead}><strong>Keresési találatok</strong><Link href="/dashboard">Bezárás ×</Link></div>{searchResults.length?<div className={styles.searchResultsGrid}>{searchResults.map(r=><Link href={r.href} key={r.key}><span>{r.kind}</span><strong>{r.title}</strong><small>{r.meta}</small></Link>)}</div>:<div className={styles.searchEmpty}>Nincs találat erre: <b>{q}</b></div>}</section>}
