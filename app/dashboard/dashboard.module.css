@@ -172,7 +172,7 @@
 
 /* MOBILE — dedicated compact information hierarchy. */
 @media(max-width:767px){
- .page:global(.dashboard){padding:0 12px 22px!important}
+ .page:global(.dashboard){padding:0 12px 86px!important}
  .viewport{width:100%}
  .topbar{min-height:68px;margin:0 -12px 12px;padding:11px 12px 11px 66px}.searchBar{display:none}.searchResultsGrid{grid-template-columns:1fr}.topActions{margin-left:auto}.userChip{padding-right:0;border-left:0}.userChip>span:last-child{display:none}
  .hero{display:block;min-height:0;padding:19px 16px;border-radius:14px}.heroTitleRow{display:block}.heroTitleRow strong{font-size:14px}.heroTitleRow span{display:block;margin-top:3px;padding:0;border:0;font-size:8px}.hero h1{font-size:30px;margin-top:8px}.heroSignals{display:grid;grid-template-columns:1fr;gap:6px}.heroSignals span{width:max-content;max-width:100%;font-size:8px;padding:6px 8px}
