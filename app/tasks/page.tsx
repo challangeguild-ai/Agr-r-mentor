@@ -37,7 +37,7 @@ export default async function TasksPage({searchParams}:{searchParams:SearchParam
  const today=dateKey(),weekEnd=addDaysKey(7);
  const open=(tasks??[]).filter(t=>t.status!=="done"&&t.status!=="submitted"),submitted=(tasks??[]).filter(t=>t.status==="submitted"),overdue=open.filter(t=>t.due_date&&t.due_date<today),upcoming=open.filter(t=>t.due_date&&t.due_date>=today&&t.due_date<=weekEnd),done=(tasks??[]).filter(t=>t.status==="done");
  const visible=(tasks??[]).filter(t=>view==="submitted"?t.status==="submitted":view==="overdue"?t.status!=="done"&&t.status!=="submitted"&&!!t.due_date&&t.due_date<today:view==="upcoming"?t.status!=="done"&&t.status!=="submitted"&&!!t.due_date&&t.due_date>=today&&t.due_date<=weekEnd:view==="done"?t.status==="done":view==="all"?true:t.status!=="done"&&t.status!=="submitted");
- const tabs=[["open","Összes",open.length],["submitted","Folyamatban",submitted.length],["done","Befejezendő",done.length],["overdue","Lejárt",overdue.length]] as const;
+ const tabs=[["open","Összes",open.length],["submitted","Folyamatban",submitted.length],["done","Befejezett",done.length],["overdue","Lejárt",overdue.length]] as const;
 
  return <div className="app-shell farmer-app">
   <Sidebar active="tasks" userName={profile?.full_name||"Gazdálkodó"}/>
