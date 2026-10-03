@@ -5,5 +5,11 @@
       "feature/uksup-detailed-uses": false
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/weather-sync",
+      "schedule": "30 8 * * *"
+    }
+  ],
   "ignoreCommand": "exit 1"
 }
