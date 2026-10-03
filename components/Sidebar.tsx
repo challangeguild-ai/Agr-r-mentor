@@ -45,5 +45,11 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
    <div className={styles.help}><strong>Segítség</strong><small>Az útmutató mindig az aktuális feladathoz igazodik.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolatfelvétel</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
    <div className={styles.bottom}><div className={styles.user}><span className={styles.avatar}>{initials}</span><div><strong>{userName}</strong><small>Gazdálkodó</small></div></div><LogoutButton className={styles.logout}/><small className={styles.version}>Agrár Mentor</small></div>
   </aside>
+  <nav className={styles.mobileNav} aria-label="Gyors mobil navigáció">
+   <Link className={active==="dashboard"?styles.mobileActive:""} href="/dashboard"><span>⌂</span><small>Áttekintés</small></Link>
+   <Link className={active==="tasks"||active==="daily-work"?styles.mobileActive:""} href="/tasks"><span>☑</span><small>Teendők</small></Link>
+   <Link className={active==="fields"?styles.mobileActive:""} href="/fields"><span>◩</span><small>Táblák</small></Link>
+   <Link className={active==="messages"?styles.mobileActive:""} href="/messages"><span>✉</span><small>Üzenetek</small></Link>
+  </nav>
  </>;
 }
