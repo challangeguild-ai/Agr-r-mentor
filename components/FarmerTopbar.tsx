@@ -3,13 +3,14 @@ import styles from "./FarmerTopbar.module.css";
 
 export function FarmerTopbar({
  userName="Gazdálkodó",
- placeholder="Keresés táblák, feladatok és események között…"
-}:{userName?:string;placeholder?:string}){
+ placeholder="Keresés táblák, feladatok és események között…",
+ defaultQuery=""
+}:{userName?:string;placeholder?:string;defaultQuery?:string}){
  const initial=userName.trim().slice(0,1).toUpperCase()||"G";
  return <header className={styles.bar}>
   <form className={styles.search} action="/dashboard" method="get">
    <span aria-hidden="true">⌕</span>
-   <input name="q" placeholder={placeholder} aria-label="Keresés"/>
+   <input name="q" defaultValue={defaultQuery} placeholder={placeholder} aria-label="Keresés"/>
    <button type="submit">Keresés</button>
   </form>
   <div className={styles.actions}>
