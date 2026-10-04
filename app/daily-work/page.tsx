@@ -35,7 +35,7 @@ export default async function FarmerDailyWorkPage(){
  const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey(),"farmer");
  const lifecycleTasks=(tasks??[]).map(t=>({id:t.id,title:t.title,status:t.status,reviewStatus:t.review_status,completedAt:t.completed_at,fieldId:t.field_id,dueDate:t.due_date}));
  return <div className="app-shell farmer-app"><Sidebar active="daily-work" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard"><FarmerTopbar userName={profile?.full_name||"Gazdálkodó"}/>
-  <header className="topbar"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.1</span><h1>Mai munkaközpont</h1><p>A határidők, kritikus táblák, visszaellenőrzések és valóban új szakmai jelzések prioritási sorrendben.</p></div><DailyWorkLegend/></header>
+  <header className="topbar daily-work-heading"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.1</span><h1>Mai munkaközpont</h1><p>A határidők, kritikus táblák, visszaellenőrzések és valóban új szakmai jelzések prioritási sorrendben.</p></div><DailyWorkLegend/></header>
   <DailyWorkSummary items={prioritized}/>
   <DailyAlertStrip alerts={alerts}/>
   <TaskLifecycleBoard tasks={lifecycleTasks} scope="farmer"/>

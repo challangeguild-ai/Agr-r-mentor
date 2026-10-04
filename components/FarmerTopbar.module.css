@@ -14,3 +14,17 @@
 .menu>a{min-height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;border-radius:8px;color:#294136;font-size:9.5px;font-weight:800}.menu>a:hover{background:#f2f5ef;color:#0d5138}.menu>a span{color:#789184}.logoutRow{padding:6px 5px 2px;border-top:1px solid #ebe7dc;margin-top:4px}.logout{width:100%!important;min-height:36px!important;height:36px!important;border-radius:8px!important;border:1px solid #e1d7d0!important;background:#fff8f4!important;color:#8a3b2d!important;font-size:9.5px!important;font-weight:850!important}
 @media(min-width:768px) and (max-width:1199px){.bar{padding-left:60px}.search{width:min(520px,61vw)}.profileText{display:none}.profile{padding-left:4px!important}.chevron{display:none}}
 @media(max-width:767px){.bar{min-height:58px;margin-bottom:12px;padding:8px 0 8px 56px;gap:6px}.search{width:auto;flex:1;min-height:38px;padding-left:9px}.search>span{font-size:17px}.search input{font-size:10px}.actions{gap:3px}.profile{min-height:36px!important;height:36px!important;padding:2px 3px!important}.avatar,.avatarImage{width:30px;height:30px;flex-basis:30px}.profileText,.chevron{display:none}.menu{right:-2px;top:43px;width:min(245px,calc(100vw - 24px))}}
+
+
+/* === MOBILE HEADER WIDTH FIX 2026-10-04 === */
+@media(max-width:767px){
+ .bar{width:100%;max-width:100%;min-height:58px;margin-bottom:12px;padding:8px 0 8px 56px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;overflow:visible}
+ .search{width:100%;min-width:0;max-width:none;min-height:38px;padding-left:9px;padding-right:9px}
+ .search button{display:none!important}
+ .actions{display:flex;flex:0 0 auto;min-width:max-content;gap:4px}
+ .profileWrap{flex:0 0 auto;min-width:34px}
+ .profile{width:34px!important;min-width:34px!important;max-width:34px!important;min-height:34px!important;height:34px!important;padding:2px!important;overflow:visible!important}
+ .avatar,.avatarImage{width:30px;height:30px;flex:0 0 30px}
+ .profileText,.chevron{display:none}
+ .menu{right:0;top:41px;width:min(245px,calc(100vw - 24px))}
+}
