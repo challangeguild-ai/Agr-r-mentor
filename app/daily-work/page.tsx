@@ -5,7 +5,6 @@ import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {DailyPriorityBoard} from "@/components/DailyPriorityBoard";
 import {DailyAlertStrip} from "@/components/DailyAlertStrip";
 import {DailyWorkSummary} from "@/components/DailyWorkSummary";
-import {DailyWorkLegend} from "@/components/DailyWorkLegend";
 import {TaskLifecycleBoard} from "@/components/TaskLifecycleBoard";
 import {prioritizeDailyWork,type DailyWorkInput} from "@/lib/dailyWorkPriority";
 import {buildDailyAlerts} from "@/lib/dailyWorkAlerts";
@@ -35,7 +34,7 @@ export default async function FarmerDailyWorkPage(){
  const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey(),"farmer");
  const lifecycleTasks=(tasks??[]).map(t=>({id:t.id,title:t.title,status:t.status,reviewStatus:t.review_status,completedAt:t.completed_at,fieldId:t.field_id,dueDate:t.due_date}));
  return <div className="app-shell farmer-app"><Sidebar active="daily-work" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard"><FarmerTopbar userName={profile?.full_name||"Gazdálkodó"}/>
-  <header className="topbar daily-work-heading"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.1</span><h1>Mai munkaközpont</h1><p>A határidők, kritikus táblák, visszaellenőrzések és valóban új szakmai jelzések prioritási sorrendben.</p></div><DailyWorkLegend/></header>
+  <header className="topbar daily-work-heading"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.1</span><h1>Mai munkaközpont</h1><p>A határidők, kritikus táblák, visszaellenőrzések és valóban új szakmai jelzések prioritási sorrendben.</p></div></header>
   <DailyWorkSummary items={prioritized}/>
   <DailyAlertStrip alerts={alerts}/>
   <TaskLifecycleBoard tasks={lifecycleTasks} scope="farmer"/>
