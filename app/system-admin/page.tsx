@@ -1,10 +1,10 @@
 import Link from "next/link";
-import {createAdminClient} from "@/lib/supabase/admin";
+import {createSystemAdminDataClient} from "@/lib/supabase/systemAdminData";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import styles from "./system-admin-dashboard.module.css";
 
 export default async function SystemAdminPage(){
- const supabase=createAdminClient();
+ const supabase=await createSystemAdminDataClient();
  const[{count:users},{count:farms},{count:fields},{count:tasks},{count:openTasks},{count:reports},{count:securityHigh},{data:recentAudit}]=await Promise.all([
   supabase.from("profiles").select("id",{count:"exact",head:true}),
   supabase.from("farms").select("id",{count:"exact",head:true}),
