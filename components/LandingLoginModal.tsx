@@ -8,7 +8,7 @@ type PendingEnrollment={userId:string;factorId:string;qr:string};
 const pendingKey="agrar-mentor-mfa-pending:v2";
 function safeNext(v:string|null|undefined){return v&&v.startsWith("/")&&!v.startsWith("//")?v:null}
 
-export function LandingLoginModal({triggerLabel,triggerClassName,initialOpen=false,next=null,resumeMfa=false}:{triggerLabel:string;triggerClassName?:string;initialOpen?:boolean;next?:string|null;resumeMfa?:boolean}){
+export function LandingLoginModal({triggerLabel,triggerClassName,initialOpen=false,next=null}:{triggerLabel:string;triggerClassName?:string;initialOpen?:boolean;next?:string|null}){
  const supabase=useMemo(()=>createClient(),[]);
  const[open,setOpen]=useState(initialOpen),[stage,setStage]=useState<Stage>("credentials"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[code,setCode]=useState(""),[factorId,setFactorId]=useState(""),[qr,setQr]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
  const resumed=useRef(false);
@@ -41,7 +41,7 @@ export function LandingLoginModal({triggerLabel,triggerClassName,initialOpen=fal
   setFactorId(pending.factorId);setQr(pending.qr);setStage("setup");setBusy(false);
  }
 
- useEffect(()=>{if(!open||!resumeMfa||resumed.current)return;resumed.current=true;void beginMfa()},[open,resumeMfa]);
+ useEffect(()=>{if(!open||!initialOpen||resumed.current)return;resumed.current=true;(async()=>{const{data:{user}}=await supabase.auth.getUser();if(user)void beginMfa()})()},[open,initialOpen,supabase]);
 
  async function submitCredentials(e:FormEvent){e.preventDefault();setBusy(true);setError("");setMessage("");const{error}=await supabase.auth.signInWithPassword({email,password});if(error){setBusy(false);setError("Sikertelen belépés. Ellenőrizd az e-mail címet és a jelszót.");return}await beginMfa()}
  async function verify(e:FormEvent){e.preventDefault();setBusy(true);setError("");const clean=code.replace(/\D/g,"");if(!/^\d{6}$/.test(clean)){setError("Adj meg egy 6 jegyű hitelesítő kódot.");setBusy(false);return}const{error}=await supabase.auth.mfa.challengeAndVerify({factorId,code:clean});if(error){if(error.code==="mfa_factor_not_found"){try{sessionStorage.removeItem(pendingKey)}catch{}setCode("");await beginMfa();return}setError("A kód hibás vagy lejárt. Várd meg az új kódot, majd próbáld újra.");setBusy(false);return}try{sessionStorage.removeItem(pendingKey)}catch{}await routeAfterMfa()}
