@@ -198,3 +198,16 @@
  .priorityHeader{display:none}.priorityList{gap:7px}.priorityRow{grid-template-columns:28px 82px minmax(0,1fr);gap:7px;min-height:0;padding:10px;border:1px solid #ebe7dd;border-radius:10px;background:#fff}.priorityLocation,.priorityAction{grid-column:3}.priorityAction{justify-self:start;min-height:30px;padding:0 9px;font-size:8px}.priorityTask strong{font-size:10.5px}.priorityTask small,.priorityLocation small,.priorityLocation strong{font-size:8.5px}.priorityBadge{font-size:7.5px;min-width:72px}
  .fieldCards{grid-template-columns:1fr!important;gap:7px}.fieldCard{grid-template-columns:92px minmax(0,1fr);padding:9px}.fieldVisual{min-height:92px}.fieldBody strong{font-size:11px}.fieldBody small{font-size:8.5px}.fieldBody dl{grid-template-columns:1fr 1fr;gap:5px}.fieldBody dt,.fieldBody dd{font-size:8px}.lowerGrid{grid-template-columns:1fr!important;gap:10px}
 }
+
+/* === REFERENCE DESKTOP RAIL 2026-10-04 === */
+@media(min-width:1200px){
+ .viewport{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(292px,.78fr);gap:12px;align-items:start}
+ .searchResults,.hero,.summaryGrid{grid-column:1/-1;width:100%}
+ .commandGrid{display:contents}
+ .commandGrid>.panel{grid-column:1;min-width:0}
+ .guided{grid-column:2;grid-row:auto / span 4;align-self:stretch;height:100%;min-height:100%}
+ .priorityPanel,.fieldPanel,.lowerGrid{grid-column:1;min-width:0;width:100%}
+ .priorityPanel,.fieldPanel{margin-bottom:0}
+ .lowerGrid{margin-bottom:0}
+ .heroAside small{display:inline-flex!important;align-items:center;justify-content:center;margin-top:4px;margin-left:auto;padding:6px 9px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(5,45,29,.68);backdrop-filter:blur(5px);color:#fff!important;font-size:11px!important;font-weight:850;text-shadow:0 1px 5px rgba(0,0,0,.38);box-shadow:0 4px 14px rgba(0,0,0,.1)}
+}
