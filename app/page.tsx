@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {LandingLoginModal} from "@/components/LandingLoginModal";
 import styles from "./landing.module.css";
 
 function BrandMark({large=false}:{large?:boolean}){
@@ -32,13 +33,14 @@ const dataPoints=[
  ["◒","Szezon közbeni","nyomon követés"]
 ] as const;
 
-export default function Home(){
+export default async function Home({searchParams}:{searchParams:Promise<{login?:string;next?:string}>}){
+ const params=await searchParams;const requestedNext=params.next&&params.next.startsWith("/")&&!params.next.startsWith("//")?params.next:null;
  return <main className={styles.site}>
   <header className={styles.header}>
    <div className={styles.headerInner}>
     <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><BrandMark/><span><strong>AGRÁR MENTOR</strong><small>TUDÁS. TERV. EREDMÉNY.</small></span></a>
     <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
-    <div className={styles.headerActions}><Link className={styles.loginButton} href="/login">Belépés</Link><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
+    <div className={styles.headerActions}><LandingLoginModal triggerLabel="Belépés" triggerClassName={styles.loginButton} initialOpen={params.login==="1"} next={requestedNext}/><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
    </div>
   </header>
 
@@ -49,7 +51,7 @@ export default function Home(){
     <div className={styles.heroCopy}>
      <h1>Jobb döntések.<br/><em>A földön.</em></h1>
      <p>Személyes agronómiai támogatás, valós területi adatokkal és digitális háttérrel.</p>
-     <div className={styles.heroActions}><a className={styles.primaryButton} href="#kapcsolat">Csatlakozom az Agrár Mentorhoz <span>→</span></a><Link className={styles.secondaryButton} href="/login">Belépés az ügyfélfelületre</Link></div>
+     <div className={styles.heroActions}><a className={styles.primaryButton} href="#kapcsolat">Csatlakozom az Agrár Mentorhoz <span>→</span></a><LandingLoginModal triggerLabel="Belépés az ügyfélfelületre" triggerClassName={styles.secondaryButton}/></div>
      <div className={styles.heroAssurances}><span><b>♧</b>Helyszíni szemle</span><span><b>▤</b>Dokumentált javaslatok</span><span><b>▣</b>Digitális ügyfélfelület</span></div>
     </div>
    </div>
@@ -111,7 +113,7 @@ export default function Home(){
 
   <section className={styles.contact} id="kapcsolat">
    <div className={styles.contactContour}/>
-   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div><a className={styles.primaryButton} href="#kapcsolat">Kapcsolatfelvétel <span>→</span></a><Link className={styles.secondaryButton} href="/login">Már ügyfél vagyok</Link></div></div>
+   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div><a className={styles.primaryButton} href="#kapcsolat">Kapcsolatfelvétel <span>→</span></a><LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
    <BrandMark large/>
   </section>
 
