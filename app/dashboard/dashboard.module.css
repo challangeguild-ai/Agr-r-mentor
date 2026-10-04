@@ -211,3 +211,7 @@
  .lowerGrid{margin-bottom:0}
  .heroAside small{display:inline-flex!important;align-items:center;justify-content:center;margin-top:4px;margin-left:auto;padding:6px 9px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(5,45,29,.68);backdrop-filter:blur(5px);color:#fff!important;font-size:11px!important;font-weight:850;text-shadow:0 1px 5px rgba(0,0,0,.38);box-shadow:0 4px 14px rgba(0,0,0,.1)}
 }
+
+/* === REAL DASHBOARD FIELD MAP 2026-10-04 === */
+.fieldVisual:before,.fieldVisual:after{display:none!important}
+.fieldVisual svg{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
