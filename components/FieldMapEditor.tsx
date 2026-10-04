@@ -30,7 +30,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,hotspots=[],co
       await loadScript("https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js");
       if(cancelled||!mapRef.current||mapInstance.current)return;
       const L=window.L;const map=L.map(mapRef.current).setView([centerLat,centerLng],lat&&lng?15:7);mapInstance.current=map;
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; OpenStreetMap közreműködők'}).addTo(map);
+      const satellite=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"});const street=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});satellite.addTo(map);L.control.layers({"Műhold":satellite,"Utcatérkép":street},undefined,{position:"topright",collapsed:false}).addTo(map);
       const group=new L.FeatureGroup().addTo(map);drawnLayer.current=group;
       if(boundary){const layer=L.geoJSON(boundary,{style:{color:"#2f7430",weight:3,fillColor:"#5c9a46",fillOpacity:.18}}).addTo(group);try{map.fitBounds(layer.getBounds(),{padding:[25,25]})}catch{}}
       if(lat!=null&&lng!=null){markerRef.current=L.marker([lat,lng]).addTo(map)}
@@ -47,7 +47,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,hotspots=[],co
     return()=>{cancelled=true;if(mapInstance.current){mapInstance.current.remove();mapInstance.current=null}};
   },[]);
 
-  return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map">
+  return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map" data-tour="farmer-field-map">
     {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A térképen rögzítheted a tábla középpontját és – szerkesztési jogosultság esetén – a tényleges táblahatárt is. A problémagócok külön színes pontként jelennek meg.",important:"A táblahatárt a lehető legpontosabban rajzold körbe, mert később a helyszíni munkák, problémagócok és területi ellenőrzések ehhez a térképi adathoz kapcsolódhatnak.",example:"Példa: a Déli 12 tábla határát a bal oldali rajzeszközzel körberajzolod a légifelvétel alapján, majd elmented. A később rögzített gyomosodási pont külön jelölésként jelenik meg rajta.",steps:["Nagyíts a földtábla területére.","Ha még nincs határ, válaszd a rajzeszközt és rajzold körbe a táblát.","Ha már van határ, a szerkesztő eszközzel pontosíthatod a töréspontokat.","Határ nélküli esetben a térképre kattintva középpontot adhatsz meg.","Ellenőrizd a koordinátát és a megjelenő problémagócokat.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
     <div ref={mapRef} style={{height:compact?260:420,width:"100%",borderRadius:compact?9:12,overflow:"hidden",background:"#e7ece7"}}/>
     {!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
