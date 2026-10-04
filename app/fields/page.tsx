@@ -4,6 +4,7 @@ import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
 import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {FieldsOverviewMap} from "@/components/FieldsOverviewMap";
+import {FieldMiniMap} from "@/components/FieldMiniMap";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import styles from "./fields.module.css";
 
@@ -18,7 +19,7 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
  const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();
  if(profile?.system_role==="admin")redirect("/system-admin");if(profile?.role==="advisor")redirect("/admin/map");
 
- const{data:farms,error:farmError}=await supabase.from("farms").select("id,name,settlement").eq("owner_id",user.id).order("name");
+ const{data:farms,error:farmError}=await supabase.from("farms").select("id,name,settlement").order("name");
  if(farmError)throw new Error(farmError.message);
  const farmIds=(farms??[]).map(f=>f.id);
  const{data:fields,error}=farmIds.length?await supabase.from("fields").select("id,name,farm_id,area_ha,current_crop,crop_year,sowing_date,status,created_at,center_lat,center_lng,boundary_geojson").in("farm_id",farmIds).order("name"):{data:[],error:null};
@@ -55,7 +56,7 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
    <section className={styles.workspace}>
     <div className={styles.list}>
      {visibleFields.length?visibleFields.map((field,index)=>{const farm=farmMap.get(field.farm_id);const ins=latestInspection.get(field.id);const fieldTasks=(tasks??[]).filter(t=>t.field_id===field.id&&t.status!=="done");const state=ins?.condition||"none";return <Link className={styles.fieldCard} href={`/fields/${field.id}`} key={field.id}>
-      <span className={`${styles.thumb} ${styles["thumb"+(index%3)]}`} aria-hidden="true"><i/><i/></span>
+      <FieldMiniMap className={styles.thumb} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/>
       <div className={styles.fieldMain}><div className={styles.fieldHead}><div><strong>{field.name}</strong><small>{field.area_ha?`${field.area_ha} ha`:"—"} · {field.current_crop||"Nincs kultúra"}</small></div><span className={`${styles.status} ${state==="critical"?styles.critical:state==="attention"?styles.attention:state==="good"?styles.good:styles.neutral}`}>{inspectionLabel(state)}</span></div>
        <div className={styles.fieldMeta}><span>{farm?.name||"Gazdaság"}</span><span>{fieldTasks.length} nyitott teendő</span><span>{ins?.inspected_at?new Date(ins.inspected_at).toLocaleDateString("hu-HU"):"Nincs szemle"}</span></div>
       </div><b className={styles.chevron}>›</b>
