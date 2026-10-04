@@ -55,6 +55,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   const weatherAge=(date:string)=>Math.floor((Date.now()-new Date(date+"T12:00:00").getTime())/86400000);
   const rain7=weatherRows.filter(w=>weatherAge(w.weather_date)<=7).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
   const rain30=weatherRows.filter(w=>weatherAge(w.weather_date)<=30).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
+  const latestWeather=weatherRows[0]||null;
   const lastRain=weatherRows.find(w=>Number(w.precipitation_mm)>0);
   const openReports=(reports??[]).filter(r=>r.status!=="closed");
   const operations=(timeline??[]).filter(x=>x.event_type==="field_operation");
@@ -94,10 +95,10 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
        <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
        <div className="field-detail-stats" style={{margin:"14px 0 0"}}>
-        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>MÉRT állomási adat</small></article>
-        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>HungaroMet automata állomás</small></article>
+        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>MÉRT · hivatalos állomási adat, nem táblán mért érték</small></article>
+        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>HungaroMet automata állomás · 06–06 UTC napi összeg</small></article>
         <article className="stat-card"><span>Utolsó mért csapadék</span><strong className="field-stat-text">{lastRain?Number(lastRain.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})+" mm":"—"}</strong><small>{lastRain?formatDate(lastRain.weather_date):"Még nincs szinkronizált adat"}</small></article>
-        <article className="stat-card"><span>Adatforrás</span><strong className="field-stat-text">{lastRain?.station_name||"—"}</strong><small>{lastRain?("MÉRT · "+Number(lastRain.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})+" km a táblától"):"A szinkron után jelenik meg"}</small></article>
+        <article className="stat-card"><span>Adatforrás</span><strong className="field-stat-text">{latestWeather?.station_name||"—"}</strong><small>{latestWeather?("MÉRT · hivatalos állomás · "+Number(latestWeather.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})+" km a táblától"):"A szinkron után jelenik meg"}</small></article>
        </div>
        {weatherRows.length>0&&<div className="task-list" style={{marginTop:14}}>{weatherRows.filter(w=>Number(w.precipitation_mm)>0).slice(0,8).map(w=><div className="task-row" key={w.id}><span className="dot normal"/><div><strong>🌧 {Number(w.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>{formatDate(w.weather_date)} · {w.provider} · {w.station_name||w.station_number||"állomás"} · {Number(w.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})} km</small></div><span className="task-status">{w.source_type==="measured"?"MÉRT":w.source_type==="calculated"?"SZÁMÍTOTT":"ELŐREJELZETT"}</span></div>)}</div>}
       </section>

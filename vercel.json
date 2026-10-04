@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/cron/weather-sync",
-      "schedule": "30 8 * * *"
+      "schedule": "30 10 * * *"
     }
   ],
   "ignoreCommand": "exit 1"

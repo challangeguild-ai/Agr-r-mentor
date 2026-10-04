@@ -11,6 +11,7 @@ const items=[
  ["/system-admin/support","⌘","Támogatási központ","admin-support"],
  ["/system-admin/users","♙","Felhasználók","admin-users"],
  ["/system-admin/security","⚠","Biztonsági események","admin-security"],
+ ["/system-admin/weather","☁","HungaroMet kapcsolat","admin-weather"],
  ["/system-admin/backup","▤","Biztonsági mentés","admin-backup"],
 ] as const;
 
