@@ -15,12 +15,12 @@ function BrandMark({large=false}:{large?:boolean}){
 }
 
 const process=[
- ["1","●","Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
- ["2","⌑","Területek rögzítése","Táblák, növények, alapadatok felvétele."],
- ["3","◒","Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
- ["4","▤","Javaslat","Konkrét, dokumentált szakmai javaslatok."],
- ["5","✣","Végrehajtás","Feladatok ütemezése és megvalósítása."],
- ["6","✓","Ellenőrzés","Eredmények követése, következő lépések."]
+ ["●","Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
+ ["⌑","Területek rögzítése","Táblák, növények, alapadatok felvétele."],
+ ["◒","Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
+ ["▤","Javaslat","Konkrét, dokumentált szakmai javaslatok."],
+ ["✣","Végrehajtás","Feladatok ütemezése és megvalósítása."],
+ ["✓","Ellenőrzés","Eredmények követése, következő lépések."]
 ] as const;
 
 const dataPoints=[
@@ -71,7 +71,7 @@ export default function Home(){
 
   <section className={styles.processSection} id="hogyan">
    <h2>Így működik az Agrár Mentor</h2>
-   <div className={styles.processGrid}>{process.map(([n,icon,title,desc],index)=><article key={n} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepNumber}>{n}</span><span className={styles.stepIcon}>{icon}</span>{index<process.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
+   <div className={styles.processGrid}>{process.map(([icon,title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{icon}</span>{index<process.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
   </section>
 
   <section className={styles.digitalSection} id="digitalis">
