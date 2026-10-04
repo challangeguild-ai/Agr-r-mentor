@@ -12,3 +12,8 @@
 @media(max-width:767px){.bar{top:0;z-index:32;min-height:58px;margin:0 0 12px;padding:8px 0 8px 62px;gap:8px;background:rgba(248,246,240,.98)}.search{width:auto;flex:1;min-height:38px;padding-left:10px}.search>span{font-size:18px}.search input{font-size:9px}.search button{display:none}.actions{gap:5px}.profile{padding-left:5px;border-left:0}.avatar{width:29px;height:29px}.profileText{display:none}.bar :global(.notification-bell){width:34px!important;height:34px!important;min-height:34px!important}}
 /* === FINAL POLISH 2026-10-04 === */
 .bar{min-height:72px;margin-bottom:18px}.search{min-height:42px;border-radius:11px}.search input{font-size:13px;line-height:1.35}.profileText strong{font-size:12px}.profileText small{font-size:10px}.avatar{font-size:11px}@media(max-width:767px){.bar{min-height:60px;margin-bottom:14px}.search{min-height:40px}.search input{font-size:11px}.avatar{width:31px;height:31px}}
+
+/* === FINAL AUTHORITY POLISH 2026-10-04 === */
+.bar{min-height:66px;margin-bottom:16px}.search{min-height:40px;box-shadow:none}.search input{font-size:12px}.profileText strong{font-size:11px}.profileText small{font-size:9px}
+@media(max-width:1199px){.bar{padding-left:62px}.search{width:min(560px,64vw)}}
+@media(max-width:920px){.bar{min-height:58px;padding:8px 0 8px 58px;margin-bottom:12px;gap:7px}.search{width:auto;flex:1;min-height:40px}.search input{font-size:11px}.actions{gap:4px}.profile{padding-left:3px}.avatar{width:30px;height:30px}.bar :global(.notification-bell){width:34px!important;height:34px!important;min-height:34px!important}}

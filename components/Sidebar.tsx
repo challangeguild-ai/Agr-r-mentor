@@ -33,17 +33,17 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
  const initials=userName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"G";
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
-  <button className={styles.launch} type="button" aria-label="Menü megnyitása" onClick={()=>setOpen(true)}><span/><span/><span/></button>
+  <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} onClick={()=>setOpen(true)}><span/><span/><span/></button>
   {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
   <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
-   <div className={styles.brand}><span className={styles.leaf}>◒</span><div className={styles.brandText}><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
+   <div className={styles.brand}><span className={styles.leaf} aria-hidden="true"><svg viewBox="0 0 42 54"><path d="M21 51V8"/><path d="M21 17C14 14 10 10 9 5c7 1 11 5 12 12Z"/><path d="M21 25c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 32c-7-3-11-7-12-12 7 1 11 5 12 12Z"/><path d="M21 40c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 47c-7-3-11-7-12-12 7 1 11 5 12 12Z"/></svg></span><div className={styles.brandText}><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
    <nav className={styles.nav}>
     <div className={styles.primaryList}>{primary.map(row)}</div>
     <div className={styles.sectionLabel}>GAZDASÁGOM</div>
     <div className={styles.secondaryList}>{secondary.map(row)}</div>
    </nav>
    <div className={styles.promo}><span>◒</span><strong>Hatékonyabb gazdálkodás<br/>egy fenntarthatóbb<br/>jövőért.</strong></div>
-   <div className={styles.help}><strong>Segítség</strong><small>Az útmutató mindig az aktuális feladathoz igazodik.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolatfelvétel</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
+   <div className={styles.help}><strong>Segítség</strong><small>Gyors elérés az útmutatóhoz és a szakmai kapcsolathoz.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolat</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
    <div className={styles.bottom}><div className={styles.user}><span className={styles.avatar}>{initials}</span><div><strong>{userName}</strong><small>Gazdálkodó</small></div></div><LogoutButton className={styles.logout}/><small className={styles.version}>Agrár Mentor</small></div>
   </aside>
  </>;

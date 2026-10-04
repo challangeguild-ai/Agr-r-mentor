@@ -10,7 +10,7 @@ export function FarmerTopbar({
  return <header className={styles.bar}>
   <form className={styles.search} action="/dashboard" method="get">
    <span aria-hidden="true">⌕</span>
-   <input name="q" defaultValue={defaultQuery} placeholder={placeholder} aria-label="Keresés"/>
+   <input name="q" defaultValue={defaultQuery} placeholder="Keresés…" aria-label={placeholder} title={placeholder}/>
    <button type="submit">Keresés</button>
   </form>
   <div className={styles.actions}>
