@@ -8,3 +8,15 @@
 .grid select{display:block;width:100%;margin-top:6px;min-height:40px;border:1px solid #dcd8ce;border-radius:8px;padding:0 11px;background:#fff}
 .wide{grid-column:1/-1}
 @media(max-width:700px){.wide{grid-column:auto}}
+
+/* === ROLE PROFILE THEMES 2026-10-04 === */
+.blue .head>div>span,.blue .section>div:first-child>span{color:#2e6e9f}
+.blue .head h1,.blue .section h2{color:#1d3140}
+.blue .fallback{background:linear-gradient(145deg,#e0edf6,#9fbfd6);color:#1f5d8b}
+.blue .fileButton{border-color:#d5e1ea!important;color:#2e6e9f!important}
+.red .head>div>span,.red .section>div:first-child>span{color:#922f3a}
+.red .head h1,.red .section h2{color:#4f1d24}
+.red .fallback{background:linear-gradient(145deg,#f4e4e7,#d6a2aa);color:#7d2631}
+.red .fileButton{border-color:#e5cdd1!important;color:#922f3a!important}
+.blue :global(.btn-primary){background:#2e6e9f!important}
+.red :global(.btn-primary){background:#922f3a!important}
