@@ -12,7 +12,7 @@ function inspectionLabel(v:string|null|undefined){if(v==="good")return"Jó";if(v
 type SearchParams=Promise<{view?:string}>;
 
 export default async function FieldsPage({searchParams}:{searchParams:SearchParams}){
- const{view="all"}=await searchParams;
+ const{view="active"}=await searchParams;
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
  const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();

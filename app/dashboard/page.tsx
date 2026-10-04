@@ -30,7 +30,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
   supabase.from("farmer_reports").select("id,title,status,field_id,advisor_reply,replied_at,created_at").order("created_at",{ascending:false}).limit(100)
  ]);
  const farmIds=(farms??[]).map(f=>f.id);
- const{data:fields}=farmIds.length?await supabase.from("fields").select("id,name,area_ha,current_crop,crop_year,farm_id").in("farm_id",farmIds).order("name"):{data:[]};
+ const{data:fields}=farmIds.length?await supabase.from("fields").select("id,name,area_ha,current_crop,crop_year,farm_id,status").in("farm_id",farmIds).eq("status","active").order("name"):{data:[]};
  const reportIds=(reports??[]).map(r=>r.id);
  const{data:receipts}=reportIds.length?await supabase.from("communication_receipts").select("entity_id,last_seen_at").eq("entity_type","farmer_report").eq("viewer_id",user.id).in("entity_id",reportIds):{data:[]};
  const fieldIds=(fields??[]).map(f=>f.id);

@@ -8,7 +8,7 @@ export default async function SystemAdminPage(){
  const[{count:users},{count:farms},{count:fields},{count:tasks},{count:openTasks},{count:reports},{count:securityHigh},{data:recentAudit}]=await Promise.all([
   supabase.from("profiles").select("id",{count:"exact",head:true}),
   supabase.from("farms").select("id",{count:"exact",head:true}),
-  supabase.from("fields").select("id",{count:"exact",head:true}),
+  supabase.from("fields").select("id",{count:"exact",head:true}).eq("status","active"),
   supabase.from("tasks").select("id",{count:"exact",head:true}),
   supabase.from("tasks").select("id",{count:"exact",head:true}).neq("status","done"),
   supabase.from("farmer_reports").select("id",{count:"exact",head:true}).neq("status","closed"),

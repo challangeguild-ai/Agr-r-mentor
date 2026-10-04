@@ -52,11 +52,11 @@ export default function Home(){
      <div className={styles.heroActions}><a className={styles.primaryButton} href="#kapcsolat">Csatlakozom az Agrár Mentorhoz <span>→</span></a><Link className={styles.secondaryButton} href="/login">Belépés az ügyfélfelületre</Link></div>
      <div className={styles.heroAssurances}><span><b>♧</b>Helyszíni szemle</span><span><b>▤</b>Dokumentált javaslatok</span><span><b>▣</b>Digitális ügyfélfelület</span></div>
     </div>
-    <div className={styles.heroCards} aria-label="Példa gazdasági információk">
-     <article><span className={styles.cardIcon}>♧</span><div><small>Déli 12</small><strong>Kukorica · 86 ha</strong><em>● Jó állapot</em></div><i className={styles.fieldThumb}/></article>
-     <article><span className={styles.cardIconBlue}>☂</span><div><small>Csapadék (7 nap)</small><strong>28 mm</strong><i className={styles.rainBars}><u/><u/><u/><u/><u/></i></div></article>
-     <article><span className={styles.cardIconGold}>▣</span><div><small>Következő szemle</small><strong>Május 20.</strong><em>Felső parcella</em></div></article>
-    </div>
+   </div>
+   <div className={styles.heroCards} aria-label="Példa gazdasági információk">
+    <article><span className={styles.cardIcon}>♧</span><div><small>Déli 12</small><strong>Kukorica · 86 ha</strong><em>● Jó állapot</em></div><i className={styles.fieldThumb}/></article>
+    <article><span className={styles.cardIconBlue}>☂</span><div><small>Csapadék (7 nap)</small><strong>28 mm</strong><i className={styles.rainBars}><u/><u/><u/><u/><u/></i></div></article>
+    <article><span className={styles.cardIconGold}>▣</span><div><small>Következő szemle</small><strong>Május 20.</strong><em>Felső parcella</em></div></article>
    </div>
   </section>
 
