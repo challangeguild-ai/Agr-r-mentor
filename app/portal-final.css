@@ -32,3 +32,32 @@
 .report-severity{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border-radius:999px;font-size:8px;font-weight:900}.report-severity.normal{background:#e9f4e8;color:#2d7341}.report-severity.high{background:#fff1da;color:#9b6411}.report-severity.urgent{background:#ffebe7;color:#a3382d}
 @media(max-width:760px){.farmer-app .btn,.farmer-app .ghost-btn,.farmer-app button[type="submit"]:not(.notification-bell),.farmer-app button[type="button"]:not(.notification-bell):not([aria-label="Menü megnyitása"]):not([aria-label="Oldalsáv bezárása"]):not([aria-label^="A "]){min-height:40px;height:40px;font-size:10px;padding:0 12px}.am-wizard-grid,.am-wizard-summary{grid-template-columns:1fr}.am-wizard-progress{max-width:320px}.am-location-card{align-items:flex-start;flex-direction:column}.am-location-card button{width:100%}}
 
+
+/* === FARMER SPACING AND LABELED WIZARDS 2026-10-04 === */
+.farmer-app .dashboard>.stats-grid{margin-bottom:20px!important}
+.farmer-app .dashboard>.panel{margin-bottom:20px!important}
+.farmer-app .dashboard>.panel+.panel{margin-top:2px!important}
+.farmer-app .dashboard>.stats-grid+.panel{margin-top:2px!important}
+.farmer-app .dashboard>.dashboard-grid+.panel{margin-top:18px!important}
+.farmer-app .eyebrow{font-size:10.5px!important;line-height:1.2!important;letter-spacing:.13em!important}
+.farmer-app .empty-state{min-height:84px;height:auto!important}
+.am-wizard-progress-labeled{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr) 24px minmax(0,1fr) 24px minmax(0,1fr)!important;max-width:780px!important;width:100%!important;gap:6px}
+.am-wizard-progress-labeled span{width:auto!important;height:auto!important;min-height:38px!important;padding:0 12px!important;border-radius:999px!important;white-space:nowrap;font-size:10.5px!important;line-height:1.15!important;text-align:center}
+.am-wizard-progress-labeled i{min-width:16px}
+.am-wizard-progress-labeled span:last-child:nth-child(5){grid-column:auto}
+.approval-page .stats-grid{grid-template-columns:repeat(2,minmax(0,280px))!important;gap:12px!important}
+.approval-page .stat-card{min-height:86px!important}
+.approval-page .empty-state{min-height:86px!important}
+.approval-field-focus{margin:0 0 12px;padding:10px 12px;border:1px solid #d8e5d9;border-radius:10px;background:#f1f7ef}
+.approval-field-focus span,.approval-field-focus strong,.approval-field-focus small{display:block}
+.approval-field-focus span{font-size:9px;font-weight:900;letter-spacing:.12em;color:#477456}
+.approval-field-focus strong{margin-top:3px;font-size:17px;line-height:1.2;color:#153e2c}
+.approval-field-focus small{margin-top:3px;font-size:10px;color:#6b776f}
+@media(max-width:920px){
+ .farmer-app .dashboard>.stats-grid{margin-bottom:14px!important}
+ .farmer-app .dashboard>.panel{margin-bottom:14px!important}
+ .am-wizard-progress-labeled{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;max-width:none!important}
+ .am-wizard-progress-labeled i{display:none!important}
+ .am-wizard-progress-labeled span{min-height:34px!important;white-space:normal!important}
+ .approval-page .stats-grid{grid-template-columns:1fr 1fr!important}
+}
