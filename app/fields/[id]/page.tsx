@@ -68,7 +68,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   const operationHref=profile?.role==="advisor"?`/admin/operations?field=${field.id}`:`/operations?field=${field.id}`;
 
   return <div className="app-shell farmer-app">
-    <Sidebar userName={profile?.full_name||"Gazdálkodó"}/>
+    <Sidebar active="fields" userName={profile?.full_name||"Gazdálkodó"}/>
     <main className={`dashboard ${styles.page}`}>
       <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés táblák, műveletek vagy dokumentumok között…"/>
       <section className={styles.fieldHero}>

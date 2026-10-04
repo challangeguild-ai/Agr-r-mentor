@@ -185,3 +185,5 @@
  .fieldCards{grid-template-columns:1fr;padding:8px}.fieldCard{grid-template-columns:86px minmax(0,1fr);min-height:124px}
  .lowerGrid{grid-template-columns:1fr;gap:9px}
 }
+/* === FINAL POLISH 2026-10-04 === */
+.heroTitleRow strong{font-size:20px}.heroTitleRow span{font-size:12px}.heroSignals span{font-size:11px}.primaryCta,.secondaryCta{font-size:12px}.heroAside blockquote{font-size:15px}.heroAside small{font-size:10px}.summaryCard span{font-size:12px}.summaryCard strong{font-size:22px}.summaryCard small{font-size:10px}.panelHead h2,.sectionTitle h2{font-size:18px}.panelHead p,.sectionTitle p{font-size:11.5px}.resumeTitle strong,.priorityTask strong,.fieldBody strong{font-size:12.5px}.resumeTitle small,.priorityTask small,.fieldBody small,.progressMeta{font-size:10.5px}.guidedHead strong{font-size:12.5px}.guidedHead small{font-size:10.5px}.searchResultsGrid strong{font-size:11px}.searchResultsGrid small{font-size:9.5px}.searchResultsGrid span{font-size:9px}@media(max-width:767px){.heroTitleRow strong{font-size:17px}.heroTitleRow span{font-size:10px}.heroSignals span{font-size:10px}.primaryCta,.secondaryCta{font-size:11px}.summaryCard strong{font-size:20px}}

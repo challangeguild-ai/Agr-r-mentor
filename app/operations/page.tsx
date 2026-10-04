@@ -63,6 +63,7 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
       <Link href={`/fields/${e.field_id}`}><strong>{fr?.name||"Földtábla"}</strong><small>{fr?.area_ha?`${fr.area_ha} ha`:""}</small></Link>
       <div className={styles.op}><span>{opIcon(e.operation_type)}</span><strong>{operationLabel(e.operation_type)}</strong></div>
       <div className={styles.input}>{input}</div>
+      <div className={styles.amount}>{amount}</div>
       <div className={styles.note}>{e.notes||e.target||e.crop||"—"}</div>
       <span className={`${styles.status} ${e.approval_status==="pending"?styles.pending:styles.done}`}>{status}</span>
       <div className={styles.more}><Link href={`/operations/${e.id}`}>•••</Link>{e.created_by===user.id&&<OperationDeleteButton id={e.id}/>}</div>
