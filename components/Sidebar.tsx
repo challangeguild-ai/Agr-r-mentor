@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import {useState} from "react";
-import {LogoutButton} from "@/components/LogoutButton";
 import {ComprehensiveTour,ComprehensiveTourRestart} from "@/components/ComprehensiveTour";
 import {ProcessGuideButton,ProcessGuideProvider} from "@/components/ProcessGuide";
 import {HelpCenter} from "@/components/HelpCenter";
@@ -30,7 +29,6 @@ const secondary=[
 
 export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:string;userName?:string}){
  const[open,setOpen]=useState(false);
- const initials=userName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"G";
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
   <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} onClick={()=>setOpen(true)}><span/><span/><span/></button>
@@ -44,7 +42,7 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
    </nav>
    <div className={styles.promo}><span>◒</span><strong>Hatékonyabb gazdálkodás<br/>egy fenntarthatóbb<br/>jövőért.</strong></div>
    <div className={styles.help}><strong>Segítség</strong><small>Gyors elérés az útmutatóhoz és a szakmai kapcsolathoz.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolat</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
-   <div className={styles.bottom}><div className={styles.user}><span className={styles.avatar}>{initials}</span><div><strong>{userName}</strong><small>Gazdálkodó</small></div></div><LogoutButton className={styles.logout}/><small className={styles.version}>Agrár Mentor</small></div>
+   
   </aside>
  </>;
 }
