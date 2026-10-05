@@ -2,6 +2,7 @@ import Link from "next/link";
 import {redirect,notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
+import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {OperationCompliancePanel} from "@/components/OperationCompliancePanel";
 import {complianceFromOperationSnapshot} from "@/lib/operationComplianceSnapshot";
@@ -32,7 +33,7 @@ export default async function OperationDetailPage({params}:{params:Promise<{id:s
  const nutrients=Object.entries(composition).filter(([k,v])=>["N","P2O5","K2O","CaO","MgO","S"].includes(k)&&typeof v==="number");
  const isPlant=op.operation_type==="spraying"||op.operation_type==="plant_protection";
  const complianceChecks=isPlant?complianceFromOperationSnapshot({country:op.country_code||farm?.country_code,operationDate:op.operation_date,dose:op.dose,doseUnit:op.dose_unit,approvalRequired:op.approval_required,approvalStatus:op.approval_status,regulatory:reg}):[];
- return <div className="app-shell farmer-app"><Sidebar active="operations" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard">
+ return <div className="app-shell farmer-app"><Sidebar active="operations" userName={profile?.full_name||"Gazdálkodó"}/><main className="dashboard">{profile?.role!=="advisor"&&<FarmerTopbar userName={profile?.full_name||"Gazdálkodó"}/>}
   <header className="topbar"><div><span className="eyebrow">MŰVELETI ADATLAP</span><h1>{operationLabel(op.operation_type)}</h1><p>{farm?.name||"Gazdaság"} · {field?.name||"Földtábla"} · {op.country_code}</p></div><Link className="ghost-btn" href={profile?.role==="advisor"?"/admin/operations":"/operations"}>Vissza a naplóhoz</Link></header>
 
   <section className="panel" data-help-block="operation-detail"><div className="panel-heading"><div><span className="eyebrow">RÖGZÍTETT ADATOK</span><h2>Végleges műveleti adatlap</h2></div><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="user-pill">{op.approval_status==="approved"?"Jóváhagyva":op.approval_status==="pending"?"Jóváhagyásra vár":"Nem jóváhagyásköteles"}</span><BlockHelpButton label="A műveleti adatlap magyarázata" content={{title:"Végleges műveleti adatlap",body:"A művelet rögzített és auditálható adatai. Hivatalos növényvédelmi tételnél az engedélyezési pillanatkép is megmarad.",important:"A pillanatkép a rögzítéskori katalógusadatot őrzi meg. A tényleges kijuttatásnál mindig a művelet napján hatályos engedélyokirat az irányadó.",steps:["Ellenőrizd a dátumot és a földtáblát.","Nézd meg az anyagot vagy munkafolyamatot.","Növényvédelemnél ellenőrizd a hivatalos felhasználási pillanatképet.","Ellenőrizd a dózist, a végrehajtót és a jóváhagyási állapotot."]}}/></div></div>

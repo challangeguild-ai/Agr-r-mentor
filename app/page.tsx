@@ -1,2 +1,124 @@
 import Link from "next/link";
-export default function Home(){return <main className="publicSite"><nav className="publicNav"><a className="publicBrand" href="#kezdolap"><b>AGRÁR</b> MENTOR</a><div className="publicLinks"><a href="#szaktanacsadas">Szaktanácsadás</a><a href="#hogyan">Hogyan dolgozom?</a><a href="#rendszer">Digitális háttér</a><a href="#rolam">Rólam</a><a href="#kapcsolat">Kapcsolat</a></div><Link className="publicLogin" href="/login">Ügyfélfiók →</Link></nav><section className="publicHero" id="kezdolap"><div className="heroGlow"/><div className="heroInner"><div className="heroCopy"><small>SZEMÉLYES AGRÁR-SZAKTANÁCSADÁS</small><h1>Jobb döntések.<br/><em>A földön.</em></h1><p>Személyes szakmai támogatás a gazdaságodhoz – helyszíni szemlékkel, követhető javaslatokkal és saját digitális ügyfélfelülettel.</p><div className="heroButtons"><a className="heroPrimary" href="#kapcsolat">Beszéljünk a gazdaságodról →</a><Link className="heroSecondary" href="/login">Belépés az ügyfélfiókba</Link></div><div className="heroTrust"><span>✓ Helyszíni szemle</span><span>✓ Személyes kapcsolat</span><span>✓ Digitális nyomon követés</span></div></div><div className="fieldVisual"><div className="fieldSky"><span className="sun"/></div><div className="fieldRows"><i/><i/><i/><i/><i/><i/><i/></div><div className="fieldBadge"><small>SZAKTANÁCSADÁS</small><strong>A területen kezdődik.</strong><span>Szemle → javaslat → nyomon követés</span></div></div></div></section><div className="valueStrip"><div><strong>01</strong><span>Személyes<br/>szaktanácsadás</span></div><div><strong>02</strong><span>Területi<br/>szemlék</span></div><div><strong>03</strong><span>Dokumentált<br/>javaslatok</span></div><div><strong>04</strong><span>Saját digitális<br/>ügyfélfelület</span></div></div><section className="publicSection" id="szaktanacsadas"><div className="sectionIntro"><small>AMIBEN SEGÍTEK</small><h2>Nem egy újabb program.<br/>Szakmai háttér a gazdaságodhoz.</h2><p>A digitális rendszer csak eszköz. A szolgáltatás középpontjában a személyes szaktanácsadás és a területen meghozott legjobb döntések állnak.</p></div><div className="serviceGrid"><article className="serviceCard featured"><span className="serviceIcon">⌖</span><span className="cardNo">01</span><h3>Helyszíni szemle</h3><p>A táblák valós állapotának ellenőrzése, problémák felismerése és dokumentálása.</p></article><article className="serviceCard"><span className="serviceIcon">↗</span><span className="cardNo">02</span><h3>Szakmai javaslat</h3><p>Érthető, visszakereshető ajánlások és teendők a következő lépésekhez.</p></article><article className="serviceCard"><span className="serviceIcon">◎</span><span className="cardNo">03</span><h3>Folyamatos nyomon követés</h3><p>A korábbi szemlék, munkák és változások nem vesznek el két találkozás között.</p></article></div></section><section className="processBand" id="hogyan"><div className="publicSection"><div className="sectionIntro light"><small>EGYÜTTMŰKÖDÉS</small><h2>Így dolgozom</h2></div><div className="processGrid"><article className="processCard"><div className="processNumber">01</div><h3>Megismerem</h3><p>A gazdaságot, a táblákat és a szakmai célokat.</p></article><article className="processCard"><div className="processNumber">02</div><h3>Megnézem</h3><p>A döntések alapját a területen látott állapot adja.</p></article><article className="processCard"><div className="processNumber">03</div><h3>Javaslok</h3><p>A szükséges teendők egyértelműen rögzítésre kerülnek.</p></article><article className="processCard"><div className="processNumber">04</div><h3>Visszakövetem</h3><p>Látható, mi készült el és mikor kell újra ellenőrizni.</p></article></div></div></section><section className="systemSection" id="rendszer"><div className="systemInner"><div className="systemCopy"><small className="eyebrow">SAJÁT DIGITÁLIS ÜGYFÉLFELÜLET</small><h2>A közös munka nem vész el két szemle között.</h2><p>Az Agrár Mentor rendszer a szaktanácsadás digitális háttere. Egy helyen láthatod a tábláidat, szemléket, javaslatokat, teendőket és dokumentumokat.</p><div className="checkList"><div><span>✓</span> Táblák és térképi állapot</div><div><span>✓</span> Szemlék, fotók és javaslatok</div><div><span>✓</span> Teendők és visszaellenőrzések</div><div><span>✓</span> Teljes szakmai előzmény</div></div><div className="heroButtons"><Link className="darkButton" href="/login">Belépés az ügyfélfiókba →</Link></div></div><div className="dashboardPreview"><div className="previewTop"><b>AGRÁR MENTOR</b><span>Ügyfélfelület</span></div><div className="previewBody"><aside><i/><i/><i/><i/><i/></aside><section><div className="previewHello"><small>Jó reggelt!</small><strong>A gazdaság áttekintése</strong></div><div className="previewStats"><div><small>Összes terület</small><b>125 ha</b></div><div><small>Aktuális teendők</small><b>3</b></div><div><small>Utolsó szemle</small><b>08.20.</b></div></div><div className="previewMap"><span className="plot p1"/><span className="plot p2"/><span className="plot p3"/><b>Tábláim térképen</b></div></section></div></div></div></section><section className="publicSection" id="rolam"><div className="aboutGrid"><div className="aboutVisual"><span className="aboutMark">AM</span><div className="aboutQuote">„A technológia segít rendszerezni.<br/><b>A szakmai döntést viszont a területen kell meghozni.</b>”</div></div><div className="aboutCopy"><small>RÓLAM</small><h2>Egy szaktanácsadó.<br/>Közvetlen kapcsolat.</h2><p>Az Agrár Mentor mögött jelenleg egyetlen szaktanácsadó áll. Nem egy nagy tanácsadó céget szeretnék utánozni: személyes, átlátható együttműködést szeretnék kialakítani azokkal a gazdálkodókkal, akikkel dolgozom.</p><p>A saját digitális felületet azért építettem a szolgáltatás mellé, hogy a helyszíni munka után se vesszenek el a szakmai információk.</p></div></div></section><section className="whyBand"><div className="whyInner"><div><small>MIÉRT AGRÁR MENTOR?</small><h2>A szemle megtörténik.<br/>Az információ megmarad.</h2></div><div className="whyPoints"><p><b>Nem kell emlékezetből dolgozni.</b><span>A korábbi állapot, javaslat és elvégzett munka visszakereshető.</span></p><p><b>Nem csak akkor van kapcsolat, amikor kint vagyok.</b><span>A gazdálkodó és a szaktanácsadó ugyanazt az aktuális képet látja.</span></p><p><b>A rendszer nem cél, hanem eszköz.</b><span>A fókusz továbbra is a terület és a szakmai döntés marad.</span></p></div></div></section><section className="contactBand" id="kapcsolat"><div className="contactInner"><div><small>KAPCSOLAT</small><h2>Van egy terület, amit érdemes lenne együtt megnézni?</h2><p>Beszéljünk a gazdaságodról és arról, miben tudok segíteni.</p></div><a className="contactButton" href="mailto:kapcsolat@example.hu">Kapcsolatfelvétel →</a></div></section><footer className="footer"><strong>AGRÁR MENTOR</strong><span>Személyes agrár-szaktanácsadás · Digitális ügyfélfelülettel</span></footer></main>}
+import {LandingLoginModal} from "@/components/LandingLoginModal";
+import styles from "./landing.module.css";
+
+function BrandMark({large=false}:{large?:boolean}){
+  return <span className={large?styles.brandMarkLarge:styles.brandMark} aria-hidden="true">
+    <svg viewBox="0 0 42 54">
+      <path d="M21 51V8"/>
+      <path d="M21 17C14 14 10 10 9 5c7 1 11 5 12 12Z"/>
+      <path d="M21 25c7-3 11-7 12-12-7 1-11 5-12 12Z"/>
+      <path d="M21 32c-7-3-11-7-12-12 7 1 11 5 12 12Z"/>
+      <path d="M21 40c7-3 11-7 12-12-7 1-11 5-12 12Z"/>
+      <path d="M21 47c-7-3-11-7-12-12 7 1 11 5 12 12Z"/>
+    </svg>
+  </span>;
+}
+
+const process=[
+ ["●","Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
+ ["⌑","Területek rögzítése","Táblák, növények, alapadatok felvétele."],
+ ["◒","Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
+ ["▤","Javaslat","Konkrét, dokumentált szakmai javaslatok."],
+ ["✣","Végrehajtás","Feladatok ütemezése és megvalósítása."],
+ ["✓","Ellenőrzés","Eredmények követése, következő lépések."]
+] as const;
+
+const dataPoints=[
+ ["☁","Helyi időjárási","és csapadékadatok"],
+ ["⌑","Táblaszintű","információk"],
+ ["◷","Korábbi szemlék","és beavatkozások"],
+ ["☷","Aktuális","feladatok"],
+ ["⌁","Visszakövethető","döntések"],
+ ["◒","Szezon közbeni","nyomon követés"]
+] as const;
+
+export default async function Home({searchParams}:{searchParams:Promise<{login?:string;next?:string}>}){
+ const params=await searchParams;const requestedNext=params.next&&params.next.startsWith("/")&&!params.next.startsWith("//")?params.next:null;
+ return <main className={styles.site}>
+  <header className={styles.header}>
+   <div className={styles.headerInner}>
+    <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><BrandMark/><span><strong>AGRÁR MENTOR</strong><small>TUDÁS. TERV. EREDMÉNY.</small></span></a>
+    <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
+    <div className={styles.headerActions}><LandingLoginModal triggerLabel="Belépés" triggerClassName={styles.loginButton} initialOpen={params.login==="1"} next={requestedNext}/><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
+   </div>
+  </header>
+
+  <section className={styles.hero} id="fooldal">
+   <div className={styles.heroImage}/>
+   <div className={styles.heroWash}/>
+   <div className={styles.heroInner}>
+    <div className={styles.heroCopy}>
+     <h1>Jobb döntések.<br/><em>A földön.</em></h1>
+     <p>Személyes agronómiai támogatás, valós területi adatokkal és digitális háttérrel.</p>
+     <div className={styles.heroActions}><a className={styles.primaryButton} href="#kapcsolat">Csatlakozom az Agrár Mentorhoz <span>→</span></a><LandingLoginModal triggerLabel="Belépés az ügyfélfelületre" triggerClassName={styles.secondaryButton}/></div>
+     <div className={styles.heroAssurances}><span><b>♧</b>Helyszíni szemle</span><span><b>▤</b>Dokumentált javaslatok</span><span><b>▣</b>Digitális ügyfélfelület</span></div>
+    </div>
+   </div>
+   <div className={styles.heroCards} aria-label="Példa gazdasági információk">
+    <article><span className={styles.cardIcon}>♧</span><div><small>Déli 12</small><strong>Kukorica · 86 ha</strong><em>● Jó állapot</em></div><i className={styles.fieldThumb}/></article>
+    <article><span className={styles.cardIconBlue}>☂</span><div><small>Csapadék (7 nap)</small><strong>28 mm</strong><i className={styles.rainBars}><u/><u/><u/><u/><u/></i></div></article>
+    <article><span className={styles.cardIconGold}>▣</span><div><small>Következő szemle</small><strong>Május 20.</strong><em>Felső parcella</em></div></article>
+   </div>
+  </section>
+
+  <section className={styles.services}>
+   <h2>Nem csak tanács. <em>Folyamatos szakmai háttér.</em></h2>
+   <div className={styles.serviceGrid}>
+    <article><span className={styles.serviceIcon}>♧</span><div><h3>A területen</h3><p>Helyszíni szemle és valós állapotfelmérés.</p></div><b>›</b></article>
+    <article><span className={styles.serviceIconGold}>▤</span><div><h3>A döntéseknél</h3><p>Konkrét, dokumentált szakmai javaslatok.</p></div><b>›</b></article>
+    <article><span className={styles.serviceIcon}>▥</span><div><h3>A szezon egészében</h3><p>Feladatok, adatok és előzmények egy helyen.</p></div><b>›</b></article>
+   </div>
+  </section>
+
+  <section className={styles.processSection} id="hogyan">
+   <h2>Így működik az Agrár Mentor</h2>
+   <div className={styles.processGrid}>{process.map(([icon,title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{icon}</span>{index<process.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
+  </section>
+
+  <section className={styles.digitalSection} id="digitalis">
+   <div className={styles.digitalScenery}/>
+   <div className={styles.digitalInner}>
+    <div className={styles.digitalCopy}>
+     <h2>A gazdaságod nem<br/>egy Excel-tábla.</h2>
+     <p>Az Agrár Mentor ügyfélfelületén egy helyen követheted a tábláidat, feladataidat, szemléidet, dokumentumaidat és a szakmai javaslatokat.</p>
+     <div className={styles.featureTiles}>
+      <div><span>⌑</span><p><b>Táblák</b><small>Áttekinthető területadatok</small></p></div>
+      <div><span>▤</span><p><b>Teendők</b><small>Feladatok és határidők</small></p></div>
+      <div><span>▧</span><p><b>Műveleti napló</b><small>Elvégzett beavatkozások</small></p></div>
+      <div><span>▣</span><p><b>Dokumentumok</b><small>Szakmai anyagok, leírások</small></p></div>
+     </div>
+    </div>
+    <div className={styles.laptop} aria-label="Agrár Mentor digitális ügyfélfelület előnézete">
+     <div className={styles.laptopScreen}>
+      <aside className={styles.mockSidebar}><strong>AGRÁR MENTOR</strong><span className={styles.mockActive}>⌂ Áttekintés</span><span>⌑ Táblák</span><span>☑ Teendők</span><span>▧ Műveleti napló</span><span>▣ Dokumentumok</span></aside>
+      <div className={styles.mockMain}><div className={styles.mockTop}><span>Keresés táblák, feladatok, dokumentumok között…</span><b>●</b></div><h3>Táblák</h3><div className={styles.mockTabs}><b>Térkép nézet</b><span>Lista nézet</span></div><div className={styles.mockWorkspace}><div className={styles.mockMap}><i/><i/><i/><i/><i/></div><div className={styles.mockFieldInfo}><strong>Déli 12</strong><small>86 ha · Kukorica</small><em>● Jó állapot</em><hr/><b>Áttekintés</b><p>Következő feladatok és szakmai állapot egy helyen.</p><ul><li>Következő feladat</li><li>Legutóbbi bejárás</li><li>Megjegyzés</li></ul></div></div></div>
+     </div>
+     <div className={styles.laptopBase}/>
+    </div>
+   </div>
+  </section>
+
+  <section className={styles.dataBand}>
+   <div className={styles.dataInner}>
+    <div className={styles.dataCopy}><h2>Több adat. <em>Kevesebb találgatás.</em></h2><p>Valós adatokra és szakmai tapasztalatra alapozott javaslatok, hogy magabiztosabban hozhass döntéseket.</p><div className={styles.dataGrid}>{dataPoints.map(([icon,a,b])=><div key={a}><span>{icon}</span><p>{a}<br/>{b}</p></div>)}</div></div>
+    <blockquote><span>“</span>Az adat segít dönteni.<br/><strong>A szakember vállalja<br/>a döntést.</strong><i/></blockquote>
+   </div>
+  </section>
+
+  <section className={styles.advisorSection} id="rolunk">
+   <div className={styles.advisorPhoto} role="img" aria-label="Személyes agrár-szaktanácsadó a területen"/>
+   <div className={styles.advisorCopy}><h2>Nem egy call center van a rendszer mögött.</h2><p>Személyes szakmai támogatás, terepi tapasztalattal és folyamatos kapcsolattartással.</p><div className={styles.advisorChips}><span><b>♟</b>Személyes kapcsolat</span><span><b>♧</b>Terepi tapasztalat</span><span><b>▣</b>Digitális háttér</span></div></div>
+  </section>
+
+  <section className={styles.contact} id="kapcsolat">
+   <div className={styles.contactContour}/>
+   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div><a className={styles.primaryButton} href="#kapcsolat">Kapcsolatfelvétel <span>→</span></a><LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
+   <BrandMark large/>
+  </section>
+
+  <footer className={styles.footer}>
+   <div className={styles.footerInner}><div className={styles.footerBrand}><BrandMark/><span><strong>AGRÁR MENTOR</strong><small>TUDÁS. TERV. EREDMÉNY.</small></span></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
+  </footer>
+ </main>;
+}

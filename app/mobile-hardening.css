@@ -18,3 +18,29 @@ input,select,textarea,button{max-width:100%;min-width:0}
  .timeline-meta{flex-wrap:wrap}
  .notification-popover{position:fixed;left:12px;right:12px;top:70px;width:auto;max-width:none}
 }
+
+
+/* === DAILY WORK MOBILE LAYOUT FIX 2026-10-04 === */
+.daily-work-legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.daily-work-summary{position:relative;min-width:0;margin:0 0 14px}
+.daily-work-summary-help{display:flex;justify-content:flex-end;margin:0 2px 7px}
+.daily-work-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-width:0}
+.daily-work-summary-card{min-width:0;min-height:104px;padding:14px;border:1px solid #e2ded4;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(31,53,39,.045);display:flex;flex-direction:column;align-items:flex-start}
+.daily-work-summary-card span{font-size:11px;font-weight:850;color:#356b4c}
+.daily-work-summary-card strong{display:block;margin:8px 0 5px;font-size:30px;line-height:1;color:#173f2d}
+.daily-work-summary-card small{font-size:9.5px;line-height:1.25;color:#77827a;overflow-wrap:anywhere}
+@media(max-width:920px){
+ .daily-work-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+}
+@media(max-width:767px){
+ .farmer-app .daily-work-heading{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;align-items:start!important;margin-bottom:12px!important}
+ .farmer-app .daily-work-heading>div:first-child{min-width:0}
+ .daily-work-legend{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important;width:100%}
+ .daily-work-legend .user-pill{display:flex!important;align-items:center;justify-content:center;min-width:0;min-height:38px;padding:7px 6px!important;text-align:center;font-size:10px!important;line-height:1.15;white-space:normal}
+ .daily-work-summary-help{margin:0 2px 6px}
+ .daily-work-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .daily-work-summary-card{min-height:96px;padding:11px;border-radius:11px}
+ .daily-work-summary-card span{font-size:10px}
+ .daily-work-summary-card strong{margin:7px 0 4px;font-size:26px}
+ .daily-work-summary-card small{font-size:8.5px}
+}
