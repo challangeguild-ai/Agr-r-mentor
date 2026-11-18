@@ -6,10 +6,14 @@ import {createClient} from "@/lib/supabase/server";
 import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
-import {requiresPlantProtectionApprover,licenseAllowsCategory} from "@/lib/plantProtectionApproval";
 
 function num(v:FormDataEntryValue|null){const n=parseDecimalOrNull(String(v??""));if(n!==null&&n<0)throw new Error("A mennyiségi érték nem lehet negatív.");return n}
 function date(v:string){return !v||validDateOnly(v)}
+function licenceAllows(level:string,category:string|null|undefined){
+ const c=(category||"").trim().toUpperCase().replace(/\.$/,"");
+ return c==="I"?level==="I":c==="II"?level==="I"||level==="II":true;
+}
+
 export async function createPlannedOperationTask(formData:FormData){
  const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
  const{data:me}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor"||me?.system_role==="admin")throw new Error("Szaktanácsadói jogosultság szükséges.");
@@ -28,7 +32,7 @@ export async function createPlannedOperationTask(formData:FormData){
   regulatoryStatus:p.regulatory_status,gracePeriodUntil:p.grace_period_until
  });
  if(permitError)throw new Error(permitError);
- if(plannedDose==null)throw new Error("A tervezett dózis kötelező.");if(u.dose_max!=null&&plannedDose>Number(u.dose_max))throw new Error("A tervezett dózis meghaladja a hivatalos maximumot.");if(u.dose_min!=null&&plannedDose<Number(u.dose_min))throw new Error("A tervezett dózis kisebb a hivatalos minimum értéknél.");if(u.dose_unit&&doseUnit&&u.dose_unit!==doseUnit)throw new Error("A dózisegység nem egyezik a hivatalos felhasználással.");productName=p.name;authorizationNumber=p.authorization_number;crop=u.crop;target=u.target;activeIngredient=(ings??[]).map(i=>`${i.ingredient}${i.concentration==null?"":` ${i.concentration}${i.concentration_unit?` ${i.concentration_unit}`:""}`}`).join(", ")||null;doseMin=u.dose_min==null?null:Number(u.dose_min);doseMax=u.dose_max==null?null:Number(u.dose_max);doseUnit=u.dose_unit||doseUnit;applicationMethod=u.application_method;phiDays=u.phi_days;bbchMin=u.bbch_min;bbchMax=u.bbch_max;maxApplications=u.max_applications;interval=u.application_interval_days;waterMin=u.water_volume_min==null?null:Number(u.water_volume_min);waterMax=u.water_volume_max==null?null:Number(u.water_volume_max);waterUnit=u.water_volume_unit;applicationTiming=u.application_timing;restrictions=u.restrictions;sourceReference=u.source_reference;approvalRequired=requiresPlantProtectionApprover(country,p);if(approvalRequired&&!requestedApproverId)throw new Error("A készítményhez gazdasági növényvédelmi jóváhagyó kijelölése szükséges.");if(requestedApproverId){
+ if(plannedDose==null)throw new Error("A tervezett dózis kötelező.");if(u.dose_max!=null&&plannedDose>Number(u.dose_max))throw new Error("A tervezett dózis meghaladja a hivatalos maximumot.");if(u.dose_min!=null&&plannedDose<Number(u.dose_min))throw new Error("A tervezett dózis kisebb a hivatalos minimum értéknél.");if(u.dose_unit&&doseUnit&&u.dose_unit!==doseUnit)throw new Error("A dózisegység nem egyezik a hivatalos felhasználással.");productName=p.name;authorizationNumber=p.authorization_number;crop=u.crop;target=u.target;activeIngredient=(ings??[]).map(i=>`${i.ingredient}${i.concentration==null?"":` ${i.concentration}${i.concentration_unit?` ${i.concentration_unit}`:""}`}`).join(", ")||null;doseMin=u.dose_min==null?null:Number(u.dose_min);doseMax=u.dose_max==null?null:Number(u.dose_max);doseUnit=u.dose_unit||doseUnit;applicationMethod=u.application_method;phiDays=u.phi_days;bbchMin=u.bbch_min;bbchMax=u.bbch_max;maxApplications=u.max_applications;interval=u.application_interval_days;waterMin=u.water_volume_min==null?null:Number(u.water_volume_min);waterMax=u.water_volume_max==null?null:Number(u.water_volume_max);waterUnit=u.water_volume_unit;applicationTiming=u.application_timing;restrictions=u.restrictions;sourceReference=u.source_reference;approvalRequired=!!(p.approval_required||p.professional_use_only||p.prescription_required||(country==="HU"&&["I","II"].includes(String(p.regulatory_category||"").trim().replace(/\.$/,""))));if(approvalRequired&&!requestedApproverId)throw new Error("A készítményhez gazdasági növényvédelmi jóváhagyó kijelölése szükséges.");if(requestedApproverId){
   const[{data:assignment},{data:licence},{data:approverProfile}]=await Promise.all([
    supabase.from("farm_plant_protection_approvers").select("user_id,active").eq("farm_id",farmId).eq("user_id",requestedApproverId).eq("active",true).maybeSingle(),
    supabase.from("profile_plant_protection_licenses").select("authorization_level,valid_until,active").eq("user_id",requestedApproverId).eq("active",true).maybeSingle(),
@@ -38,7 +42,7 @@ export async function createPlannedOperationTask(formData:FormData){
    throw new Error("A kijelölt növényvédelmi jóváhagyó nem rendelkezik érvényes gazdasági jogosultsággal.");
   if(!approverProfile||approverProfile.role==="advisor")
    throw new Error("Szaktanácsadó nem lehet gazdasági kijuttatási jóváhagyó.");
-  if(!licenseAllowsCategory(licence.authorization_level,p.regulatory_category))
+  if(!licenceAllows(licence.authorization_level,p.regulatory_category))
    throw new Error("A kijelölt jóváhagyó jogosultsági szintje nem elegendő ehhez a készítményhez.");
  }
  regulatorySnapshot={country_code:country,authorization_number:p.authorization_number,regulatory_category:p.regulatory_category,regulatory_status:p.regulatory_status,grace_period_until:p.grace_period_until,valid_from:p.valid_from,valid_until:p.valid_until,approval_required:approvalRequired,source_name:p.source_name,source_url:p.source_url,source_snapshot_at:p.source_snapshot_at};catalogSnapshot={product:p,use:u,ingredients:ings??[]};}
