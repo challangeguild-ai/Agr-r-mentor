@@ -37,3 +37,21 @@
 - `npm run test:invite`: három valós unit teszt a meghívó URL képzésére (Node.js 22).
 - A teljes `npm run build`, a teljes rendszer E2E útvonaltesztje, a Supabase éles környezet és a Vercel Preview működése **itt még nem bizonyított**.
 - Ez a változáscsomag szándékosan *Draft PR*. Az éles adatbázist és a production környezetet nem módosítja.
+
+
+## 2026-11-18 – második ellenőrzési kör
+
+- Oktató mód: a scroll/resize esemény már nem görgeti vissza a mezőt újra és újra; az Esc bezárja. Csökkentett mozgás beállítása támogatott.
+- Műveleti napló: a lehetetlen naptári dátumot a szerver is elutasítja, a hibás számadatot nem alakítja csendben üres értékké.
+- A szakmai katalógus hálózati hibája nem válthat át ellenőrizetlen növényvédelmi műveletrögzítésbe. Újratöltés gomb rendelkezésre áll.
+- Hivatalos termékhez érvénytelen/hiányzó felhasználási rekord esetén a wizard megáll.
+- A mentés előtti ellenőrző oldalon a dátum, terület, dózis, mennyiség, végrehajtó és körülmények is megjelennek.
+- A munkatárs-meghívás a Supabase Edge Function részletes hibaüzenetét felhasználóbarátan továbbítja; részleges meghívás esetén külön figyelmeztet.
+- A piszkozat első betöltése egyszeri; a későbbi komponens-frissítés nem írhatja vissza automatikusan a korábbi állapotot.
+- A README naprakész állapotjelentést ad az MVP-ről a 2.1-es ágra átállás helyett.
+
+### Tesztek és bizonyítékok
+
+- Helyi Node.js 22: `node --experimental-strip-types --test tests/*.test.mjs` → **7/7 PASS** (meghívási eredetcím, valós naptári dátumok, tizedesértékek).
+- A Vercel Preview `success`/Ready buildet jelezhet a commitokra, de ettől az MFA-, RLS- és bejelentkezett UI/E2E-folyamatok nem tekinthetők igazoltnak.
+- A teljes hitelesített kézi tesztlista továbbra is kötelező; **éles merge továbbra sincs jóváhagyva**.
