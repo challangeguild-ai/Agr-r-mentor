@@ -55,3 +55,12 @@
 - Helyi Node.js 22: `node --experimental-strip-types --test tests/*.test.mjs` → **7/7 PASS** (meghívási eredetcím, valós naptári dátumok, tizedesértékek).
 - A Vercel Preview `success`/Ready buildet jelezhet a commitokra, de ettől az MFA-, RLS- és bejelentkezett UI/E2E-folyamatok nem tekinthetők igazoltnak.
 - A teljes hitelesített kézi tesztlista továbbra is kötelező; **éles merge továbbra sincs jóváhagyva**.
+
+
+### Időjárási adatminőség – 2026.11.18
+- A dashboard és a földtábla adatlap ugyanazt a `summarizeStationPrecipitation` függvényt használja.
+- A 7/30 nap teljes **naptári nap**, budapesti helyi dátum szerint; a téli-nyári időszámítás váltása nem befolyásolja a napok számát.
+- A mérési napok száma megjelenik (pl. `5/7 nap`); a hiányzó adat **nem azonos** a mért 0 mm esővel.
+- Azonos táblán, azonos napon több adatforrás-sor nem kerül összeadásra duplán; a legújabb import elsőbbséget kap.
+- Regressziós tesztek: 4 új időjárási eset (DST, naphatárok, duplikációk, hiányzó adat), így a teljes Node 22 **11/11 PASS**.
+- Továbbra is ellenőrizni kell a tényleges HungaroMet forrásfrissességet és az időjárási Cron adatbázisba írását egy működő jogosult környezetben.
