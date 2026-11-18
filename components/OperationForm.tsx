@@ -34,6 +34,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const draftInputsRestored=useRef(false);
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
+ const [review,setReview]=useState<Record<string,string>>({});
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[catalogLoadError,setCatalogLoadError]=useState(""),[catalogRetry,setCatalogRetry]=useState(0),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
  const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
@@ -66,6 +67,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
      draftPending.current=saved;
      setFieldId(saved.fieldId);setType(saved.type);
      setStep(Math.max(0,Math.min(3,Number(saved.step)||0)));
+     setReview(saved.entries||{});
      setDraftNotice(true);
     }
    }
@@ -129,11 +131,13 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    if(spraying){
     if(products.length&&!productId)return "Válassz hivatalos készítményt.";
     if(!products.length&&!product.trim())return "Add meg a készítmény nevét.";
-    if(hasUseCatalog&&(!catalogCrop||!useId))return "Válassz kultúrát és engedélyezett felhasználást.";
-    if(selectedUse?.dose_max!=null){
+    if(products.length&&!hasUseCatalog)return "Ehhez a katalógusbeli készítményhez nincs ellenőrzött felhasználási adat; hivatalos műveletként nem rögzíthető.";
+    if(hasUseCatalog&&(!catalogCrop||!useId||!selectedUse))return "Válassz érvényes kultúrát és engedélyezett felhasználást.";
+    if(selectedUse&&(selectedUse.dose_max!=null||selectedUse.dose_min!=null)){
      const n=decimalOrInvalid(dose);
      if(n===null||!Number.isFinite(n))return "Adj meg érvényes dózist.";
-     if((selectedUse.dose_min!=null&&n<selectedUse.dose_min)||n>selectedUse.dose_max)return "A dózisnak a hivatalosan engedélyezett tartományba kell esnie.";
+     if((selectedUse.dose_min!=null&&n<selectedUse.dose_min)||(selectedUse.dose_max!=null&&n>selectedUse.dose_max))
+       return "A dózisnak a hivatalosan engedélyezett tartományba kell esnie.";
     }
     if(approvalNeeded&&!eligibleApprovers.length)return "Ehhez a készítményhez előbb rögzíts megfelelő gazdasági jóváhagyót.";
     if(approvalNeeded&&!String(formData.get("requested_approver_id")||""))return "Válassz gazdasági jóváhagyó személyt.";
@@ -151,8 +155,14 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   return null;
  }
  function advance(){
-  const message=validateStep(step,new FormData(formRef.current!));
+  const formData=new FormData(formRef.current!);
+  const message=validateStep(step,formData);
   if(message){setError(message);formRef.current?.scrollIntoView({behavior:"smooth",block:"start"});return}
+  if(step===2){
+   const entries:Record<string,string>={};
+   for(const [key,value] of formData.entries())if(typeof value==="string")entries[key]=value;
+   setReview(entries);
+  }
   setError("");setStep(v=>Math.min(3,v+1));
  }
  async function submit(formData:FormData){
@@ -204,6 +214,12 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     <div><small>Művelet</small><strong>{operationTypes.find(([k])=>k===type)?.[1]||type}</strong></div>
     <div><small>Anyag / készítmény</small><strong>{effectiveProduct||"Nincs megadva"}</strong></div>
     <div><small>Gép</small><strong>{machineId==="manual"?customMachine:selectedMachine?.name||"Nincs kiválasztva"}</strong></div>
+    <div><small>Művelet dátuma</small><strong>{review.operation_date||"—"}</strong></div>
+    <div><small>Kezelt terület</small><strong>{review.treated_area?`${review.treated_area} ha`:"Nincs megadva"}</strong></div>
+    {inputLike&&<div><small>Dózis</small><strong>{dose?`${dose} ${selectedUse?.dose_unit||review.dose_unit||""}`:"Nincs megadva"}</strong></div>}
+    <div><small>Mennyiség</small><strong>{review.quantity?`${review.quantity} ${review.quantity_unit||""}`:"Nincs megadva"}</strong></div>
+    <div><small>Végrehajtó</small><strong>{review.operator||"Nincs megadva"}</strong></div>
+    <div><small>Időjárási körülmények</small><strong>{review.weather||"Nincs megadva"}</strong></div>
   </div>
   {spraying&&<div className="operation-wide" style={{padding:12,border:"1px solid #dce5dc",borderRadius:12,fontSize:13}}><b>{country==="HU"?"🇭🇺 Magyar":"🇸🇰 Szlovák"} növényvédelmi kör</b><br/>{selectedProduct?<>Kiválasztva: <b>{selectedProduct.name}</b>{selectedProduct.regulatory_category?` · ${selectedProduct.regulatory_category}. forgalmi kategória`:""}{selectedProduct.authorization_number?` · engedély: ${selectedProduct.authorization_number}`:""}. </>:null}{selectedUse?<>Kultúra: <b>{selectedUse.crop}</b>{selectedUse.target?` · cél: ${selectedUse.target}`:""}{selectedUse.phi_days!=null?` · ÉVI: ${selectedUse.phi_days} nap`:""}{country==="SK"&&selectedUse.bbch_min!=null?` · BBCH ${selectedUse.bbch_min}${selectedUse.bbch_max!=null?`–${selectedUse.bbch_max}`:""}`:""}.</>:selectedProduct&&!hasUseCatalog?"A készítmény hivatalos terméktörzsből származik, de a nyilvános forrás nem adott hozzá ellenőrzött kultúra–cél–dózis rekordot. A megadott felhasználást a hatályos engedélyokirat alapján kell ellenőrizni; a rendszer ilyen esetben nem jelöl dózist hivatalosként.":source?.status==="ready"?"Az engedélyezett felhasználás kiválasztása kötelező.":"A hivatalos katalógus importja még nem teljes."}</div>}
   {fert&&nutrientSummary&&<div className="operation-wide"><small>Hatóanyag kijuttatás: {nutrientSummary}</small></div>}
