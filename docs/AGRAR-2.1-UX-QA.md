@@ -92,3 +92,24 @@
 
 ### Kiadási figyelmeztetés
 A sikeres Vercel-build **nem** jelenti a teljes működő szerveroldali jogosultság és a Supabase integráció végigtesztelését. A PR maradjon Draft, az éles Supabase környezetet és a production domaint nem módosítottuk.
+
+
+## 2026-11-18 – ötödik ellenőrzési kör: félbemaradt műveletek, részleges kiosztás
+
+- **Piszkozat visszaállítás:** a korábban elmentett uncontrolled beviteli mezők visszatöltése végéig nem írjuk felül a snapshotot az űrlap kezdeti értékeivel.
+- Az üresen megnyitott új űrlap nem hoz létre hamis piszkozatot; a saját, érvényes, legfeljebb 12 órás kitöltés visszaállítható.
+- Lejárt, jövőre dátumozott, sérült, váratlan típusú, jogosulatlan földtáblára mutató vagy más művelethez tartozó böngészős snapshot nem tölthető vissza.
+- A folyamat közben hibára futott növényvédelmi katalógus betöltése **nem törli az eredeti snapshotot**; a kézi újratöltés után állítható vissza. A katalógusból kikerült termék / felhasználás nem marad érvényesként kijelölve.
+- **Munkakiosztás részleges siker:** a feladat sikeres létrehozása után a géphozzárendelés / napló / belső értesítés / e-mail részleges hibáját a rendszer figyelmeztetésként közli, nem újraküldésre ösztönző általános hibaként. Az esetleges hálózati kivételeket a segédműveletek külön kezelik.
+- **Valós státuszok:** a munkakiosztó „Kiosztva”, „Folyamatban”, „Ellenőrzésre vár”, „Javításra visszaküldve”, „Elvégezve” értékeket különböztet meg. A váratlan adat nem jelenik meg hamisan kiosztottként.
+- További ellenőrzések: 4 új böngészős piszkozat-regressziós eset + 3 új státuszregressziós eset. Ezek különálló Node 22 másolaton **7/7 PASS** eredménnyel lefutottak. A repository teljes 28 tesztjének közös újrafuttatása ebben a környezetben nem történt meg; a korábbi 21 teszt korábbi futási eredmény.
+- A legutolsó működési kód commitja: `53f62fef` — a GitHub kombinált Vercel-státusza **success**.
+
+### Maradó, nem elvégzett ellenőrzés
+1. Bejelentkezett gazdálkodó és agronómus: művelet félbehagyása / ugyanazon lap újratöltése / termék kivonása a katalógusból / adatok beküldése.
+2. Munkakiosztás: gépkiosztási részhiba után a feladat csak egyszer létezik, és a felületi figyelmeztetés megjelenik.
+3. A Vercel Preview a tényleges Supabase-sémával, RLS/MFA- és hivatalos-katalógus-hozzáférésekkel együtt működik.
+4. Éles Vercel/Supabase domain, `APP_PUBLIC_ORIGIN`, Edge Function, Auth redirect URL és HungaroMet időjárási cron konfigurációja ellenőrzött.
+5. Teljes GitHub tesztcsomag és valódi böngészős ellenőrzések után külön merge/élesítés jóváhagyása.
+
+A tesztág **nem** módosítja a production adatbázist vagy az éles honlapot.
