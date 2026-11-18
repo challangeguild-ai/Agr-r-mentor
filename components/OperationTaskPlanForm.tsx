@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {createPlannedOperationTask} from "@/app/admin/tasks/operation-actions";
 import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
@@ -19,6 +19,8 @@ type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];approv
 const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing","other"]);
 
 export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];people:Person[];machines:Machine[]}){
+ const submitting=useRef(false),saved=useRef(false);
+ const[savedWarning,setSavedWarning]=useState("");
  const[fieldId,setFieldId]=useState(""),[type,setType]=useState("spraying"),[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[crop,setCrop]=useState(""),[productName,setProductName]=useState(""),[customProduct,setCustomProduct]=useState(""),[dose,setDose]=useState(""),[machineId,setMachineId]=useState(""),[dueDate,setDueDate]=useState("");
  const field=fields.find(f=>f.id===fieldId),farmId=field?.farmId||"",country=field?.countryCode||"HU",spraying=type==="spraying"||type==="plant_protection",fert=type==="fertilizing",method=methodTypes.has(type);
@@ -33,7 +35,22 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
  const category=(selectedProduct?.regulatory_category||"").toUpperCase().replace(".","").trim(),approvalNeeded=!!selectedProduct&&(selectedProduct.approval_required||selectedProduct.professional_use_only||selectedProduct.prescription_required||(country==="HU"&&(category==="I"||category==="II"))),eligibleApprovers=approvers.filter(a=>a.role!=="advisor"&&(category==="I"?a.authorization_level==="I":category==="II"?["I","II"].includes(a.authorization_level):true));
  const availablePeople=people.filter(p=>p.farmId===farmId),availableMachines=machines.filter(m=>m.farmId===farmId),fertOptions=catalog.length?catalog.map(x=>x.name):fertilizerCatalog.map(x=>x.name),methodOptions=catalog.length?catalog.map(x=>x.name):(type==="soil_work"?soilWork:[]),effectiveProduct=productName==="Egyéb"?customProduct:productName;
  function chooseUse(id:string){setUseId(id);const u=productUses.find(x=>x.id===id);if(u?.dose_max!=null)setDose(String(u.dose_max).replace(".",","));else setDose("")}
- async function submit(fd:FormData){if(busy)return;if(permitBlock){setError(permitBlock);return}setBusy(true);setError("");try{await createPlannedOperationTask(fd);window.location.reload()}catch(e){setError(e instanceof Error?e.message:"A műveleti terv mentése sikertelen.");setBusy(false)}}
+ async function submit(fd:FormData){
+  if(submitting.current||saved.current)return;
+  if(permitBlock){setError(permitBlock);return}
+  submitting.current=true;setBusy(true);setError("");
+  try{
+   const result=await createPlannedOperationTask(fd);
+   saved.current=true;
+   if(result.warnings.length){
+    setSavedWarning(result.warnings.join(" "));
+    setBusy(false);
+   }else window.location.reload();
+  }catch(e){
+   setError(e instanceof Error?e.message:"A műveleti terv mentése sikertelen.");
+   setBusy(false);
+  }finally{submitting.current=false}
+ }
  return <form action={submit} className="admin-form operation-form" style={{marginTop:14}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.farmName} — {f.name}{f.crop?` · ${f.crop}`:""}</option>)}</select></label><input type="hidden" name="farm_id" value={farmId}/>
   <label>Ország<div style={{minHeight:46,display:"flex",alignItems:"center",padding:"0 12px",border:"1px solid #dce5dc",borderRadius:10,background:"#f7faf7",fontWeight:800}}>{country==="HU"?"🇭🇺 Magyarország":"🇸🇰 Szlovákia"}</div></label>
@@ -49,6 +66,11 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   {approvalNeeded&&<div className="operation-wide" style={{padding:14,border:"1px solid #e1b95d",borderRadius:12,background:"#fffaf0"}}><b>⚠ Gazdasági növényvédelmi jóváhagyás szükséges</b>{eligibleApprovers.length?<label style={{marginTop:8}}>Jóváhagyó<select name="requested_approver_id" required><option value="">Válassz jogosult személyt</option>{eligibleApprovers.map(a=><option key={a.id} value={a.id}>{a.full_name||"Jogosult személy"} · {a.authorization_level}. kategória{a.valid_until?` · ${a.valid_until}-ig`:""}</option>)}</select></label>:<div className="error-box" style={{marginTop:8}}>Nincs megfelelő aktív jóváhagyó beállítva ennél a gazdaságnál.</div>}</div>}
   <label className="operation-wide">Végrehajtási utasítás / megjegyzés<textarea name="notes" rows={3} placeholder="Mikor, milyen körülmények között, mire figyeljen a végrehajtó?"/></label>
   {spraying&&selectedProduct&&selectedUse&&<div className="operation-wide" style={{padding:12,border:"1px solid #dce5dc",borderRadius:12,background:"#f8faf8",fontSize:13}}><b>Hivatalos tervalap</b><br/>{selectedProduct.name}{selectedProduct.authorization_number?` · ${selectedProduct.authorization_number}`:""} · {selectedUse.crop}{selectedUse.target?` · ${selectedUse.target}`:""}{selectedUse.bbch_min!=null?` · BBCH ${selectedUse.bbch_min}${selectedUse.bbch_max!=null?`–${selectedUse.bbch_max}`:""}`:""}{selectedUse.phi_days!=null?` · ÉVI ${selectedUse.phi_days} nap`:""}</div>}
-  {error&&<div className="error-box operation-wide">{error}</div>}<button className="btn btn-primary" disabled={busy||loading||!fieldId||!!permitBlock||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Terv mentése…":"Műveleti terv kiadása"}</button>
+  {error&&<div className="error-box operation-wide" role="alert">{error}</div>}
+  {savedWarning&&<div className="operation-wide am-draft-notice" role="status">
+    <strong>A műveleti terv létrejött.</strong>
+    <span>{savedWarning} Újraküldés helyett ellenőrizd a feladatlistát.</span>
+    <button type="button" onClick={()=>window.location.reload()}>Feladatlista frissítése</button>
+   </div>}<button className="btn btn-primary" disabled={busy||!!savedWarning||loading||!fieldId||!!permitBlock||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Terv mentése…":"Műveleti terv kiadása"}</button>
  </form>
 }
