@@ -6,11 +6,12 @@ import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
 import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
+import {productUseBlockingReason} from "@/lib/productUseStatus";
 
 type FieldOption={id:string;farmId:string;name:string;farmName:string;areaHa:number|null;countryCode?:CountryCode};
 type MachineOption={id:string;farmId:string;name:string;detail?:string};
 type CatalogItem={id:string;name:string;category:string;metadata?:Record<string,unknown>};
-type Product={id:string;name:string;authorization_number:string|null;function_type:string|null;regulatory_category:string|null;professional_use_only:boolean;prescription_required:boolean;approval_required:boolean};
+type Product={id:string;name:string;authorization_number:string|null;function_type:string|null;regulatory_category:string|null;professional_use_only:boolean;prescription_required:boolean;approval_required:boolean;active:boolean;valid_from:string|null;valid_until:string|null;regulatory_status:string|null;grace_period_until:string|null};
 type Use={id:string;product_id:string;crop:string;target:string|null;dose_min:number|null;dose_max:number|null;dose_unit:string|null;application_method:string|null;phi_days:number|null;bbch_min?:number|null;bbch_max?:number|null;max_applications?:number|null;application_interval_days?:number|null;water_volume_min?:number|null;water_volume_max?:number|null;application_timing?:string|null;restrictions?:string|null;source_reference?:string|null};
 type Ingredient={product_id:string;ingredient:string;concentration:number|null;concentration_unit:string|null};
 type Approver={id:string;full_name:string|null;authorization_level:"I"|"II"|"III";permit_number:string|null;valid_until:string|null;role:string|null};
@@ -36,6 +37,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
  const [review,setReview]=useState<Record<string,string>>({});
+ const [operationDate,setOperationDate]=useState(localToday);
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[catalogLoadError,setCatalogLoadError]=useState(""),[catalogRetry,setCatalogRetry]=useState(0),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
  const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
@@ -71,6 +73,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
      setFieldId(saved.fieldId);setType(saved.type);
      setStep(Math.max(0,Math.min(3,Number(saved.step)||0)));
      setReview(saved.entries||{});
+     if(validDateOnly(saved.entries?.operation_date||""))setOperationDate(saved.entries.operation_date);
      setDraftNotice(true);
     }
    }
@@ -107,12 +110,17 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    sessionStorage.setItem(draftKey,JSON.stringify(saved));
   }catch{/* Private mode/storage restrictions must not prevent entering a record. */}
  }
- useEffect(()=>{persistDraft()},[draftLoaded,fieldId,type,step,product,customProduct,productId,useId,catalogCrop,dose,doseMode,machineId,customMachine]);
+ useEffect(()=>{persistDraft()},[draftLoaded,fieldId,type,step,product,customProduct,productId,useId,catalogCrop,dose,doseMode,machineId,customMachine,operationDate]);
  const hasUseCatalog=uses.length>0;
  const cropOptions=useMemo(()=>Array.from(new Set(uses.map(x=>x.crop).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"hu")),[uses]);
  const filteredProducts=useMemo(()=>!hasUseCatalog||!catalogCrop?products:products.filter(p=>uses.some(u=>u.product_id===p.id&&u.crop===catalogCrop)),[products,uses,catalogCrop,hasUseCatalog]);
  const productUses=useMemo(()=>uses.filter(x=>x.product_id===productId&&(!catalogCrop||x.crop===catalogCrop)),[uses,productId,catalogCrop]),selectedUse=useMemo(()=>productUses.find(x=>x.id===useId),[productUses,useId]),selectedProduct=useMemo(()=>products.find(x=>x.id===productId),[products,productId]);
  const activeIngredient=useMemo(()=>ingredients.filter(x=>x.product_id===productId).map(x=>`${x.ingredient}${x.concentration==null?"":` ${x.concentration}${x.concentration_unit?` ${x.concentration_unit}`:""}`}`).join(", "),[ingredients,productId]);
+ const productBlock=selectedProduct?productUseBlockingReason({
+  country,operationDate,active:selectedProduct.active,validFrom:selectedProduct.valid_from,
+  validUntil:selectedProduct.valid_until,regulatoryStatus:selectedProduct.regulatory_status,
+  gracePeriodUntil:selectedProduct.grace_period_until
+ }):null;
  const normalizedCategory=(selectedProduct?.regulatory_category||"").toUpperCase().replace(".","").trim();
  const approvalNeeded=!!selectedProduct&&hasUseCatalog&&(selectedProduct.approval_required||selectedProduct.professional_use_only||selectedProduct.prescription_required||(country==="HU"&&(normalizedCategory==="I"||normalizedCategory==="II")));
  const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&(normalizedCategory==="I"?a.authorization_level==="I":normalizedCategory==="II"?(a.authorization_level==="I"||a.authorization_level==="II"):true)),[approvers,normalizedCategory]);
@@ -148,6 +156,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    if(spraying&&catalogLoadError)return "Növényvédelmi művelet nem rögzíthető, amíg a hivatalos katalógus betöltése hibás. Próbáld újra a betöltést.";
    if(fert&&!effectiveProduct.trim())return "Válassz vagy adj meg műtrágyát / anyagot.";
    if(spraying){
+    if(productBlock)return productBlock;
     if(products.length&&!productId)return "Válassz hivatalos készítményt.";
     if(!products.length&&!product.trim())return "Add meg a készítmény nevét.";
     if(products.length&&!hasUseCatalog)return "Ehhez a katalógusbeli készítményhez nincs ellenőrzött felhasználási adat; hivatalos műveletként nem rögzíthető.";
@@ -204,7 +213,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    </div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>changeField(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
-  <label>Dátum<input type="date" name="operation_date" defaultValue={localToday()} required/></label>
+  <label>Dátum<input type="date" name="operation_date" value={operationDate} onChange={e=>setOperationDate(e.target.value)} required/></label>
   <label>Engedélyezési ország<div style={{minHeight:46,display:"flex",alignItems:"center",padding:"0 12px",border:"1px solid #dce5dc",borderRadius:10,background:"#f7faf7",fontWeight:700}}>{country==="HU"?"🇭🇺 Magyarország":"🇸🇰 Szlovákia"}</div></label>
   <label>Művelet<select name="operation_type" value={type} onChange={e=>changeType(e.target.value)}>{operationTypes.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
   {hasMethod&&<label>Munkafolyamat<select name="subtype" defaultValue="" key={type}><option value="">Válassz munkafolyamatot</option>{methodOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját művelet</option></select></label>}
@@ -213,6 +222,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   {fert?<><label>Műtrágya / anyag<select value={product} onChange={e=>{setProduct(e.target.value);setCustomProduct("")}}><option value="">Válassz műtrágyát</option>{fertilizerOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját termék</option></select><input type="hidden" name="product" value={effectiveProduct}/></label>{product==="Egyéb"&&<label>Saját termék megnevezése<input value={customProduct} onChange={e=>setCustomProduct(e.target.value)} required/></label>}</>:spraying?<>
    {products.length>0&&hasUseCatalog&&<label>Kultúra<select value={catalogCrop} onChange={e=>{setCatalogCrop(e.target.value);setProductId("");setUseId("");setProduct("");setDose("")}} required><option value="">Válassz kultúrát</option>{cropOptions.map(c=><option key={c}>{c}</option>)}</select></label>}
    <label>Készítmény / szer<select name={hasUseCatalog?"product_id":undefined} value={productId} onChange={e=>{const id=e.target.value;setProductId(id);setUseId("");setDose("");setProduct(products.find(x=>x.id===id)?.name||"")}} disabled={loadingCatalog||(products.length>0&&hasUseCatalog&&!catalogCrop)} required={products.length>0}><option value="">{loadingCatalog?"Katalógus betöltése…":products.length?(hasUseCatalog?(catalogCrop?"Válassz engedélyezett készítményt":"Előbb válassz kultúrát"):"Válassz hivatalos terméktörzsből"):"Nincs betöltött hivatalos készítmény"}</option>{filteredProducts.map(x=><option key={x.id} value={x.id}>{x.name}{x.regulatory_category?` · ${x.regulatory_category}. kategória`:""}{x.authorization_number?` · ${x.authorization_number}`:""}</option>)}</select>{products.length?<input type="hidden" name="product" value={product}/>:null}</label>
+   {productBlock&&<div className="error-box operation-wide" role="alert">{productBlock}</div>}
    {!products.length&&!loadingCatalog&&<label>Készítmény kézi megnevezése<input name="product" value={product} onChange={e=>setProduct(e.target.value)} placeholder={`${country} készítmény neve`}/></label>}
    {productId&&productUses.length>0&&<label>Engedélyezett felhasználás / cél<select name="use_id" value={useId} onChange={e=>chooseUse(e.target.value)} required><option value="">Válassz engedélyezett felhasználást</option>{productUses.map(u=><option key={u.id} value={u.id}>{u.target||u.application_method||u.crop}{u.dose_min!=null||u.dose_max!=null?` (${u.dose_min??"?"}–${u.dose_max??"?"} ${u.dose_unit||""})`:""}{country==="SK"&&u.bbch_min!=null?` · BBCH ${u.bbch_min}${u.bbch_max!=null?`–${u.bbch_max}`:""}`:""}</option>)}</select></label>}
    {((!products.length&&!loadingCatalog)||(productId&&!hasUseCatalog))&&<><label>Kultúra<input name="crop" required={!!productId} placeholder="A ténylegesen kezelt kultúra"/></label><label>Célkárosító / cél<input name="target" placeholder="Gyom, kártevő, betegség vagy egyéb cél"/></label></>}
