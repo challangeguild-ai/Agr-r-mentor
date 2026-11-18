@@ -61,3 +61,44 @@
  .am-wizard-progress-labeled span{min-height:34px!important;white-space:normal!important}
  .approval-page .stats-grid{grid-template-columns:1fr 1fr!important}
 }
+
+
+/* AGRAR 2.1: unified, accessible wizard controls across farmer modules. */
+.farmer-app .am-wizard .am-wizard-step label,
+.farmer-app .am-wizard .am-operation-step label{font-size:12.5px!important;line-height:1.45;color:#294237}
+.farmer-app .am-wizard .am-wizard-step input,
+.farmer-app .am-wizard .am-wizard-step select,
+.farmer-app .am-wizard .am-wizard-step textarea,
+.farmer-app .am-wizard .am-operation-step input,
+.farmer-app .am-wizard .am-operation-step select,
+.farmer-app .am-wizard .am-operation-step textarea{
+  min-height:44px!important;font-size:14px!important;line-height:1.4!important;
+  color:#1d3529;background:#fff;border:1px solid #cbd8ce;border-radius:10px;
+}
+.farmer-app .am-wizard .am-wizard-step h3,
+.farmer-app .am-wizard .am-operation-step-head h3{font-size:18px;line-height:1.3}
+.farmer-app .am-wizard .am-wizard-summary small{font-size:11.5px}
+.farmer-app .am-wizard .am-wizard-summary strong{font-size:14px;overflow-wrap:anywhere}
+.farmer-app .am-wizard .am-wizard-actions button{
+  min-height:44px!important;height:auto!important;padding:10px 16px!important;
+  font-size:13.5px!important;line-height:1.25!important;white-space:normal!important;
+}
+.farmer-app .am-wizard .am-wizard-progress-labeled span{font-size:12px!important;line-height:1.25!important}
+.farmer-app .am-wizard :is(button,input,select,textarea):focus-visible{
+  outline:3px solid #4e9870!important;outline-offset:2px!important;
+}
+.farmer-app .am-wizard .am-draft-notice{
+ display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+ padding:12px 14px;border:1px solid #bcd9c5;background:#f0f8ef;color:#1b5034;
+ border-radius:12px;font-size:13px;line-height:1.5;
+}
+.farmer-app .am-wizard .am-draft-notice button{
+ border:1px solid #c1d8c6;border-radius:9px;color:#1f5839;background:white;
+ min-height:38px;padding:8px 12px;font-size:12px;font-weight:750;
+}
+@media(max-width:767px){
+ .farmer-app .am-wizard .am-wizard-grid{grid-template-columns:minmax(0,1fr)}
+ .farmer-app .am-wizard .am-wizard-actions{gap:8px}
+ .farmer-app .am-wizard .am-wizard-actions button{min-width:90px}
+ .farmer-app .am-wizard .am-wizard-progress-labeled span{font-size:12px!important}
+}
