@@ -31,6 +31,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const formRef=useRef<HTMLFormElement>(null);
  const draftKey=`agrar-mentor:operation-draft:v1:${draftOwnerId}`;
  const draftPending=useRef<OperationDraft|null>(null);
+ const draftInitialized=useRef(false);
  const draftInputsRestored=useRef(false);
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
@@ -55,6 +56,8 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  useEffect(()=>{setMachineId("");setCustomMachine("")},[fieldId]);
  // Restore only this user's short-lived, tab-local draft. No database write happens here.
  useEffect(()=>{
+  if(draftInitialized.current)return;
+  draftInitialized.current=true;
   try{
    const raw=sessionStorage.getItem(draftKey);
    if(raw){
