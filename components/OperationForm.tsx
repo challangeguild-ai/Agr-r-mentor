@@ -32,11 +32,11 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const draftInputsRestored=useRef(false);
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
- const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[error,setError]=useState(""),[step,setStep]=useState(0);
+ const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[catalogLoadError,setCatalogLoadError]=useState(""),[catalogRetry,setCatalogRetry]=useState(0),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
  const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
  const selectedField=fields.find(f=>f.id===fieldId)||initial,country:CountryCode=selectedField?.countryCode||"HU",farmId=selectedField?.farmId||"",spraying=type==="spraying"||type==="plant_protection",fert=type==="fertilizing",inputLike=fert||spraying,hasMethod=methodTypes.has(type);
- useEffect(()=>{let active=true;setLoadingCatalog(true);setError("");setCatalog([]);setProducts([]);setUses([]);setIngredients([]);setApprovers([]);setSource(null);setProduct("");setCustomProduct("");setProductId("");setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);
+ useEffect(()=>{let active=true;setLoadingCatalog(true);setCatalogLoadError("");setError("");setCatalog([]);setProducts([]);setUses([]);setIngredients([]);setApprovers([]);setSource(null);setProduct("");setCustomProduct("");setProductId("");setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);
   const draft=draftPending.current;
   if(draft&&draft.type===type&&draft.fieldId===fieldId){
    const validProduct=body.products?.some(p=>p.id===draft.productId);
@@ -48,7 +48,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    setMachineId(draft.machineId||"");setCustomMachine(draft.customMachine||"");
    setDraftLoaded(true);
   }
- }).catch(e=>{if(active){setError(e instanceof Error?e.message:"A katalógus betöltése sikertelen.");if(draftPending.current)setDraftLoaded(true)}}).finally(()=>{if(active)setLoadingCatalog(false)});return()=>{active=false}},[country,type,farmId]);
+ }).catch(e=>{if(active){const message=e instanceof Error?e.message:"A katalógus betöltése sikertelen.";setCatalogLoadError(message);setError(message);if(draftPending.current)setDraftLoaded(true)}}).finally(()=>{if(active)setLoadingCatalog(false)});return()=>{active=false}},[country,type,farmId,catalogRetry]);
  useEffect(()=>{setMachineId("");setCustomMachine("")},[fieldId]);
  // Restore only this user's short-lived, tab-local draft. No database write happens here.
  useEffect(()=>{
@@ -123,6 +123,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   }
   if(targetStep===1){
    if(loadingCatalog)return "A szakmai katalógus még töltődik.";
+   if(spraying&&catalogLoadError)return "Növényvédelmi művelet nem rögzíthető, amíg a hivatalos katalógus betöltése hibás. Próbáld újra a betöltést.";
    if(fert&&!effectiveProduct.trim())return "Válassz vagy adj meg műtrágyát / anyagot.";
    if(spraying){
     if(products.length&&!productId)return "Válassz hivatalos készítményt.";
@@ -167,6 +168,10 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     <button type="button" onClick={()=>{try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}}>Piszkozat elvetése</button>
    </div>}
   {error&&<div className="error-box operation-wide" role="alert">{error}</div>}
+  {catalogLoadError&&<div className="operation-wide am-draft-notice" role="status">
+    <span>A szakmai katalógus betöltése sikertelen. Növényvédelmi rögzítéshez előbb helyre kell állnia az adatkapcsolatnak.</span>
+    <button type="button" disabled={loadingCatalog} onClick={()=>setCatalogRetry(v=>v+1)}>Katalógus újratöltése</button>
+   </div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
   <label>Dátum<input type="date" name="operation_date" defaultValue={localToday()} required/></label>
