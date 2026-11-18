@@ -54,6 +54,20 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");
   }
   fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);
+  // A same-context retry may import a newer permit dataset. Do not keep
+  // references that are no longer present in the returned official records.
+  if(!contextChanged&&productId){
+   const productExists=(body.products||[]).some(p=>p.id===productId);
+   const useExists=(body.uses||[]).some(u=>u.id===useId&&u.product_id===productId);
+   if(!productExists){
+    setProductId("");setUseId("");setProduct("");setDose("");
+    setDoseMode("custom");
+    setError("A korábban választott készítmény már nem szerepel a friss katalógusban. Ellenőrizd és válaszd újra.");
+   }else if(useId&&!useExists){
+    setUseId("");setDose("");setDoseMode("custom");
+    setError("A korábbi engedélyezett felhasználás megváltozott. Válaszd ki újra a megfelelő felhasználást.");
+   }
+  }
   const draft=draftPending.current;
   if(draft&&draft.type===type&&draft.fieldId===fieldId){
    const validProduct=body.products?.some(p=>p.id===draft.productId);
