@@ -16,16 +16,91 @@ type Approver={id:string;full_name:string|null;authorization_level:"I"|"II"|"III
 type Source={source_name:string;source_url:string;status:"pending"|"ready"|"stale"|"error";last_imported_at:string|null;product_count:number;use_count:number;notes:string|null};
 type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];ingredients?:Ingredient[];approvers?:Approver[];source?:Source|null;error?:string};
 const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing","other"]);
+type OperationDraft={
+ savedAt:number;fieldId:string;type:string;step:number;
+ product:string;customProduct:string;productId:string;useId:string;catalogCrop:string;dose:string;
+ doseMode:"custom"|"official_max";machineId:string;customMachine:string;entries:Record<string,string>;
+};
+const DRAFT_MAX_AGE=12*60*60*1000;
+
 function localToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
 
-export function OperationForm({fields,machines=[],defaultFieldId=""}:{fields:FieldOption[];machines?:MachineOption[];defaultFieldId?:string}){
+export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId}:{fields:FieldOption[];machines?:MachineOption[];defaultFieldId?:string;draftOwnerId:string}){
  const formRef=useRef<HTMLFormElement>(null);
+ const draftKey=`agrar-mentor:operation-draft:v1:${draftOwnerId}`;
+ const draftPending=useRef<OperationDraft|null>(null);
+ const draftInputsRestored=useRef(false);
+ const [draftLoaded,setDraftLoaded]=useState(false);
+ const [draftNotice,setDraftNotice]=useState(false);
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
  const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
  const selectedField=fields.find(f=>f.id===fieldId)||initial,country:CountryCode=selectedField?.countryCode||"HU",farmId=selectedField?.farmId||"",spraying=type==="spraying"||type==="plant_protection",fert=type==="fertilizing",inputLike=fert||spraying,hasMethod=methodTypes.has(type);
- useEffect(()=>{let active=true;setLoadingCatalog(true);setError("");setCatalog([]);setProducts([]);setUses([]);setIngredients([]);setApprovers([]);setSource(null);setProduct("");setCustomProduct("");setProductId("");setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null)}).catch(e=>{if(active)setError(e instanceof Error?e.message:"A katalógus betöltése sikertelen.")}).finally(()=>{if(active)setLoadingCatalog(false)});return()=>{active=false}},[country,type,farmId]);
+ useEffect(()=>{let active=true;setLoadingCatalog(true);setError("");setCatalog([]);setProducts([]);setUses([]);setIngredients([]);setApprovers([]);setSource(null);setProduct("");setCustomProduct("");setProductId("");setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);
+  const draft=draftPending.current;
+  if(draft&&draft.type===type&&draft.fieldId===fieldId){
+   const validProduct=body.products?.some(p=>p.id===draft.productId);
+   const validUse=body.uses?.some(u=>u.id===draft.useId&&u.product_id===draft.productId);
+   setProduct(draft.product||"");setCustomProduct(draft.customProduct||"");
+   setProductId(validProduct?draft.productId:"");setUseId(validUse?draft.useId:"");
+   setCatalogCrop(draft.catalogCrop||"");setDose(draft.dose||"");
+   setDoseMode(draft.doseMode==="official_max"?"official_max":"custom");
+   setMachineId(draft.machineId||"");setCustomMachine(draft.customMachine||"");
+   setDraftLoaded(true);
+  }
+ }).catch(e=>{if(active){setError(e instanceof Error?e.message:"A katalógus betöltése sikertelen.");if(draftPending.current)setDraftLoaded(true)}}).finally(()=>{if(active)setLoadingCatalog(false)});return()=>{active=false}},[country,type,farmId]);
  useEffect(()=>{setMachineId("");setCustomMachine("")},[fieldId]);
+ // Restore only this user's short-lived, tab-local draft. No database write happens here.
+ useEffect(()=>{
+  try{
+   const raw=sessionStorage.getItem(draftKey);
+   if(raw){
+    const saved=JSON.parse(raw) as OperationDraft;
+    if(!saved||!Number.isFinite(saved.savedAt)||Date.now()-saved.savedAt>DRAFT_MAX_AGE
+       ||!fields.some(f=>f.id===saved.fieldId)
+       ||(defaultFieldId&&defaultFieldId!==saved.fieldId)){
+      if(!defaultFieldId||defaultFieldId===saved?.fieldId)sessionStorage.removeItem(draftKey);
+    }else{
+     draftPending.current=saved;
+     setFieldId(saved.fieldId);setType(saved.type);
+     setStep(Math.max(0,Math.min(3,Number(saved.step)||0)));
+     setDraftNotice(true);
+    }
+   }
+  }catch{try{sessionStorage.removeItem(draftKey)}catch{}}
+  if(!draftPending.current)setDraftLoaded(true);
+  // Stored drafts are deliberately scoped to the signed-in user, not the farm alone.
+ },[draftKey,defaultFieldId,fields]);
+ // Apply values to uncontrolled controls after the relevant catalog has loaded.
+ useEffect(()=>{
+  if(!draftLoaded||draftInputsRestored.current)return;
+  const saved=draftPending.current;
+  if(!saved){draftInputsRestored.current=true;return}
+  if(loadingCatalog)return;
+  const names=new Set(["operation_date","subtype","crop","target","active_ingredient","dose_unit",
+   "treated_area","quantity","quantity_unit","operator","weather","notes","requested_approver_id"]);
+  for(const el of formRef.current?.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>("[name]")||[]){
+   if(names.has(el.name)&&Object.prototype.hasOwnProperty.call(saved.entries||{},el.name)){
+    const value=saved.entries[el.name];
+    if(el instanceof HTMLSelectElement){
+     if(Array.from(el.options).some(o=>o.value===value))el.value=value;
+    }else if(!el.readOnly)el.value=value;
+   }
+  }
+  draftInputsRestored.current=true;
+  draftPending.current=null;
+ },[draftLoaded,loadingCatalog]);
+ function persistDraft(){
+  if(!draftLoaded||busy||!formRef.current)return;
+  try{
+   const entries:Record<string,string>={};
+   for(const [k,v] of new FormData(formRef.current).entries())if(typeof v==="string")entries[k]=v;
+   const saved:OperationDraft={savedAt:Date.now(),fieldId,type,step,product,customProduct,productId,useId,
+    catalogCrop,dose,doseMode,machineId,customMachine,entries};
+   sessionStorage.setItem(draftKey,JSON.stringify(saved));
+  }catch{/* Private mode/storage restrictions must not prevent entering a record. */}
+ }
+ useEffect(()=>{persistDraft()},[draftLoaded,fieldId,type,step,product,customProduct,productId,useId,catalogCrop,dose,doseMode,machineId,customMachine]);
  const hasUseCatalog=uses.length>0;
  const cropOptions=useMemo(()=>Array.from(new Set(uses.map(x=>x.crop).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"hu")),[uses]);
  const filteredProducts=useMemo(()=>!hasUseCatalog||!catalogCrop?products:products.filter(p=>uses.some(u=>u.product_id===p.id&&u.crop===catalogCrop)),[products,uses,catalogCrop,hasUseCatalog]);
@@ -81,12 +156,16 @@ export function OperationForm({fields,machines=[],defaultFieldId=""}:{fields:Fie
  async function submit(formData:FormData){
   for(let s=0;s<3;s++){const message=validateStep(s,formData);if(message){setStep(s);setError(message);return}}
   setBusy(true);setError("");
-  try{await createFieldOperation(formData);window.location.reload()}
+  try{await createFieldOperation(formData);try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}
   catch(e){setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");setBusy(false)}
  }
- return <form ref={formRef} noValidate action={submit} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
+ return <form ref={formRef} noValidate action={submit} onInput={persistDraft} onChange={persistDraft} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
   <div className="operation-wide am-wizard-progress am-wizard-progress-labeled"><span className={step>=0?"active":""}>Alapadatok</span><i/><span className={step>=1?"active":""}>Szakmai részletek</span><i/><span className={step>=2?"active":""}>Végrehajtás</span><i/><span className={step>=3?"active":""}>Ellenőrzés</span></div>
   <div className="operation-wide am-operation-step-head"><span className="eyebrow">MŰVELET RÖGZÍTÉSE</span><h3>{step===0?"Alapadatok":step===1?"Anyag és szakmai részletek":step===2?"Végrehajtás":"Ellenőrzés és mentés"}</h3></div>
+  {draftNotice&&<div className="operation-wide am-draft-notice" role="status">
+    Korábbi, ezen a böngészőlapon mentett kitöltés visszaállítva. Ellenőrizd újra a hivatalos készítményadatokat.
+    <button type="button" onClick={()=>{try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}}>Piszkozat elvetése</button>
+   </div>}
   {error&&<div className="error-box operation-wide" role="alert">{error}</div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
