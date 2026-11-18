@@ -1,5 +1,7 @@
 "use server";
 import {getInviteRedirectUrl} from "@/lib/inviteRedirect";
+import {extractFunctionError} from "@/lib/edgeFunctionError";
+import {validDateOnly} from "@/lib/operationInput";
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
@@ -7,8 +9,8 @@ import {createClient} from "@/lib/supabase/server";
 async function requireAdvisor(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();if(profile?.role!=="advisor")redirect("/dashboard");return{supabase,user}}
 async function notify(s:any,user_id:string,kind:string,title:string,message:string|null,href:string|null){const{error}=await s.from("notifications").insert({user_id,kind,title,message,href});if(error)console.error("Értesítés sikertelen",error)}
 async function emailNotify(s:any,target_user_id:string,subject:string,message:string,href:string){try{const{error}=await s.functions.invoke("send-notification-email",{body:{target_user_id,subject,message,href}});if(error)console.error("E-mail értesítés sikertelen",error)}catch(e){console.error(e)}}
-async function extractFunctionError(error:unknown){if(!error||typeof error!=="object")return"Ismeretlen Edge Function hiba.";const c=error as{message?:string;context?:Response};if(c.context){try{const p=await c.context.clone().json();if(p?.error)return String(p.error);if(p?.message)return String(p.message)}catch{}}return c.message||"Ismeretlen Edge Function hiba."}
-function validDate(v:string){if(!v)return true;return /^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(new Date(`${v}T12:00:00`).getTime())}
+
+function validDate(v:string){return !v||validDateOnly(v)}
 function refreshAdmin(ownerId?:string,farmId?:string,fieldId?:string){revalidatePath("/admin");revalidatePath("/admin/clients");revalidatePath("/admin/workday");revalidatePath("/admin/priorities");if(ownerId)revalidatePath(`/admin/clients/${ownerId}`);if(ownerId&&farmId)revalidatePath(`/admin/clients/${ownerId}/farms/${farmId}`);if(fieldId)revalidatePath(`/fields/${fieldId}`)}
 
 export async function inviteFarmer(formData:FormData){const{supabase}=await requireAdvisor();const email=String(formData.get("email")||"").trim().toLowerCase(),full_name=String(formData.get("full_name")||"").trim();if(!email||!email.includes("@")||!full_name)throw new Error("Név és érvényes e-mail cím szükséges.");if(full_name.length>120||email.length>250)throw new Error("A megadott adat túl hosszú.");const{data,error}=await supabase.functions.invoke("invite-farmer",{body:{email,full_name,redirect_to:getInviteRedirectUrl()}});if(error)throw new Error(`A meghívás sikertelen: ${await extractFunctionError(error)}`);if(data?.error)throw new Error(`A meghívás sikertelen: ${data.error}`);refreshAdmin()}
