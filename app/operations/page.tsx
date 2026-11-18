@@ -73,7 +73,7 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
 
    <section id="uj-muvelet" className={styles.formPanel}>
     <div className={styles.formHead}><div><span>ÚJ BEJEGYZÉS</span><h2>Művelet rögzítése</h2></div><BlockHelpButton label="A művelet rögzítésének magyarázata" content={{title:"Új gazdálkodási művelet",body:"Válaszd ki a földtáblát és a művelettípust, majd add meg a végrehajtási adatokat.",important:"Növényvédelemnél a hivatalos dóziskorlát és az esetleges gazdasági jóváhagyás külön ellenőrzendő."}}/></div>
-    <OperationForm fields={options} machines={machineOptions} defaultFieldId={safeField}/>
+    <OperationForm fields={options} machines={machineOptions} defaultFieldId={safeField} draftOwnerId={user.id}/>
    </section>
   </main>
  </div>;
