@@ -65,10 +65,10 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
  ];
  const prioritized=prioritizeDailyWork(workItems).slice(0,4);
  const resume=[
-  ...openTasks.filter(t=>t.status==="in_progress").map(t=>({id:"p-"+t.id,title:t.title,meta:"Folyamatban lévő munka",step:"3/5",pct:60,href:"/tasks"})),
-  ...openTasks.filter(t=>t.review_status==="rejected").map(t=>({id:"r-"+t.id,title:t.title,meta:"Javításra visszaküldött végrehajtás",step:"3/5",pct:60,href:"/tasks"})),
-  ...waitingReview.map(t=>({id:"w-"+t.id,title:t.title,meta:"Ellenőrzésre beküldve",step:"4/5",pct:80,href:"/tasks"})),
-  ...unreadReplies.map(r=>({id:"m-"+r.id,title:r.title,meta:"Új szaktanácsadói válasz",step:"1/2",pct:50,href:"/messages"}))
+  ...openTasks.filter(t=>t.status==="in_progress").map(t=>({id:"p-"+t.id,title:t.title,meta:"Folyamatban lévő munka",stage:"Végrehajtás folyamatban",action:"Megnyitás",href:"/tasks"})),
+  ...openTasks.filter(t=>t.review_status==="rejected").map(t=>({id:"r-"+t.id,title:t.title,meta:"Javításra visszaküldött végrehajtás",stage:"Javítás szükséges",action:"Javítás megnyitása",href:"/tasks"})),
+  ...waitingReview.map(t=>({id:"w-"+t.id,title:t.title,meta:"Ellenőrzésre beküldve",stage:"Ellenőrzésre vár",action:"Státusz megnyitása",href:"/tasks"})),
+  ...unreadReplies.map(r=>({id:"m-"+r.id,title:r.title,meta:"Új szaktanácsadói válasz",stage:"Új válasz érkezett",action:"Válasz megnyitása",href:"/messages"}))
  ].slice(0,3);
  const fieldCards=(fields??[]).map(f=>({field:f,inspection:inspectionMap.get(f.id),weather:weatherSummary.get(f.id)})).sort((a,b)=>{const rank=(v:string|undefined)=>v==="critical"?0:v==="attention"?1:v==="good"?2:3;return rank(a.inspection?.condition)-rank(b.inspection?.condition)||a.field.name.localeCompare(b.field.name,"hu")}).slice(0,3);
  const loc=(item:DailyWorkInput)=>item.fieldId?fieldMap.get(item.fieldId)?.name||"Földtábla":item.farmId?farmMap.get(item.farmId)?.name||"Gazdaság":"Gazdasági ügy";
@@ -110,7 +110,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
    </section>
 
    <section className={styles.commandGrid}>
-    <article className={styles.panel}><div className={styles.panelHead}><div><h2>Folytasd innen</h2></div><Link href="/daily-work">Összes folyamat megtekintése →</Link></div><div className={styles.resumeGrid}>{resume.length?resume.map(item=><article className={styles.resumeCard} key={item.id}><div className={styles.resumeTitle}><span className={styles.resumeIcon}>♧</span><div><strong>{item.title}</strong><small>{item.meta}</small></div></div><div className={styles.progressMeta}><span><i style={{width:String(item.pct)+"%"}}/></span><b>{item.step} lépés</b></div><Link href={item.href}>Folytatás →</Link></article>):<div className={styles.emptyResume}><strong>Nincs félbehagyott munkafolyamat.</strong><span>Indíts új műveletet vagy ellenőrizd a mai prioritásokat.</span></div>}</div></article>
+    <article className={styles.panel}><div className={styles.panelHead}><div><h2>Folytasd innen</h2></div><Link href="/daily-work">Összes folyamat megtekintése →</Link></div><div className={styles.resumeGrid}>{resume.length?resume.map(item=><article className={styles.resumeCard} key={item.id}><div className={styles.resumeTitle}><span className={styles.resumeIcon}>♧</span><div><strong>{item.title}</strong><small>{item.meta}</small></div></div><div className={styles.progressMeta}><span className={styles.resumeStateLabel}>Aktuális állapot</span><b>{item.stage}</b></div><Link href={item.href}>{item.action} →</Link></article>):<div className={styles.emptyResume}><strong>Nincs félbehagyott munkafolyamat.</strong><span>Indíts új műveletet vagy ellenőrizd a mai prioritásokat.</span></div>}</div></article>
     <aside className={styles.guided}><div className={styles.guidedHead}><span className={styles.guidedMark}>◉</span><div><h2>Vezetett műveletek</h2><p>Lépésről lépésre, egyszerűen.</p></div></div><Link href="/operations"><span>✣</span><div><strong>Művelet rögzítése</strong><small>Vezetett rögzítési folyamat</small></div><b>›</b></Link><Link href="/messages"><span>✉</span><div><strong>Új bejelentés</strong><small>Szakmai jelzés küldése</small></div><b>›</b></Link><Link href="/dispatch"><span>↗</span><div><strong>Munka kiosztása</strong><small>Feladat, végrehajtó és gép</small></div><b>›</b></Link><Link href="/documents"><span>□</span><div><strong>Dokumentum kezelése</strong><small>Irat vagy bizonyíték kezelése</small></div><b>›</b></Link></aside>
    </section>
 
