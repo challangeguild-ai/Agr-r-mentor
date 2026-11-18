@@ -1,6 +1,7 @@
 "use client";
 
-import {useMemo,useState} from "react";
+import {useMemo,useRef,useState} from "react";
+import {useRouter} from "next/navigation";
 import {dispatchTask} from "@/app/dispatch/actions";
 import {farmMemberRoleLabel} from "@/lib/farmMembers";
 import {machineTypeLabel} from "@/lib/machinery";
@@ -8,12 +9,16 @@ import {machineTypeLabel} from "@/lib/machinery";
 type Farm={id:string;name:string;owner_id:string};
 type Field={id:string;name:string;farm_id:string};
 type Member={id:string;farm_id:string;user_id:string;member_role:string};
-type Machine={id:string;farm_id:string;name:string;machine_type:string};
+type Machine={id:string;farm_id:string;name:string;machine_type:string|null};
 type Person={id:string;full_name:string|null};
 
 export function DispatchTaskForm({farms,fields,members,machines,people}:{
  farms:Farm[];fields:Field[];members:Member[];machines:Machine[];people:Person[]
 }){
+ const router=useRouter();
+ const formRef=useRef<HTMLFormElement>(null);
+ const submitting=useRef(false);
+ const[busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState("");
  const[farmId,setFarmId]=useState("");
  const[fieldId,setFieldId]=useState("");
  const[assigneeId,setAssigneeId]=useState("");
@@ -35,8 +40,27 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
  function selectFarm(id:string){
   setFarmId(id);setFieldId("");setAssigneeId("");setMachineId("");
   setFarmName(farms.find(f=>f.id===id)?.name||"");
+  setError("");setSuccess("");
  }
- return <form action={dispatchTask} className="admin-form task-create-grid" aria-label="Gazdasági munka kiosztása">
+ async function submit(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();
+  if(submitting.current||!canSubmit)return;
+  const data=new FormData(event.currentTarget);
+  const taskTitle=title.trim();
+  submitting.current=true;setBusy(true);setError("");setSuccess("");
+  try{
+   await dispatchTask(data);
+   setSuccess(`„${taskTitle}” feladat kiosztva. A lista frissült.`);
+   formRef.current?.reset();
+   setFarmId("");setFieldId("");setAssigneeId("");setMachineId("");setTitle("");setFarmName("");
+   router.refresh();
+  }catch(e){
+   setError(e instanceof Error?e.message:"A feladat kiosztása sikertelen. Ellenőrizd az adatokat.");
+  }finally{
+   submitting.current=false;setBusy(false);
+  }
+ }
+ return <form ref={formRef} onSubmit={submit} aria-busy={busy} className="admin-form task-create-grid" aria-label="Gazdasági munka kiosztása">
   <label>Gazdaság
    <select name="farm_id" value={farmId} onChange={e=>selectFarm(e.target.value)} required>
     <option value="">Válassz gazdaságot</option>
@@ -81,6 +105,10 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
     ? <><strong>{farmName}</strong> · {filteredFields.length} választható földtábla · {eligibleAssignees.length} végrehajtó · {filteredMachines.length} gép</>
     : "Először válaszd ki a gazdaságot; utána csak az oda tartozó földtáblák, munkatársak és gépek jelennek meg."}
   </div>
-  <button className="btn btn-primary" disabled={!canSubmit} type="submit">Munka kiosztása</button>
+  {error&&<div className="task-description error-box" role="alert">{error}</div>}
+  {success&&<div className="task-description success-box" role="status">{success}</div>}
+  <button className="btn btn-primary" disabled={!canSubmit||busy} type="submit">
+   {busy?"Kiosztás folyamatban…":"Munka kiosztása"}
+  </button>
  </form>;
 }
