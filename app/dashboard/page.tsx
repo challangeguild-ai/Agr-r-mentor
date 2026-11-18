@@ -6,6 +6,7 @@ import {BlockHelpButton} from "@/components/GuidedTour";
 import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {FieldMiniMap} from "@/components/FieldMiniMap";
 import {dailyWorkSeverityLabel,prioritizeDailyWork,type DailyWorkInput} from "@/lib/dailyWorkPriority";
+import {summarizeStationPrecipitation} from "@/lib/weather/rollingPrecipitation";
 import styles from "./dashboard.module.css";
 
 function d(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
@@ -36,7 +37,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
  const{data:receipts}=reportIds.length?await supabase.from("communication_receipts").select("entity_id,last_seen_at").eq("entity_type","farmer_report").eq("viewer_id",user.id).in("entity_id",reportIds):{data:[]};
  const fieldIds=(fields??[]).map(f=>f.id);
  const since30=new Date();since30.setDate(since30.getDate()-30);
- const{data:weather}=fieldIds.length?await supabase.from("field_weather_daily").select("field_id,weather_date,precipitation_mm,source_type,provider,station_name,distance_km").in("field_id",fieldIds).gte("weather_date",since30.toISOString().slice(0,10)).order("weather_date",{ascending:false}):{data:[]};
+ const{data:weather}=fieldIds.length?await supabase.from("field_weather_daily").select("field_id,weather_date,precipitation_mm,source_type,provider,station_name,distance_km,fetched_at").in("field_id",fieldIds).gte("weather_date",since30.toISOString().slice(0,10)).order("weather_date",{ascending:false}):{data:[]};
 
  const farmMap=new Map((farms??[]).map(f=>[f.id,f])),fieldMap=new Map((fields??[]).map(f=>[f.id,f])),receiptMap=new Map((receipts??[]).map(r=>[r.entity_id,r.last_seen_at]));
  const inspectionMap=new Map<string,any>();for(const i of inspections??[]){if(i.field_id&&!inspectionMap.has(i.field_id))inspectionMap.set(i.field_id,i)}
@@ -46,16 +47,14 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
  const critical=[...inspectionMap.values()].filter(i=>i.condition==="critical"),attention=[...inspectionMap.values()].filter(i=>i.condition==="attention");
  const unreadReplies=(reports??[]).filter(r=>{if(!r.advisor_reply||r.status==="closed"||!r.replied_at)return false;const seen=receiptMap.get(r.id);return !seen||!isAfter(seen,r.replied_at)});
  const totalArea=(fields??[]).reduce((sum,f)=>sum+Number(f.area_ha||0),0),name=profile?.full_name||"Gazdálkodó";
- const weatherSummary=new Map<string,{rain7:number;rain30:number;latest:any|null}>();
- const now=Date.now();
+ const weatherByField=new Map<string,any[]>();
  for(const row of weather??[]){
-  const entry=weatherSummary.get(row.field_id)||{rain7:0,rain30:0,latest:null};
-  const age=(now-new Date(row.weather_date+"T12:00:00").getTime())/86400000;
-  const rain=Number(row.precipitation_mm||0);
-  if(age<=7)entry.rain7+=rain;
-  if(age<=30)entry.rain30+=rain;
-  if(!entry.latest)entry.latest=row;
-  weatherSummary.set(row.field_id,entry);
+  const group=weatherByField.get(row.field_id)||[];group.push(row);weatherByField.set(row.field_id,group);
+ }
+ const weatherSummary=new Map<string,{rain7:number;rain30:number;days7:number;days30:number;latest:any|null}>();
+ for(const [fieldId,observations] of weatherByField){
+  const totals=summarizeStationPrecipitation(observations);
+  weatherSummary.set(fieldId,{...totals,latest:observations[0]||null});
  }
 
  const workItems:DailyWorkInput[]=[
@@ -116,7 +115,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
 
    <article className={[styles.panel,styles.priorityPanel].join(" ")}><div className={styles.panelHead}><div className={styles.sectionTitle}><span className={styles.sectionIcon}>✓</span><h2>Mai prioritások</h2></div><Link href="/daily-work">Összes teendő megtekintése →</Link></div><div className={styles.priorityHeader}><span>#</span><span>Prioritás</span><span>Feladat / Esemény</span><span>Helyszín / Ügyfél</span><span>Következő lépés</span></div><div className={styles.priorityList}>{prioritized.length?prioritized.map((item,index)=>{const tone=item.severity==="critical"?styles.priorityCritical:item.severity==="high"?styles.priorityHigh:styles.priorityNormal;return <Link className={styles.priorityRow} href={href(item)} key={item.kind+"-"+item.id}><span className={styles.priorityIndex}>{index+1}</span><span className={[styles.priorityBadge,tone].join(" ")}>{dailyWorkSeverityLabel(item.severity)}</span><div className={styles.priorityTask}><strong>{item.title}</strong><small>{item.reasons.join(" · ")||"Normál prioritás"}</small></div><div className={styles.priorityLocation}><strong>⌖ {loc(item)}</strong><small>{item.fieldId?"Földtábla":"Gazdasági ügy"}</small></div><span className={styles.priorityAction}>{action(item)} megnyitása →</span></Link>}):<div className={styles.emptyState}>Nincs kiemelt napi prioritás.</div>}</div></article>
 
-   <article className={[styles.panel,styles.fieldPanel].join(" ")}><div className={styles.panelHead}><div className={styles.sectionTitle}><span className={styles.sectionIcon}>◇</span><h2>Táblák állapota</h2></div><Link href="/fields">Összes tábla megtekintése →</Link></div><div className={styles.fieldCards}>{fieldCards.length?fieldCards.map(({field,inspection,weather},index)=>{const tone=inspection?.condition==="critical"?styles.fieldCritical:inspection?.condition==="attention"?styles.fieldAttention:styles.fieldGood;return <Link href={"/fields/"+field.id} className={styles.fieldCard} key={field.id}><FieldMiniMap className={styles.fieldVisual} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/><div className={styles.fieldBody}><div className={styles.fieldTop}><div><strong>{field.name}</strong><small>{field.area_ha?String(field.area_ha)+" ha":"—"} · {field.current_crop||"Nincs kultúra"}</small></div><span className={tone}>{conditionLabel(inspection?.condition)}</span></div><dl><div><dt>7 nap csapadék</dt><dd>🌧 {weather?weather.rain7.toLocaleString("hu-HU",{maximumFractionDigits:1}):"—"} mm</dd></div><div><dt>30 nap csapadék</dt><dd>{weather?weather.rain30.toLocaleString("hu-HU",{maximumFractionDigits:1}):"—"} mm</dd></div><div><dt>Utolsó szemle</dt><dd>{d(inspection?.inspected_at)}</dd></div><div><dt>Forrás</dt><dd>{weather?.latest?"MÉRT · állomás · "+weather.latest.provider:"Nincs adat"}</dd></div></dl></div></Link>}):<div className={styles.emptyState}>Még nincs rögzített földtábla.</div>}</div></article>
+   <article className={[styles.panel,styles.fieldPanel].join(" ")}><div className={styles.panelHead}><div className={styles.sectionTitle}><span className={styles.sectionIcon}>◇</span><h2>Táblák állapota</h2></div><Link href="/fields">Összes tábla megtekintése →</Link></div><div className={styles.fieldCards}>{fieldCards.length?fieldCards.map(({field,inspection,weather},index)=>{const tone=inspection?.condition==="critical"?styles.fieldCritical:inspection?.condition==="attention"?styles.fieldAttention:styles.fieldGood;return <Link href={"/fields/"+field.id} className={styles.fieldCard} key={field.id}><FieldMiniMap className={styles.fieldVisual} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/><div className={styles.fieldBody}><div className={styles.fieldTop}><div><strong>{field.name}</strong><small>{field.area_ha?String(field.area_ha)+" ha":"—"} · {field.current_crop||"Nincs kultúra"}</small></div><span className={tone}>{conditionLabel(inspection?.condition)}</span></div><dl><div><dt>7 nap csapadék</dt><dd>🌧 {weather?.days7?`${weather.rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${weather.days7}/7 nap`:"Nincs adat"}</dd></div><div><dt>30 nap csapadék</dt><dd>{weather?.days30?`${weather.rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${weather.days30}/30 nap`:"Nincs adat"}</dd></div><div><dt>Utolsó szemle</dt><dd>{d(inspection?.inspected_at)}</dd></div><div><dt>Forrás</dt><dd>{weather?.latest?"MÉRT · állomás · "+weather.latest.provider:"Nincs adat"}</dd></div></dl></div></Link>}):<div className={styles.emptyState}>Még nincs rögzített földtábla.</div>}</div></article>
 
    <section className={styles.lowerGrid}><article className={styles.panel}><div className={styles.panelHead}><div><h2>Gazdasági idővonal</h2></div><Link href="/timeline">Teljes idővonal →</Link></div><div className={styles.timeline}>{timeline?.length?timeline.map(e=><div className={styles.event} key={e.id}><time>{d(e.event_at||e.created_at)}</time><div><strong>{eventLabel(e.event_type)}</strong><p>{e.description||e.title}</p></div></div>):<div className={styles.emptyState}>Még nincs esemény.</div>}</div></article>
     <article className={styles.panel}><div className={styles.panelHead}><div><h2>Legutóbbi dokumentumok</h2></div><Link href="/documents">Összes →</Link></div><div className={styles.docs}>{documents?.length?documents.map(doc=><Link href="/documents" className={styles.doc} key={doc.id}><span>▤</span><div><strong>{doc.title}</strong><small>{d(doc.created_at)}{doc.file_size?" · "+(Number(doc.file_size)/1048576).toLocaleString("hu-HU",{maximumFractionDigits:1})+" MB":""}</small></div></Link>):<div className={styles.emptyState}>Még nincs feltöltött dokumentum.</div>}</div></article>
