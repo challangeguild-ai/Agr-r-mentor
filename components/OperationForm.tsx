@@ -7,6 +7,7 @@ import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalo
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
 import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
+import {parseOperationDraft,type OperationDraft} from "@/lib/operationDraft";
 
 type FieldOption={id:string;farmId:string;name:string;farmName:string;areaHa:number|null;countryCode?:CountryCode};
 type MachineOption={id:string;farmId:string;name:string;detail?:string};
@@ -18,11 +19,6 @@ type Approver={id:string;full_name:string|null;authorization_level:"I"|"II"|"III
 type Source={source_name:string;source_url:string;status:"pending"|"ready"|"stale"|"error";last_imported_at:string|null;product_count:number;use_count:number;notes:string|null};
 type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];ingredients?:Ingredient[];approvers?:Approver[];source?:Source|null;error?:string};
 const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing","other"]);
-type OperationDraft={
- savedAt:number;fieldId:string;type:string;step:number;
- product:string;customProduct:string;productId:string;useId:string;catalogCrop:string;dose:string;
- doseMode:"custom"|"official_max";machineId:string;customMachine:string;entries:Record<string,string>;
-};
 const DRAFT_MAX_AGE=12*60*60*1000;
 function decimalOrInvalid(value:string){try{return parseDecimalOrNull(value)}catch{return NaN}}
 
@@ -77,11 +73,14 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   try{
    const raw=sessionStorage.getItem(draftKey);
    if(raw){
-    const saved=JSON.parse(raw) as OperationDraft;
-    if(!saved||!Number.isFinite(saved.savedAt)||Date.now()-saved.savedAt>DRAFT_MAX_AGE
-       ||!fields.some(f=>f.id===saved.fieldId)
-       ||(defaultFieldId&&defaultFieldId!==saved.fieldId)){
-      if(!defaultFieldId||defaultFieldId===saved?.fieldId)sessionStorage.removeItem(draftKey);
+    const saved=parseOperationDraft(raw,{
+     fieldIds:fields.map(f=>f.id),
+     operationTypes:operationTypes.map(([key])=>key),
+     defaultFieldId,maxAgeMs:DRAFT_MAX_AGE
+    });
+    if(!saved){
+     // Invalid or expired snapshots are never applied to a different field.
+     sessionStorage.removeItem(draftKey);
     }else{
      draftPending.current=saved;
      setFieldId(saved.fieldId);setType(saved.type);
