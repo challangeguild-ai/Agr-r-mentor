@@ -118,7 +118,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    if(!fieldId||!fields.some(f=>f.id===fieldId))return "Az alapadatoknál válassz érvényes földtáblát.";
    const date=String(formData.get("operation_date")||"");
    const parsed=new Date(`${date}T12:00:00`);
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return "Adj meg érvényes műveleti dátumot.";
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return "Adj meg érvényes műveleti dátumot.";
    if(!operationTypes.some(([key])=>key===type))return "Válassz érvényes művelettípust.";
   }
   if(targetStep===1){
