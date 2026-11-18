@@ -20,22 +20,37 @@ export async function dispatchTask(formData:FormData){
  // The core task was created. Auxiliary writes must not report the entire
  // operation as failed: a retry would create a duplicate task.
  if(machineId){
-  const{error:machineError}=await supabase.from("task_machine_assignments")
-   .insert({task_id:task.id,machine_id:machineId,assigned_by:user.id});
-  if(machineError)warnings.push("A gép hozzárendelése sikertelen; a feladatot a munkalistában ellenőrizd.");
+  try{
+   const{error:machineError}=await supabase.from("task_machine_assignments")
+    .insert({task_id:task.id,machine_id:machineId,assigned_by:user.id});
+   if(machineError)warnings.push("A gép hozzárendelése sikertelen; a feladatot a munkalistában ellenőrizd.");
+  }catch(error){
+   console.error("Gépkiosztás után keletkezett hiba",error);
+   warnings.push("A gép hozzárendelését nem sikerült megerősíteni; ellenőrizd a munkalistában.");
+  }
  }
  const now=new Date().toISOString();
- const{error:eventError}=await supabase.from("timeline_events").insert({
-  farm_id:farmId,field_id:fieldId,event_type:"task",title:`Munka kiosztva: ${title}`,
-  description:description||null,event_at:now,created_by:user.id,source_id:task.id
- });
- if(eventError)warnings.push("A munkanapló-esemény nem került rögzítésre.");
+ try{
+  const{error:eventError}=await supabase.from("timeline_events").insert({
+   farm_id:farmId,field_id:fieldId,event_type:"task",title:`Munka kiosztva: ${title}`,
+   description:description||null,event_at:now,created_by:user.id,source_id:task.id
+  });
+  if(eventError)warnings.push("A munkanapló-esemény nem került rögzítésre.");
+ }catch(error){
+  console.error("Munkanapló írási hiba",error);
+  warnings.push("A munkanapló-esemény mentése nem igazolt; a feladat ettől létrejött.");
+ }
  const href=assigneeIsOwner?`/fields/${fieldId}`:"/work";
- const{error:notificationError}=await supabase.from("notifications").insert({
-  user_id:assignedTo,kind:"task",title:"Új munka kiosztva",
-  message:`${title} · ${field.name}`,href
- });
- if(notificationError)warnings.push("Az alkalmazáson belüli értesítés nem jött létre.");
+ try{
+  const{error:notificationError}=await supabase.from("notifications").insert({
+   user_id:assignedTo,kind:"task",title:"Új munka kiosztva",
+   message:`${title} · ${field.name}`,href
+  });
+  if(notificationError)warnings.push("Az alkalmazáson belüli értesítés nem jött létre.");
+ }catch(error){
+  console.error("Feladatértesítés hiba",error);
+  warnings.push("Az alkalmazáson belüli értesítés mentése nem igazolt.");
+ }
  try{
   const{error:emailError}=await supabase.functions.invoke("send-notification-email",{
    body:{
