@@ -5,6 +5,7 @@ import {createFieldOperation} from "@/app/operations/actions";
 import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
+import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
 
 type FieldOption={id:string;farmId:string;name:string;farmName:string;areaHa:number|null;countryCode?:CountryCode};
 type MachineOption={id:string;farmId:string;name:string;detail?:string};
@@ -22,6 +23,7 @@ type OperationDraft={
  doseMode:"custom"|"official_max";machineId:string;customMachine:string;entries:Record<string,string>;
 };
 const DRAFT_MAX_AGE=12*60*60*1000;
+function decimalOrInvalid(value:string){try{return parseDecimalOrNull(value)}catch{return NaN}}
 
 function localToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
 
@@ -117,8 +119,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   if(targetStep===0){
    if(!fieldId||!fields.some(f=>f.id===fieldId))return "Az alapadatoknál válassz érvényes földtáblát.";
    const date=String(formData.get("operation_date")||"");
-   const parsed=new Date(`${date}T12:00:00`);
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return "Adj meg érvényes műveleti dátumot.";
+   if(!validDateOnly(date))return "Adj meg érvényes műveleti dátumot.";
    if(!operationTypes.some(([key])=>key===type))return "Válassz érvényes művelettípust.";
   }
   if(targetStep===1){
@@ -130,21 +131,21 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     if(!products.length&&!product.trim())return "Add meg a készítmény nevét.";
     if(hasUseCatalog&&(!catalogCrop||!useId))return "Válassz kultúrát és engedélyezett felhasználást.";
     if(selectedUse?.dose_max!=null){
-     const n=Number(dose.trim().replace(",","."));
-     if(!dose.trim()||!Number.isFinite(n))return "Adj meg érvényes dózist.";
+     const n=decimalOrInvalid(dose);
+     if(n===null||!Number.isFinite(n))return "Adj meg érvényes dózist.";
      if((selectedUse.dose_min!=null&&n<selectedUse.dose_min)||n>selectedUse.dose_max)return "A dózisnak a hivatalosan engedélyezett tartományba kell esnie.";
     }
     if(approvalNeeded&&!eligibleApprovers.length)return "Ehhez a készítményhez előbb rögzíts megfelelő gazdasági jóváhagyót.";
     if(approvalNeeded&&!String(formData.get("requested_approver_id")||""))return "Válassz gazdasági jóváhagyó személyt.";
    }
    const enteredDose=String(formData.get("dose")||"").trim();
-   if(enteredDose&&(!Number.isFinite(Number(enteredDose.replace(",",".")))||Number(enteredDose.replace(",","."))<0))return "A dózis érvénytelen: nemnegatív számot adj meg.";
+   if(enteredDose&&((!Number.isFinite(decimalOrInvalid(enteredDose)))||(decimalOrInvalid(enteredDose)??0)<0))return "A dózis érvénytelen: nemnegatív számot adj meg.";
   }
   if(targetStep===2){
    const area=String(formData.get("treated_area")||"").trim().replace(",",".");
-   if(area){const n=Number(area);if(!Number.isFinite(n)||n<=0||(selectedField?.areaHa!=null&&n>selectedField.areaHa))return "A kezelt terület pozitív szám legyen, és nem haladhatja meg a földtábla méretét.";}
+   if(area){const n=decimalOrInvalid(area);if(n===null||!Number.isFinite(n)||n<=0||(selectedField?.areaHa!=null&&n>selectedField.areaHa))return "A kezelt terület pozitív szám legyen, és nem haladhatja meg a földtábla méretét.";}
    const quantity=String(formData.get("quantity")||"").trim().replace(",",".");
-   if(quantity&&(!Number.isFinite(Number(quantity))||Number(quantity)<0))return "Az összes mennyiség nem lehet negatív vagy érvénytelen.";
+   if(quantity&&(!Number.isFinite(decimalOrInvalid(quantity))||(decimalOrInvalid(quantity)??0)<0))return "Az összes mennyiség nem lehet negatív vagy érvénytelen.";
    if(machineId==="manual"&&!customMachine.trim())return "Add meg a külső gép megnevezését.";
   }
   return null;
