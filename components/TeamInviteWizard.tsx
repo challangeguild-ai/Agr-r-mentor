@@ -14,7 +14,7 @@ export function TeamInviteWizard({farms,roles}:{farms:Farm[];roles:Role[]}){
  const canNext=step===0?!!farm&&roles.some(([id])=>id===role):step===1?!!name.trim()&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()):true;
  async function submit(event:React.FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(!farm||!roles.some(([id])=>id===role)||!name.trim()||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())){
+  if(!farm||!roles.some(([id])=>id===role)||!name.trim()||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())){
    setError("Ellenőrizd a gazdaságot, a szerepkört, a nevet és az e-mail címet.");return;
   }
   setBusy(true);setError("");
