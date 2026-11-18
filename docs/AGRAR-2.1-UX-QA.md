@@ -64,3 +64,16 @@
 - Azonos táblán, azonos napon több adatforrás-sor nem kerül összeadásra duplán; a legújabb import elsőbbséget kap.
 - Regressziós tesztek: 4 új időjárási eset (DST, naphatárok, duplikációk, hiányzó adat), így a teljes Node 22 **11/11 PASS**.
 - Továbbra is ellenőrizni kell a tényleges HungaroMet forrásfrissességet és az időjárási Cron adatbázisba írását egy működő jogosult környezetben.
+
+
+## 2026-11-18 – harmadik kör: növényvédelem és napi munkaközpont
+
+- **Valódi forráshiba javítva:** a `rollingPrecipitation.ts` dátumszűrője hibásan dupla backslash-sel szerepelt a GitHubon, ezért minden naptári dátum kieshetett. A GitHubon javított regex visszaolvasva ellenőrzött.
+- **Földtábla- és művelettípus-váltás:** a korábbi termék, kultúra, felhasználás, dózis és gép nem marad észrevétlenül kiválasztva; a releváns mezőket újra ki kell tölteni.
+- **Dashboard:** a javításra visszaküldött munka megelőzi az általános folyamatban lévő munkát; ugyanaz a feladat nem jelenik meg kétszer.
+- **Növényvédelmi státusz:** az űrlap és a szerveroldali mentés a HU/SK engedély- és felhasználási dátumokat ugyanazzal az előellenőrző modullal vizsgálja. HU ismeretlen státusz, lejárt türelmi idő vagy nem aktív szer blokkol; dokumentált felhasználási türelmi idővel történelmi dátum is kezelhető.
+- **Meghívás:** Supabase Edge Function hiányzó caller-redirect esetén is kötelezően az `APP_PUBLIC_ORIGIN` validált `/invite` útvonalát állítja be. Beállított origin nélkül fail-closed.
+- **Automatikus helyi tesztek:** 18/18 PASS (Node 22, `node --experimental-strip-types --test tests/*.test.mjs`): URL, dátumok, számok, időjárás, dashboard deduplikálás, engedély-/türelmi idők.
+- **Preview build:** a működési forrás legfrissebb ellenőrzött commitja `f0c41199` Vercel `success` státuszú.
+
+**Élesítés előtti megmaradt blokkolók:** Vercel és Supabase aktuális Production URL és Edge env összerendezése; valódi farmer/advisor/admin end-to-end és meghívó e-mail próbák; szükséges Supabase-migrációk és automatikus időjárási Cron ellenőrzése; éles merge külön jóváhagyással.
