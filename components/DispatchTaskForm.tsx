@@ -5,6 +5,7 @@ import {useRouter} from "next/navigation";
 import {dispatchTask} from "@/app/dispatch/actions";
 import {farmMemberRoleLabel} from "@/lib/farmMembers";
 import {machineTypeLabel} from "@/lib/machinery";
+import {selectDispatchOptions} from "@/lib/dispatchOptions";
 
 type Farm={id:string;name:string;owner_id:string};
 type Field={id:string;name:string;farm_id:string};
@@ -26,16 +27,12 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
  const[title,setTitle]=useState("");
  const[farmName,setFarmName]=useState("");
  const peopleMap=useMemo(()=>new Map(people.map(p=>[p.id,p.full_name||"Munkatárs"])),[people]);
- const selectedFarm=farms.find(f=>f.id===farmId);
- const filteredFields=fields.filter(f=>f.farm_id===farmId);
- const filteredMembers=members.filter(m=>m.farm_id===farmId);
- const filteredMachines=machines.filter(m=>m.farm_id===farmId);
- const eligibleAssignees=selectedFarm
-  ?[{id:selectedFarm.owner_id,label:`${peopleMap.get(selectedFarm.owner_id)||"Tulajdonos"} (tulajdonos)`},
-    ...filteredMembers.filter(m=>m.user_id!==selectedFarm.owner_id).map(m=>({
-      id:m.user_id,label:`${peopleMap.get(m.user_id)||"Munkatárs"} (${farmMemberRoleLabel(m.member_role)})`
-    }))]
-  :[];
+ const {farm:selectedFarm,fields:filteredFields,machines:filteredMachines,assigneeIds}=selectDispatchOptions(farmId,farms,fields,members,machines);
+ const eligibleAssignees=selectedFarm?assigneeIds.map(userId=>({
+  id:userId,label:userId===selectedFarm.owner_id
+   ?`${peopleMap.get(userId)||"Tulajdonos"} (tulajdonos)`
+   :`${peopleMap.get(userId)||"Munkatárs"} (${farmMemberRoleLabel(members.find(m=>m.farm_id===farmId&&m.user_id===userId)?.member_role)})`
+ })):[];
  const canSubmit=Boolean(farmId&&fieldId&&assigneeId&&title.trim());
  function selectFarm(id:string){
   setFarmId(id);setFieldId("");setAssigneeId("");setMachineId("");
