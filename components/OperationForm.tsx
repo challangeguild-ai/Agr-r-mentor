@@ -8,6 +8,7 @@ import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails"
 import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {parseOperationDraft,type OperationDraft} from "@/lib/operationDraft";
+import {requiresPlantProtectionApprover,licenseAllowsCategory,regulatoryCategory} from "@/lib/plantProtectionApproval";
 
 type FieldOption={id:string;farmId:string;name:string;farmName:string;areaHa:number|null;countryCode?:CountryCode};
 type MachineOption={id:string;farmId:string;name:string;detail?:string};
@@ -158,9 +159,9 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   validUntil:selectedProduct.valid_until,regulatoryStatus:selectedProduct.regulatory_status,
   gracePeriodUntil:selectedProduct.grace_period_until
  }):null;
- const normalizedCategory=(selectedProduct?.regulatory_category||"").toUpperCase().replace(".","").trim();
- const approvalNeeded=!!selectedProduct&&hasUseCatalog&&(selectedProduct.approval_required||selectedProduct.professional_use_only||selectedProduct.prescription_required||(country==="HU"&&(normalizedCategory==="I"||normalizedCategory==="II")));
- const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&(normalizedCategory==="I"?a.authorization_level==="I":normalizedCategory==="II"?(a.authorization_level==="I"||a.authorization_level==="II"):true)),[approvers,normalizedCategory]);
+ const normalizedCategory=regulatoryCategory(selectedProduct?.regulatory_category);
+ const approvalNeeded=!!selectedProduct&&hasUseCatalog&&requiresPlantProtectionApprover(country,selectedProduct);
+ const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&licenseAllowsCategory(a.authorization_level,normalizedCategory)),[approvers,normalizedCategory]);
  const fertilizerOptions=catalog.length?catalog.map(x=>x.name):fertilizerCatalog.map(x=>x.name),methodOptions=catalog.length?catalog.map(x=>x.name):(type==="soil_work"?soilWork:[]),availableMachines=machines.filter(m=>!selectedField||m.farmId===selectedField.farmId),selectedMachine=machines.find(m=>m.id===machineId),effectiveProduct=product==="Egyéb"?customProduct:product;
  const nutrientSummary=useMemo(()=>{if(!fert||!effectiveProduct)return"";const d=Number(dose.replace(",","."));if(!Number.isFinite(d)||d<=0)return"";const item=catalog.find(x=>x.name===effectiveProduct)||fertilizerCatalog.find(x=>x.name===effectiveProduct);const meta=item?.metadata||{};return Object.entries(meta).filter(([,v])=>typeof v==="number").map(([k,v])=>`${k}: ${Math.round(d*(v as number))/100} kg/ha`).join(" · ")},[fert,effectiveProduct,dose,catalog]);
  function changeField(next:string){
