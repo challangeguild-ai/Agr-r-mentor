@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {createFieldOperation} from "@/app/operations/actions";
 import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
@@ -16,8 +16,10 @@ type Approver={id:string;full_name:string|null;authorization_level:"I"|"II"|"III
 type Source={source_name:string;source_url:string;status:"pending"|"ready"|"stale"|"error";last_imported_at:string|null;product_count:number;use_count:number;notes:string|null};
 type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];ingredients?:Ingredient[];approvers?:Approver[];source?:Source|null;error?:string};
 const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing","other"]);
+function localToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
 
 export function OperationForm({fields,machines=[],defaultFieldId=""}:{fields:FieldOption[];machines?:MachineOption[];defaultFieldId?:string}){
+ const formRef=useRef<HTMLFormElement>(null);
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
  const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
@@ -36,13 +38,59 @@ export function OperationForm({fields,machines=[],defaultFieldId=""}:{fields:Fie
  const nutrientSummary=useMemo(()=>{if(!fert||!effectiveProduct)return"";const d=Number(dose.replace(",","."));if(!Number.isFinite(d)||d<=0)return"";const item=catalog.find(x=>x.name===effectiveProduct)||fertilizerCatalog.find(x=>x.name===effectiveProduct);const meta=item?.metadata||{};return Object.entries(meta).filter(([,v])=>typeof v==="number").map(([k,v])=>`${k}: ${Math.round(d*(v as number))/100} kg/ha`).join(" · ")},[fert,effectiveProduct,dose,catalog]);
  function chooseUse(next:string){setUseId(next);const u=productUses.find(x=>x.id===next);if(u?.dose_max!=null){setDoseMode("official_max");setDose(String(u.dose_max).replace(".",","))}else{setDoseMode("custom");setDose("")}}
  function chooseDoseMode(mode:"official_max"|"custom"){setDoseMode(mode);if(mode==="official_max"&&selectedUse?.dose_max!=null)setDose(String(selectedUse.dose_max).replace(".",","));else setDose("")}
- async function submit(formData:FormData){setBusy(true);setError("");try{await createFieldOperation(formData);window.location.reload()}catch(e){setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");setBusy(false)}}
- return <form action={submit} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
+ function validateStep(targetStep:number,formData:FormData):string|null{
+  if(targetStep===0){
+   if(!fieldId||!fields.some(f=>f.id===fieldId))return "Az alapadatoknál válassz érvényes földtáblát.";
+   const date=String(formData.get("operation_date")||"");
+   const parsed=new Date(`${date}T12:00:00`);
+   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return "Adj meg érvényes műveleti dátumot.";
+   if(!operationTypes.some(([key])=>key===type))return "Válassz érvényes művelettípust.";
+  }
+  if(targetStep===1){
+   if(loadingCatalog)return "A szakmai katalógus még töltődik.";
+   if(fert&&!effectiveProduct.trim())return "Válassz vagy adj meg műtrágyát / anyagot.";
+   if(spraying){
+    if(products.length&&!productId)return "Válassz hivatalos készítményt.";
+    if(!products.length&&!product.trim())return "Add meg a készítmény nevét.";
+    if(hasUseCatalog&&(!catalogCrop||!useId))return "Válassz kultúrát és engedélyezett felhasználást.";
+    if(selectedUse?.dose_max!=null){
+     const n=Number(dose.trim().replace(",","."));
+     if(!dose.trim()||!Number.isFinite(n))return "Adj meg érvényes dózist.";
+     if((selectedUse.dose_min!=null&&n<selectedUse.dose_min)||n>selectedUse.dose_max)return "A dózisnak a hivatalosan engedélyezett tartományba kell esnie.";
+    }
+    if(approvalNeeded&&!eligibleApprovers.length)return "Ehhez a készítményhez előbb rögzíts megfelelő gazdasági jóváhagyót.";
+    if(approvalNeeded&&!String(formData.get("requested_approver_id")||""))return "Válassz gazdasági jóváhagyó személyt.";
+   }
+   const enteredDose=String(formData.get("dose")||"").trim();
+   if(enteredDose&&(!Number.isFinite(Number(enteredDose.replace(",",".")))||Number(enteredDose.replace(",","."))<0))return "A dózis érvénytelen: nemnegatív számot adj meg.";
+  }
+  if(targetStep===2){
+   const area=String(formData.get("treated_area")||"").trim().replace(",",".");
+   if(area){const n=Number(area);if(!Number.isFinite(n)||n<=0||(selectedField?.areaHa!=null&&n>selectedField.areaHa))return "A kezelt terület pozitív szám legyen, és nem haladhatja meg a földtábla méretét.";}
+   const quantity=String(formData.get("quantity")||"").trim().replace(",",".");
+   if(quantity&&(!Number.isFinite(Number(quantity))||Number(quantity)<0))return "Az összes mennyiség nem lehet negatív vagy érvénytelen.";
+   if(machineId==="manual"&&!customMachine.trim())return "Add meg a külső gép megnevezését.";
+  }
+  return null;
+ }
+ function advance(){
+  const message=validateStep(step,new FormData(formRef.current!));
+  if(message){setError(message);formRef.current?.scrollIntoView({behavior:"smooth",block:"start"});return}
+  setError("");setStep(v=>Math.min(3,v+1));
+ }
+ async function submit(formData:FormData){
+  for(let s=0;s<3;s++){const message=validateStep(s,formData);if(message){setStep(s);setError(message);return}}
+  setBusy(true);setError("");
+  try{await createFieldOperation(formData);window.location.reload()}
+  catch(e){setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");setBusy(false)}
+ }
+ return <form ref={formRef} noValidate action={submit} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
   <div className="operation-wide am-wizard-progress am-wizard-progress-labeled"><span className={step>=0?"active":""}>Alapadatok</span><i/><span className={step>=1?"active":""}>Szakmai részletek</span><i/><span className={step>=2?"active":""}>Végrehajtás</span><i/><span className={step>=3?"active":""}>Ellenőrzés</span></div>
   <div className="operation-wide am-operation-step-head"><span className="eyebrow">MŰVELET RÖGZÍTÉSE</span><h3>{step===0?"Alapadatok":step===1?"Anyag és szakmai részletek":step===2?"Végrehajtás":"Ellenőrzés és mentés"}</h3></div>
+  {error&&<div className="error-box operation-wide" role="alert">{error}</div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
-  <label>Dátum<input type="date" name="operation_date" defaultValue={new Date().toISOString().slice(0,10)} required/></label>
+  <label>Dátum<input type="date" name="operation_date" defaultValue={localToday()} required/></label>
   <label>Engedélyezési ország<div style={{minHeight:46,display:"flex",alignItems:"center",padding:"0 12px",border:"1px solid #dce5dc",borderRadius:10,background:"#f7faf7",fontWeight:700}}>{country==="HU"?"🇭🇺 Magyarország":"🇸🇰 Szlovákia"}</div></label>
   <label>Művelet<select name="operation_type" value={type} onChange={e=>setType(e.target.value)}>{operationTypes.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
   {hasMethod&&<label>Munkafolyamat<select name="subtype" defaultValue="" key={type}><option value="">Válassz munkafolyamatot</option>{methodOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját művelet</option></select></label>}
@@ -73,8 +121,8 @@ export function OperationForm({fields,machines=[],defaultFieldId=""}:{fields:Fie
     <div><small>Gép</small><strong>{machineId==="manual"?customMachine:selectedMachine?.name||"Nincs kiválasztva"}</strong></div>
   </div>
   {spraying&&<div className="operation-wide" style={{padding:12,border:"1px solid #dce5dc",borderRadius:12,fontSize:13}}><b>{country==="HU"?"🇭🇺 Magyar":"🇸🇰 Szlovák"} növényvédelmi kör</b><br/>{selectedProduct?<>Kiválasztva: <b>{selectedProduct.name}</b>{selectedProduct.regulatory_category?` · ${selectedProduct.regulatory_category}. forgalmi kategória`:""}{selectedProduct.authorization_number?` · engedély: ${selectedProduct.authorization_number}`:""}. </>:null}{selectedUse?<>Kultúra: <b>{selectedUse.crop}</b>{selectedUse.target?` · cél: ${selectedUse.target}`:""}{selectedUse.phi_days!=null?` · ÉVI: ${selectedUse.phi_days} nap`:""}{country==="SK"&&selectedUse.bbch_min!=null?` · BBCH ${selectedUse.bbch_min}${selectedUse.bbch_max!=null?`–${selectedUse.bbch_max}`:""}`:""}.</>:selectedProduct&&!hasUseCatalog?"A készítmény hivatalos terméktörzsből származik, de a nyilvános forrás nem adott hozzá ellenőrzött kultúra–cél–dózis rekordot. A megadott felhasználást a hatályos engedélyokirat alapján kell ellenőrizni; a rendszer ilyen esetben nem jelöl dózist hivatalosként.":source?.status==="ready"?"Az engedélyezett felhasználás kiválasztása kötelező.":"A hivatalos katalógus importja még nem teljes."}</div>}
-  {fert&&nutrientSummary&&<div className="operation-wide"><small>Hatóanyag kijuttatás: {nutrientSummary}</small></div>}{error&&<div className="error-box operation-wide">{error}</div>}
+  {fert&&nutrientSummary&&<div className="operation-wide"><small>Hatóanyag kijuttatás: {nutrientSummary}</small></div>}
   </div>
-  <div className="operation-wide am-wizard-actions">{step>0&&<button className="ghost-btn" type="button" onClick={()=>setStep(v=>Math.max(0,v-1))}>← Vissza</button>}<span/>{step<3?<button className="btn btn-primary" type="button" disabled={step===0&&!fieldId||loadingCatalog} onClick={()=>setStep(v=>Math.min(3,v+1))}>Tovább →</button>:<button className="btn btn-primary" type="submit" disabled={busy||loadingCatalog||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Mentés…":loadingCatalog?"Katalógus betöltése…":"Művelet rögzítése"}</button>}</div>
+  <div className="operation-wide am-wizard-actions">{step>0&&<button className="ghost-btn" type="button" onClick={()=>setStep(v=>Math.max(0,v-1))}>← Vissza</button>}<span/>{step<3?<button className="btn btn-primary" type="button" disabled={step===0&&!fieldId||loadingCatalog} onClick={advance}>Tovább →</button>:<button className="btn btn-primary" type="submit" disabled={busy||loadingCatalog||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Mentés…":loadingCatalog?"Katalógus betöltése…":"Művelet rögzítése"}</button>}</div>
  </form>;
 }
