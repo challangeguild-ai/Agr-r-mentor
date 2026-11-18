@@ -30,6 +30,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const draftPending=useRef<OperationDraft|null>(null);
  const draftInitialized=useRef(false);
  const draftInputsRestored=useRef(false);
+ const draftTouched=useRef(false);
  const loadedCatalogContext=useRef<string|null>(null);
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
@@ -118,6 +119,8 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  },[draftLoaded,loadingCatalog]);
  function persistDraft(){
   if(!draftLoaded||!draftInputsRestored.current||draftPending.current||busy||!formRef.current)return;
+  // The initial empty form must not create a misleading "restored draft" prompt.
+  if(!draftTouched.current&&!draftNotice&&step===0)return;
   try{
    const entries:Record<string,string>={};
    for(const [k,v] of new FormData(formRef.current).entries())if(typeof v==="string")entries[k]=v;
@@ -126,6 +129,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    sessionStorage.setItem(draftKey,JSON.stringify(saved));
   }catch{/* Private mode/storage restrictions must not prevent entering a record. */}
  }
+ function markDraftTouched(){draftTouched.current=true;persistDraft()}
  useEffect(()=>{persistDraft()},[draftLoaded,fieldId,type,step,product,customProduct,productId,useId,catalogCrop,dose,doseMode,machineId,customMachine,operationDate]);
  const hasUseCatalog=uses.length>0;
  const cropOptions=useMemo(()=>Array.from(new Set(uses.map(x=>x.crop).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"hu")),[uses]);
@@ -215,7 +219,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   try{await createFieldOperation(formData);try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}
   catch(e){setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");setBusy(false)}
  }
- return <form ref={formRef} noValidate action={submit} onInput={persistDraft} onChange={persistDraft} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
+ return <form ref={formRef} noValidate action={submit} onInput={markDraftTouched} onChange={markDraftTouched} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
   <div className="operation-wide am-wizard-progress am-wizard-progress-labeled"><span className={step>=0?"active":""}>Alapadatok</span><i/><span className={step>=1?"active":""}>Szakmai részletek</span><i/><span className={step>=2?"active":""}>Végrehajtás</span><i/><span className={step>=3?"active":""}>Ellenőrzés</span></div>
   <div className="operation-wide am-operation-step-head"><span className="eyebrow">MŰVELET RÖGZÍTÉSE</span><h3>{step===0?"Alapadatok":step===1?"Anyag és szakmai részletek":step===2?"Végrehajtás":"Ellenőrzés és mentés"}</h3></div>
   {draftNotice&&<div className="operation-wide am-draft-notice" role="status">
