@@ -221,3 +221,22 @@
  color:#64786a;font-size:11px;font-weight:650}
 .progressMeta b{font-size:11px;line-height:1.35;text-align:right;color:#205e3e}
 @media(max-width:767px){.progressMeta .resumeStateLabel,.progressMeta b{font-size:11px}}
+
+
+/* AGRAR 2.1 mobile legibility: remove 7–9 px informational text. */
+@media(max-width:920px){
+ .heroTitleRow span{font-size:11px}.heroSignals span{font-size:11px;min-height:40px}
+ .summaryCard small{font-size:10.5px}
+ .panelHead>a{font-size:11px}
+ .resumeTitle strong{font-size:13px}.resumeTitle small{font-size:11px}
+ .guidedHead p{font-size:11px}
+ .guided>a strong{font-size:13px}.guided>a small{font-size:11px}
+ .priorityTask strong{font-size:12.5px}
+ .priorityTask small,.priorityLocation strong,.priorityLocation small{font-size:10.5px}
+ .priorityBadge{font-size:10px}
+ .priorityAction{font-size:11px}
+ .fieldBody strong{font-size:13px}.fieldBody small{font-size:11px}
+ .fieldBody dt,.fieldBody dd{font-size:10.5px}
+ .event time,.event p,.doc small{font-size:10.5px}
+ .event strong,.doc strong{font-size:12px}
+}
