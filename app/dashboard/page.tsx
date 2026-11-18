@@ -7,6 +7,7 @@ import {FarmerTopbar} from "@/components/FarmerTopbar";
 import {FieldMiniMap} from "@/components/FieldMiniMap";
 import {dailyWorkSeverityLabel,prioritizeDailyWork,type DailyWorkInput} from "@/lib/dailyWorkPriority";
 import {summarizeStationPrecipitation} from "@/lib/weather/rollingPrecipitation";
+import {selectResumeCards} from "@/lib/dashboardResume";
 import styles from "./dashboard.module.css";
 
 function d(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
@@ -63,12 +64,8 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
   ...unreadReplies.map(r=>({id:r.id,kind:"report" as const,title:r.title,createdAt:r.replied_at||r.created_at,status:r.status,unread:true,fieldId:r.field_id}))
  ];
  const prioritized=prioritizeDailyWork(workItems).slice(0,4);
- const resume=[
-  ...openTasks.filter(t=>t.status==="in_progress").map(t=>({id:"p-"+t.id,title:t.title,meta:"Folyamatban lévő munka",stage:"Végrehajtás folyamatban",action:"Megnyitás",href:"/tasks"})),
-  ...openTasks.filter(t=>t.review_status==="rejected").map(t=>({id:"r-"+t.id,title:t.title,meta:"Javításra visszaküldött végrehajtás",stage:"Javítás szükséges",action:"Javítás megnyitása",href:"/tasks"})),
-  ...waitingReview.map(t=>({id:"w-"+t.id,title:t.title,meta:"Ellenőrzésre beküldve",stage:"Ellenőrzésre vár",action:"Státusz megnyitása",href:"/tasks"})),
-  ...unreadReplies.map(r=>({id:"m-"+r.id,title:r.title,meta:"Új szaktanácsadói válasz",stage:"Új válasz érkezett",action:"Válasz megnyitása",href:"/messages"}))
- ].slice(0,3);
+ const resume=selectResumeCards(openTasks,unreadReplies);
+
  const fieldCards=(fields??[]).map(f=>({field:f,inspection:inspectionMap.get(f.id),weather:weatherSummary.get(f.id)})).sort((a,b)=>{const rank=(v:string|undefined)=>v==="critical"?0:v==="attention"?1:v==="good"?2:3;return rank(a.inspection?.condition)-rank(b.inspection?.condition)||a.field.name.localeCompare(b.field.name,"hu")}).slice(0,3);
  const loc=(item:DailyWorkInput)=>item.fieldId?fieldMap.get(item.fieldId)?.name||"Földtábla":item.farmId?farmMap.get(item.farmId)?.name||"Gazdaság":"Gazdasági ügy";
  const href=(item:DailyWorkInput)=>item.kind==="report"?"/messages":item.kind==="inspection"&&item.fieldId?"/fields/"+item.fieldId:"/tasks";
