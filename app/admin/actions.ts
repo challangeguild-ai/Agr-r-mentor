@@ -1,5 +1,5 @@
-import {getInviteRedirectUrl} from "@/lib/inviteRedirect";
 "use server";
+import {getInviteRedirectUrl} from "@/lib/inviteRedirect";
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
