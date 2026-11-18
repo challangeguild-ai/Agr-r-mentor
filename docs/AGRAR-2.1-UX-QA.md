@@ -77,3 +77,18 @@
 - **Preview build:** a működési forrás legfrissebb ellenőrzött commitja `f0c41199` Vercel `success` státuszú.
 
 **Élesítés előtti megmaradt blokkolók:** Vercel és Supabase aktuális Production URL és Edge env összerendezése; valódi farmer/advisor/admin end-to-end és meghívó e-mail próbák; szükséges Supabase-migrációk és automatikus időjárási Cron ellenőrzése; éles merge külön jóváhagyással.
+
+
+## 2026-11-18 – negyedik kör: munkakiosztás és mentési stabilitás
+
+- **Műveleti napló jogosultság:** a saját földek mellett az aktív `manager` / `agronomist` gazdaságok is megjelennek. Ez a megjelenítést a meglévő szerveroldali jogosultsági szabályhoz igazítja, és nem ad új jogosultságot.
+- **Katalógus újrapróbálása:** azonos földtábla/ország/művelettípus esetén nem törli a beírt adatokat; kontextusváltásnál továbbra is törli az elavult növényvédelmi kiválasztásokat.
+- **Munkakiosztás UI:** a gazdaság választása szűri a földtáblát, végrehajtót és gépet; gazdaságváltáskor a régi kiválasztások törlődnek.
+- **Munkakiosztás mentés:** több kattintás elleni védelem; mentés alatt állapotjelzés; siker/hiba esetén felületi visszajelzés; érvénytelen határidő elutasítása.
+- **Részleges hibák:** a gép hozzárendelésének sikertelenségét a rendszer megkülönbözteti a feladatlétrehozás hibájától, és figyelmeztet az esetleges részben létrejött feladat ellenőrzésére. A külön táblákba írás továbbra sem tranzakciós, ezt hosszabb távon DB-oldali atomikus műveletté érdemes átalakítani.
+- **Kódfordítás:** a munkakiosztó új komponensének első bekötésekor az eredeti munkalistában még használt `machineTypeLabel` import hiányzott; reprodukció és célzott helyreállítás után az új felületet ismét bekapcsoltuk.
+- **Automatizált helyi tesztek:** 21/21 sikeres Node 22 teszt; 3 új eset a gazdaságfüggő mezők szűrésére, az ismeretlen gazdaságra és a gazdaságváltásra.
+- **Vercel státusz:** a legutóbbi működési kód commitja `2e958d62` sikeres `success` buildet kapott, a felületet bejelentkezett felhasználóval még nem ellenőriztük.
+
+### Kiadási figyelmeztetés
+A sikeres Vercel-build **nem** jelenti a teljes működő szerveroldali jogosultság és a Supabase integráció végigtesztelését. A PR maradjon Draft, az éles Supabase környezetet és a production domaint nem módosítottuk.
