@@ -26,7 +26,7 @@ const locate=(scrollToTarget:boolean)=>{
  const focus=(target.closest("label") as HTMLElement|null)||target;
  // Scroll exactly once per tour step; scroll/resize events only recalculate geometry.
  // Calling scrollIntoView on every scroll event previously created a feedback loop.
- if(scrollToTarget)focus.scrollIntoView({behavior:"smooth",block:"center"});
+ if(scrollToTarget)focus.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
  setRect(focus.getBoundingClientRect());
 };
 const reposition=()=>{if(timer)window.clearTimeout(timer);timer=window.setTimeout(()=>locate(false),32)};
