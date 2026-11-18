@@ -102,3 +102,33 @@
  .farmer-app .am-wizard .am-wizard-actions button{min-width:90px}
  .farmer-app .am-wizard .am-wizard-progress-labeled span{font-size:12px!important}
 }
+
+
+/* Agrár Mentor 2.1 – dependent dispatch form and accessible feedback. */
+.farmer-app .task-create-grid{align-items:end;gap:12px}
+.farmer-app .task-create-grid label{min-width:0;font-size:12.5px;line-height:1.45;color:#31483a}
+.farmer-app .task-create-grid :is(input,select){
+ min-height:44px;font-size:14px;line-height:1.4;background:#fff;
+ border:1px solid #cbd8ce;border-radius:10px;min-width:0;
+}
+.farmer-app .task-create-grid :is(input,select,button):focus-visible{
+ outline:3px solid #4e9870;outline-offset:2px;
+}
+.farmer-app .task-create-grid .am-dispatch-summary{
+ grid-column:1/-1!important;padding:11px 13px;
+ border:1px solid #d9e5d8;border-radius:10px;background:#f2f8f0;
+ color:#385946;font-size:12.5px;line-height:1.5;
+}
+.farmer-app .task-create-grid .error-box,
+.farmer-app .task-create-grid .success-box{
+ grid-column:1/-1!important;margin:0;font-size:13px;line-height:1.55;
+}
+.farmer-app .task-create-grid button[type="submit"]{
+ min-height:44px;height:auto!important;width:max-content;max-width:100%;
+ padding:10px 16px!important;font-size:13.5px!important;white-space:normal!important;
+}
+@media(max-width:760px){
+ .farmer-app .task-create-grid :is(input,select){font-size:16px}
+ .farmer-app .task-create-grid button[type="submit"]{width:100%}
+ .farmer-app .task-create-grid .am-dispatch-summary{font-size:13px}
+}
