@@ -53,7 +53,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    setDraftLoaded(true);
   }
  }).catch(e=>{if(active){const message=e instanceof Error?e.message:"A katalógus betöltése sikertelen.";setCatalogLoadError(message);setError(message);if(draftPending.current)setDraftLoaded(true)}}).finally(()=>{if(active)setLoadingCatalog(false)});return()=>{active=false}},[country,type,farmId,catalogRetry]);
- useEffect(()=>{setMachineId("");setCustomMachine("")},[fieldId]);
+
  // Restore only this user's short-lived, tab-local draft. No database write happens here.
  useEffect(()=>{
   if(draftInitialized.current)return;
@@ -118,6 +118,22 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&(normalizedCategory==="I"?a.authorization_level==="I":normalizedCategory==="II"?(a.authorization_level==="I"||a.authorization_level==="II"):true)),[approvers,normalizedCategory]);
  const fertilizerOptions=catalog.length?catalog.map(x=>x.name):fertilizerCatalog.map(x=>x.name),methodOptions=catalog.length?catalog.map(x=>x.name):(type==="soil_work"?soilWork:[]),availableMachines=machines.filter(m=>!selectedField||m.farmId===selectedField.farmId),selectedMachine=machines.find(m=>m.id===machineId),effectiveProduct=product==="Egyéb"?customProduct:product;
  const nutrientSummary=useMemo(()=>{if(!fert||!effectiveProduct)return"";const d=Number(dose.replace(",","."));if(!Number.isFinite(d)||d<=0)return"";const item=catalog.find(x=>x.name===effectiveProduct)||fertilizerCatalog.find(x=>x.name===effectiveProduct);const meta=item?.metadata||{};return Object.entries(meta).filter(([,v])=>typeof v==="number").map(([k,v])=>`${k}: ${Math.round(d*(v as number))/100} kg/ha`).join(" · ")},[fert,effectiveProduct,dose,catalog]);
+ function changeField(next:string){
+  if(next===fieldId)return;
+  setFieldId(next);
+  // Field change can change the crop, authorization region and available machines.
+  // Explicitly reselect the chemical treatment for the newly selected field.
+  setCatalogCrop("");setProductId("");setUseId("");setProduct("");
+  setDose("");setDoseMode("custom");
+  setMachineId("");setCustomMachine("");
+  setReview({});setError("");
+ }
+ function changeType(next:string){
+  if(next===type)return;
+  setType(next);
+  setCatalogCrop("");setProductId("");setUseId("");setProduct("");setCustomProduct("");
+  setDose("");setDoseMode("custom");setReview({});setError("");
+ }
  function chooseUse(next:string){setUseId(next);const u=productUses.find(x=>x.id===next);if(u?.dose_max!=null){setDoseMode("official_max");setDose(String(u.dose_max).replace(".",","))}else{setDoseMode("custom");setDose("")}}
  function chooseDoseMode(mode:"official_max"|"custom"){setDoseMode(mode);if(mode==="official_max"&&selectedUse?.dose_max!=null)setDose(String(selectedUse.dose_max).replace(".",","));else setDose("")}
  function validateStep(targetStep:number,formData:FormData):string|null{
@@ -187,10 +203,10 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     <button type="button" disabled={loadingCatalog} onClick={()=>setCatalogRetry(v=>v+1)}>Katalógus újratöltése</button>
    </div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
-  <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
+  <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>changeField(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
   <label>Dátum<input type="date" name="operation_date" defaultValue={localToday()} required/></label>
   <label>Engedélyezési ország<div style={{minHeight:46,display:"flex",alignItems:"center",padding:"0 12px",border:"1px solid #dce5dc",borderRadius:10,background:"#f7faf7",fontWeight:700}}>{country==="HU"?"🇭🇺 Magyarország":"🇸🇰 Szlovákia"}</div></label>
-  <label>Művelet<select name="operation_type" value={type} onChange={e=>setType(e.target.value)}>{operationTypes.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
+  <label>Művelet<select name="operation_type" value={type} onChange={e=>changeType(e.target.value)}>{operationTypes.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
   {hasMethod&&<label>Munkafolyamat<select name="subtype" defaultValue="" key={type}><option value="">Válassz munkafolyamatot</option>{methodOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját művelet</option></select></label>}
   </div>
   <div className="operation-wide am-operation-step" style={{display:step===1?"contents":"none"}}>
