@@ -113,9 +113,12 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   }
   draftInputsRestored.current=true;
   draftPending.current=null;
+  // Do not replace the original saved draft with empty values while the
+  // catalogue is still loading. Persist the restored DOM values now.
+  persistDraft();
  },[draftLoaded,loadingCatalog]);
  function persistDraft(){
-  if(!draftLoaded||busy||!formRef.current)return;
+  if(!draftLoaded||!draftInputsRestored.current||draftPending.current||busy||!formRef.current)return;
   try{
    const entries:Record<string,string>={};
    for(const [k,v] of new FormData(formRef.current).entries())if(typeof v==="string")entries[k]=v;
