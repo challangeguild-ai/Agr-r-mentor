@@ -7,6 +7,7 @@ import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalo
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
+import {requiresPlantProtectionApprover,licenseAllowsCategory,regulatoryCategory} from "@/lib/plantProtectionApproval";
 
 type Field={id:string;farmId:string;farmName:string;name:string;areaHa:number|null;crop:string|null;countryCode:CountryCode};
 type Person={id:string;farmId:string;name:string;roleLabel:string};
@@ -32,7 +33,9 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   validUntil:selectedProduct.valid_until,regulatoryStatus:selectedProduct.regulatory_status,
   gracePeriodUntil:selectedProduct.grace_period_until
  }):null;
- const category=(selectedProduct?.regulatory_category||"").toUpperCase().replace(".","").trim(),approvalNeeded=!!selectedProduct&&(selectedProduct.approval_required||selectedProduct.professional_use_only||selectedProduct.prescription_required||(country==="HU"&&(category==="I"||category==="II"))),eligibleApprovers=approvers.filter(a=>a.role!=="advisor"&&(category==="I"?a.authorization_level==="I":category==="II"?["I","II"].includes(a.authorization_level):true));
+ const category=regulatoryCategory(selectedProduct?.regulatory_category),
+  approvalNeeded=!!selectedProduct&&requiresPlantProtectionApprover(country,selectedProduct),
+  eligibleApprovers=approvers.filter(a=>a.role!=="advisor"&&licenseAllowsCategory(a.authorization_level,category));
  const availablePeople=people.filter(p=>p.farmId===farmId),availableMachines=machines.filter(m=>m.farmId===farmId),fertOptions=catalog.length?catalog.map(x=>x.name):fertilizerCatalog.map(x=>x.name),methodOptions=catalog.length?catalog.map(x=>x.name):(type==="soil_work"?soilWork:[]),effectiveProduct=productName==="Egyéb"?customProduct:productName;
  function chooseUse(id:string){setUseId(id);const u=productUses.find(x=>x.id===id);if(u?.dose_max!=null)setDose(String(u.dose_max).replace(".",","));else setDose("")}
  async function submit(fd:FormData){
