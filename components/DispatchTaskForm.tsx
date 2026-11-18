@@ -19,7 +19,7 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
  const router=useRouter();
  const formRef=useRef<HTMLFormElement>(null);
  const submitting=useRef(false);
- const[busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState("");
+ const[busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState(""),[warning,setWarning]=useState("");
  const[farmId,setFarmId]=useState("");
  const[fieldId,setFieldId]=useState("");
  const[assigneeId,setAssigneeId]=useState("");
@@ -37,17 +37,18 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
  function selectFarm(id:string){
   setFarmId(id);setFieldId("");setAssigneeId("");setMachineId("");
   setFarmName(farms.find(f=>f.id===id)?.name||"");
-  setError("");setSuccess("");
+  setError("");setSuccess("");setWarning("");
  }
  async function submit(event:React.FormEvent<HTMLFormElement>){
   event.preventDefault();
   if(submitting.current||!canSubmit)return;
   const data=new FormData(event.currentTarget);
   const taskTitle=title.trim();
-  submitting.current=true;setBusy(true);setError("");setSuccess("");
+  submitting.current=true;setBusy(true);setError("");setSuccess("");setWarning("");
   try{
-   await dispatchTask(data);
-   setSuccess(`„${taskTitle}” feladat kiosztva. A lista frissült.`);
+   const result=await dispatchTask(data);
+   setSuccess(`„${taskTitle}” feladat rögzítve. A lista frissült.`);
+   if(result.warnings.length)setWarning(`A feladat elkészült, de további ellenőrzés szükséges: ${result.warnings.join(" ")}`);
    formRef.current?.reset();
    setFarmId("");setFieldId("");setAssigneeId("");setMachineId("");setTitle("");setFarmName("");
    router.refresh();
@@ -104,6 +105,7 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
   </div>
   {error&&<div className="task-description error-box" role="alert">{error}</div>}
   {success&&<div className="task-description success-box" role="status">{success}</div>}
+  {warning&&<div className="task-description notice" role="alert">{warning}</div>}
   <button className="btn btn-primary" disabled={!canSubmit||busy} type="submit">
    {busy?"Kiosztás folyamatban…":"Munka kiosztása"}
   </button>
