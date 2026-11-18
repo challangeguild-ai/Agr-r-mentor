@@ -4,6 +4,7 @@ import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
 import {FarmerTopbar} from "@/components/FarmerTopbar";
 import styles from "./field-detail.module.css";
+import {summarizeStationPrecipitation} from "@/lib/weather/rollingPrecipitation";
 import {InspectionMedia} from "@/components/InspectionMedia";
 import {FarmerReportForm} from "@/components/FarmerReportForm";
 import {FarmerReportMedia} from "@/components/FarmerReportMedia";
@@ -52,9 +53,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   const openTasks=(tasks??[]).filter(t=>t.status!=="done");
   const latestInspection=(inspections??[])[0];
   const weatherRows=weather??[];
-  const weatherAge=(date:string)=>Math.floor((Date.now()-new Date(date+"T12:00:00").getTime())/86400000);
-  const rain7=weatherRows.filter(w=>weatherAge(w.weather_date)<=7).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
-  const rain30=weatherRows.filter(w=>weatherAge(w.weather_date)<=30).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
+  const {rain7,rain30,days7,days30}=summarizeStationPrecipitation(weatherRows);
   const latestWeather=weatherRows[0]||null;
   const lastRain=weatherRows.find(w=>Number(w.precipitation_mm)>0);
   const openReports=(reports??[]).filter(r=>r.status!=="closed");
@@ -89,14 +88,14 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <section id="attekintes" className={styles.overviewGrid}>
        <article className={styles.infoCard}><h2>Tábla adatok</h2><dl><div><dt>Gazdaság</dt><dd>{farm?.name||"—"}</dd></div><div><dt>Kataszter</dt><dd>{farm?.settlement||"—"}</dd></div><div><dt>Gazdasági év</dt><dd>{field.crop_year||"—"}</dd></div><div><dt>Vetés</dt><dd>{formatDate(field.sowing_date)}</dd></div><div><dt>Megjegyzés</dt><dd>{field.notes||"—"}</dd></div></dl></article>
        <article id="terkep" className={styles.mapCard}><div className={styles.cardTitle}><h2>Térképi nézet</h2><span>{field.area_ha?field.area_ha+" ha":""}</span></div><FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots} compact/></article>
-       <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>30 nap csapadék</dt><dd>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
+       <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days7}/7 nap`:"—"}</dd></div><div><dt>30 nap csapadék</dt><dd>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days30}/30 nap`:"—"}</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
       </section>
 
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
        <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
        <div className="field-detail-stats" style={{margin:"14px 0 0"}}>
-        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>MÉRT · hivatalos állomási adat, nem táblán mért érték</small></article>
-        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>HungaroMet automata állomás · 06–06 UTC napi összeg</small></article>
+        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm`:"—"}</strong><small>{days7}/7 nap mérési adat · hivatalos állomás, nem helyszíni mérés</small></article>
+        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm`:"—"}</strong><small>{days30}/30 nap mérési adat · HungaroMet automata állomás · 06–06 UTC</small></article>
         <article className="stat-card"><span>Utolsó mért csapadék</span><strong className="field-stat-text">{lastRain?Number(lastRain.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})+" mm":"—"}</strong><small>{lastRain?formatDate(lastRain.weather_date):"Még nincs szinkronizált adat"}</small></article>
         <article className="stat-card"><span>Adatforrás</span><strong className="field-stat-text">{latestWeather?.station_name||"—"}</strong><small>{latestWeather?("MÉRT · hivatalos állomás · "+Number(latestWeather.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})+" km a táblától"):"A szinkron után jelenik meg"}</small></article>
        </div>
