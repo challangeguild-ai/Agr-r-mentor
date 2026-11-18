@@ -22,8 +22,22 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
  if(profile?.system_role==="admin")redirect("/system-admin");
  if(profile?.role==="advisor")redirect(field?`/admin/operations?field=${encodeURIComponent(field)}`:"/admin/operations");
 
- const{data:farms}=await supabase.from("farms").select("id,name,country_code").eq("owner_id",user.id).order("name");
- const farmIds=(farms??[]).map(f=>f.id);
+ // Managers and agronomists may record operations on assigned farms, not just owned ones.
+ // Match the server-side createFieldOperation authorization and /dispatch behavior.
+ const[{data:owned,error:ownedError},{data:managedMemberships,error:membershipError}]=await Promise.all([
+  supabase.from("farms").select("id,name,country_code,owner_id").eq("owner_id",user.id).order("name"),
+  supabase.from("farm_members").select("farm_id,member_role").eq("user_id",user.id).eq("active",true).in("member_role",["manager","agronomist"])
+ ]);
+ if(ownedError)throw new Error(ownedError.message);
+ if(membershipError)throw new Error(membershipError.message);
+ const ownedIds=new Set((owned??[]).map(f=>f.id));
+ const managedIds=[...new Set((managedMemberships??[]).map(m=>m.farm_id))].filter(id=>!ownedIds.has(id));
+ const{data:managedFarms,error:managedError}=managedIds.length
+  ?await supabase.from("farms").select("id,name,country_code,owner_id").in("id",managedIds).order("name")
+  :{data:[],error:null};
+ if(managedError)throw new Error(managedError.message);
+ const farms=[...(owned??[]),...(managedFarms??[])];
+ const farmIds=farms.map(f=>f.id);
  const[{data:fields},{data:machines}]=farmIds.length?await Promise.all([
   supabase.from("fields").select("id,name,farm_id,area_ha").in("farm_id",farmIds).order("name"),
   supabase.from("machines").select("id,farm_id,name,machine_type,manufacturer,model").in("farm_id",farmIds).eq("active",true).order("name")
