@@ -113,3 +113,24 @@ A sikeres Vercel-build **nem** jelenti a teljes működő szerveroldali jogosult
 5. Teljes GitHub tesztcsomag és valódi böngészős ellenőrzések után külön merge/élesítés jóváhagyása.
 
 A tesztág **nem** módosítja a production adatbázist vagy az éles honlapot.
+
+
+## 2026-11-18 – hatodik ellenőrzési kör: szerveroldali megfelelőség és build-kapu
+
+- A `package.json` build-parancsa immár `npm test && next build`; a Preview sikeres buildje ezért a Node 22 regressziós tesztek futását is megköveteli.
+- **Szerveroldali kiskapu bezárva:** növényvédelmi műveletet nem lehet kézi készítménynévvel beküldeni a hivatalos `product_id` kihagyásával, ha az adott országban aktív hivatalos terméktörzs létezik. Ha nincs aktív hivatalos termék, kézi bejegyzés csak megadott készítménynévvel fogadható el; az nem jelölhető hivatalos engedélyezett felhasználásnak.
+- **Gazdálkodói művelet:** ha a `field_operations` sor létrejött, de az idővonal későbbi írása hibázik, a rendszer a létrejött műveletet részleges sikernek tekinti, a felületen figyelmeztet, és nem kínál ismételt mentést a duplikáció veszélyével.
+- **Szaktanácsadói terv:** valós naptári dátum, szigorú tizedesbevitel, az engedély hatálya / HU visszavonási felhasználási türelmi idő, jogosult gazdasági jóváhagyó és jogosultsági kategória szerveroldali ellenőrzése.
+- **Szaktanácsadói terv UX:** lejárt vagy nem alkalmazható készítmény a tervben még mentés előtt látható hibát kap. A már létrehozott feladat és terv utáni opcionális napló-, gép- és értesítési hibák külön figyelmeztetések, nem duplikálásra késztető általános hibák.
+- **Katalógus jogosultság:** gazdaságspecifikus engedély- és jóváhagyói adatokhoz a gazdaságtulajdonos, aktív gazdaságvezető vagy agronómus férhet hozzá; szaktanácsadó esetén továbbra is a DB RLS-sel látható gazdaságok körére korlátozott az elérés.
+- **Jóváhagyók egységes szabálya:** a két űrlap közös jogosultsági helperével és négy regressziós teszttel az I/II kategória szabályai konzisztensen jelennek meg. A segédfüggvény közvetlen szerveroldali importja a buildet hibára vitte; a két szerver action ezért egyelőre a korábbi, velük funkcionálisan egyenértékű inline ellenőrzést használja, amíg a konkrét buildhiba diagnózisa el nem készül.
+- **Automatikus tesztek:** összesen 34 egyedi `test(...)` eset van tíz `.test.mjs` fájlban. A Vercel Preview  `654e6dd6` commitjának `success` státusza a kötelező tesztparancsot tartalmazó build mellett igazolt.
+- Ez build- és célzott regressziós tesztbizonyíték, **nem** jogosult felhasználóval végzett Supabase adatbázis E2E-próba.
+
+### További kiadási kapuk
+1. Valós gazdálkodói és szaktanácsadói E2E-teszt: aktuális gazdaság/jogosultság, katalógus, engedély-, jóváhagyó-, művelet- és tervmentés.
+2. Részleges írások adatbázis-tranzakciós/idempotens kezelése Supabase oldalon későbbi tervezett feladat; az aktuális figyelmeztetések a felhasználó újrakattintásából eredő duplikáció kockázatát csökkentik, **nem** adnak teljes szerveroldali idempotenciagaranciát.
+3. Valódi meghívó e-mail, `APP_PUBLIC_ORIGIN` és Supabase Auth allowlist, Edge Function, HungaroMet Cron, MFA/RLS integráció.
+4. Az utolsó dokumentációs commit Preview-buildjének sikeres ellenőrzése, és csak később külön merge-jóváhagyás.
+
+Az éles app, Supabase adatbázis és production domain nem módosult.
