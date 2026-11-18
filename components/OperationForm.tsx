@@ -31,9 +31,12 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const draftInitialized=useRef(false);
  const draftInputsRestored=useRef(false);
  const draftTouched=useRef(false);
+ const submitting=useRef(false);
+ const saved=useRef(false);
  const loadedCatalogContext=useRef<string|null>(null);
  const [draftLoaded,setDraftLoaded]=useState(false);
  const [draftNotice,setDraftNotice]=useState(false);
+ const [savedWarning,setSavedWarning]=useState("");
  const [review,setReview]=useState<Record<string,string>>({});
  const [operationDate,setOperationDate]=useState(localToday);
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[catalogLoadError,setCatalogLoadError]=useState(""),[catalogRetry,setCatalogRetry]=useState(0),[error,setError]=useState(""),[step,setStep]=useState(0);
@@ -132,7 +135,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   persistDraft();
  },[draftLoaded,loadingCatalog,catalogLoadError]);
  function persistDraft(){
-  if(!draftLoaded||!draftInputsRestored.current||draftPending.current||busy||!formRef.current)return;
+  if(!draftLoaded||!draftInputsRestored.current||draftPending.current||busy||saved.current||!formRef.current)return;
   // The initial empty form must not create a misleading "restored draft" prompt.
   if(!draftTouched.current&&!draftNotice&&step===0)return;
   try{
@@ -228,10 +231,22 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   setError("");setStep(v=>Math.min(3,v+1));
  }
  async function submit(formData:FormData){
+  if(submitting.current||saved.current)return;
   for(let s=0;s<3;s++){const message=validateStep(s,formData);if(message){setStep(s);setError(message);return}}
-  setBusy(true);setError("");
-  try{await createFieldOperation(formData);try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}
-  catch(e){setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");setBusy(false)}
+  submitting.current=true;setBusy(true);setError("");
+  try{
+   const result=await createFieldOperation(formData);
+   saved.current=true;
+   try{sessionStorage.removeItem(draftKey)}catch{}
+   if(result.warning){
+    setSavedWarning(result.warning);
+    setDraftNotice(false);
+    setBusy(false);
+   }else window.location.reload();
+  }catch(e){
+   setError(e instanceof Error?e.message:"A művelet mentése sikertelen.");
+   setBusy(false);
+  }finally{submitting.current=false}
  }
  return <form ref={formRef} noValidate action={submit} onInput={markDraftTouched} onChange={markDraftTouched} className="admin-form operation-form am-wizard" data-tour="farmer-operation-wizard">
   <div className="operation-wide am-wizard-progress am-wizard-progress-labeled"><span className={step>=0?"active":""}>Alapadatok</span><i/><span className={step>=1?"active":""}>Szakmai részletek</span><i/><span className={step>=2?"active":""}>Végrehajtás</span><i/><span className={step>=3?"active":""}>Ellenőrzés</span></div>
@@ -241,6 +256,11 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     <button type="button" onClick={()=>{try{sessionStorage.removeItem(draftKey)}catch{}window.location.reload()}}>Piszkozat elvetése</button>
    </div>}
   {error&&<div className="error-box operation-wide" role="alert">{error}</div>}
+  {savedWarning&&<div className="operation-wide am-draft-notice" role="status">
+    <strong>A műveletet sikeresen rögzítettük.</strong>
+    <span>{savedWarning}</span>
+    <button type="button" onClick={()=>window.location.reload()}>Műveleti napló frissítése</button>
+   </div>}
   {catalogLoadError&&<div className="operation-wide am-draft-notice" role="status">
     <span>A szakmai katalógus betöltése sikertelen. Növényvédelmi rögzítéshez előbb helyre kell állnia az adatkapcsolatnak.</span>
     <button type="button" disabled={loadingCatalog} onClick={()=>setCatalogRetry(v=>v+1)}>Katalógus újratöltése</button>
@@ -287,6 +307,6 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   {spraying&&<div className="operation-wide" style={{padding:12,border:"1px solid #dce5dc",borderRadius:12,fontSize:13}}><b>{country==="HU"?"🇭🇺 Magyar":"🇸🇰 Szlovák"} növényvédelmi kör</b><br/>{selectedProduct?<>Kiválasztva: <b>{selectedProduct.name}</b>{selectedProduct.regulatory_category?` · ${selectedProduct.regulatory_category}. forgalmi kategória`:""}{selectedProduct.authorization_number?` · engedély: ${selectedProduct.authorization_number}`:""}. </>:null}{selectedUse?<>Kultúra: <b>{selectedUse.crop}</b>{selectedUse.target?` · cél: ${selectedUse.target}`:""}{selectedUse.phi_days!=null?` · ÉVI: ${selectedUse.phi_days} nap`:""}{country==="SK"&&selectedUse.bbch_min!=null?` · BBCH ${selectedUse.bbch_min}${selectedUse.bbch_max!=null?`–${selectedUse.bbch_max}`:""}`:""}.</>:selectedProduct&&!hasUseCatalog?"A készítmény hivatalos terméktörzsből származik, de a nyilvános forrás nem adott hozzá ellenőrzött kultúra–cél–dózis rekordot. A megadott felhasználást a hatályos engedélyokirat alapján kell ellenőrizni; a rendszer ilyen esetben nem jelöl dózist hivatalosként.":source?.status==="ready"?"Az engedélyezett felhasználás kiválasztása kötelező.":"A hivatalos katalógus importja még nem teljes."}</div>}
   {fert&&nutrientSummary&&<div className="operation-wide"><small>Hatóanyag kijuttatás: {nutrientSummary}</small></div>}
   </div>
-  <div className="operation-wide am-wizard-actions">{step>0&&<button className="ghost-btn" type="button" onClick={()=>setStep(v=>Math.max(0,v-1))}>← Vissza</button>}<span/>{step<3?<button className="btn btn-primary" type="button" disabled={step===0&&!fieldId||loadingCatalog} onClick={advance}>Tovább →</button>:<button className="btn btn-primary" type="submit" disabled={busy||loadingCatalog||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Mentés…":loadingCatalog?"Katalógus betöltése…":"Művelet rögzítése"}</button>}</div>
+  <div className="operation-wide am-wizard-actions">{step>0&&<button className="ghost-btn" type="button" onClick={()=>setStep(v=>Math.max(0,v-1))}>← Vissza</button>}<span/>{step<3?<button className="btn btn-primary" type="button" disabled={step===0&&!fieldId||loadingCatalog} onClick={advance}>Tovább →</button>:<button className="btn btn-primary" type="submit" disabled={busy||!!savedWarning||loadingCatalog||(approvalNeeded&&eligibleApprovers.length===0)}>{busy?"Mentés…":loadingCatalog?"Katalógus betöltése…":"Művelet rögzítése"}</button>}</div>
  </form>;
 }
