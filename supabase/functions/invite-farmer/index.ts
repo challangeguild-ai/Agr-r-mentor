@@ -18,7 +18,17 @@ Deno.serve(async(req:Request)=>{
   const{data:aal,error:aalError}=await userClient.auth.mfa.getAuthenticatorAssuranceLevel(jwt);if(aalError)return fail("Az MFA állapot nem ellenőrizhető.",401,aalError.message);if(aal?.currentLevel!=="aal2")return fail("Ehhez a művelethez kétlépcsős hitelesítés szükséges.",403,{code:"MFA_REQUIRED"});
   const{data:profile,error:profileError}=await userClient.from("profiles").select("role,system_role").eq("id",userData.user.id).maybeSingle();if(profileError)return fail(`Profil ellenőrzési hiba: ${profileError.message}`,500);
   const body=await req.json().catch(()=>({}));const email=String(body.email||"").trim().toLowerCase(),fullName=String(body.full_name||"").trim(),redirectTo=String(body.redirect_to||"").trim(),farmId=String(body.farm_id||"").trim();
-  if(!email||!email.includes("@")||email.length>250)return fail("Érvényes e-mail cím szükséges.",400);if(fullName.length>120)return fail("A név túl hosszú.",400);if(redirectTo&&!redirectTo.startsWith("https://agr-r-mentor.vercel.app/"))return fail("Érvénytelen visszatérési cím.",400);
+  if(!email||!email.includes("@")||email.length>250)return fail("Érvényes e-mail cím szükséges.",400);if(fullName.length>120)return fail("A név túl hosszú.",400);if(redirectTo){
+    const expectedOrigin=Deno.env.get("APP_PUBLIC_ORIGIN")?.trim();
+    if(!expectedOrigin)return fail("Az APP_PUBLIC_ORIGIN nincs beállítva a meghívó szolgáltatásban.",503);
+    let configured:URL, destination:URL;
+    try{configured=new URL(expectedOrigin);destination=new URL(redirectTo)}
+    catch{return fail("Hibás meghívási webcím.",400)}
+    if(configured.protocol!=="https:"||configured.pathname!=="/"||configured.search||configured.hash
+      ||destination.protocol!=="https:"||destination.origin!==configured.origin
+      ||destination.pathname!=="/invite"||destination.search||destination.hash)
+      return fail("Érvénytelen visszatérési cím.",400);
+  }
   const regularAdvisor=profile?.role==="advisor"&&profile?.system_role!=="admin";
   let farmOwner=false;
   if(profile?.role==="farmer"&&farmId){const{data:farm,error:farmError}=await userClient.from("farms").select("id").eq("id",farmId).eq("owner_id",userData.user.id).maybeSingle();if(farmError)return fail(`Gazdaság ellenőrzési hiba: ${farmError.message}`,500);farmOwner=!!farm}
