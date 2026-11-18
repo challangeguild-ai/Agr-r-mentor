@@ -100,7 +100,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   if(!draftLoaded||draftInputsRestored.current)return;
   const saved=draftPending.current;
   if(!saved){draftInputsRestored.current=true;return}
-  if(loadingCatalog)return;
+  if(loadingCatalog||catalogLoadError)return;
   const names=new Set(["operation_date","subtype","crop","target","active_ingredient","dose_unit",
    "treated_area","quantity","quantity_unit","operator","weather","notes","requested_approver_id"]);
   for(const el of formRef.current?.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>("[name]")||[]){
@@ -116,7 +116,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   // Do not replace the original saved draft with empty values while the
   // catalogue is still loading. Persist the restored DOM values now.
   persistDraft();
- },[draftLoaded,loadingCatalog]);
+ },[draftLoaded,loadingCatalog,catalogLoadError]);
  function persistDraft(){
   if(!draftLoaded||!draftInputsRestored.current||draftPending.current||busy||!formRef.current)return;
   // The initial empty form must not create a misleading "restored draft" prompt.
