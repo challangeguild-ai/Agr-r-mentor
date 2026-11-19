@@ -6,6 +6,7 @@ import {AdminDeleteButton} from "@/components/AdminDeleteButton";
 import {FarmCreateWithContacts} from "@/components/FarmCreateWithContacts";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {inviteFarmer,createField} from "../actions";
+import {countDueFieldChecks} from "@/lib/clientOverview";
 import styles from "./clients.module.css";
 
 function dateLabel(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
@@ -29,7 +30,7 @@ export default async function ClientsPage(){
   const ownFarms=(farms??[]).filter(x=>x.owner_id===f.id),farmIds=ownFarms.map(x=>x.id),ownFields=(fields??[]).filter(x=>farmIds.includes(x.farm_id)),fieldIds=ownFields.map(x=>x.id);
   const area=ownFields.reduce((s,x)=>s+Number(x.area_ha||0),0),critical=ownFields.filter(x=>latest.get(x.id)?.condition==="critical").length,attention=ownFields.filter(x=>latest.get(x.id)?.condition==="attention").length;
   const openTasks=(tasks??[]).filter(t=>farmIds.includes(t.farm_id)||fieldIds.includes(t.field_id)),overdue=openTasks.filter(t=>t.due_date&&t.due_date<today).length,openReports=(reports??[]).filter(r=>fieldIds.includes(r.field_id)).length;
-  const dueChecks=(inspections??[]).filter(i=>fieldIds.includes(i.field_id)&&i.issue_status!=="resolved"&&i.next_check_at&&i.next_check_at<=today).length,last=(inspections??[]).find(i=>fieldIds.includes(i.field_id));
+  const dueChecks=countDueFieldChecks(fieldIds,latest,today),last=(inspections??[]).find(i=>fieldIds.includes(i.field_id));
   const score=critical*100+attention*35+dueChecks*25+overdue*20+openReports*15;
   return{farmer:f,ownFarms,ownFields,area,critical,attention,openTasks:openTasks.length,overdue,openReports,dueChecks,last,score};
  }).sort((a,b)=>b.score-a.score||String(a.farmer.full_name||"").localeCompare(String(b.farmer.full_name||""),"hu"));

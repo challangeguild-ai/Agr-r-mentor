@@ -29,13 +29,18 @@ export async function createAdvisorVisit(formData:FormData){
   let fieldName="";
   if(fieldId){const{data:field}=await supabase.from("fields").select("id,name,farm_id").eq("id",fieldId).eq("farm_id",farmId).maybeSingle();if(!field)throw new Error("A kiválasztott tábla nem ehhez a gazdasághoz tartozik.");fieldName=field.name;}
   const payload=encodeAdvisorVisit({scheduledAt:when.toISOString(),purpose,note:note||undefined,status:"planned",completedAt:null});
-  const{error}=await supabase.from("timeline_events").insert({farm_id:farmId,field_id:fieldId||null,event_type:ADVISOR_VISIT_EVENT,title:`Tervezett látogatás: ${purpose}`,description:payload,event_at:when.toISOString(),created_by:user.id});
-  if(error)throw new Error(error.message);
+  const{data:event,error}=await supabase.from("timeline_events").insert({farm_id:farmId,field_id:fieldId||null,event_type:ADVISOR_VISIT_EVENT,title:`Tervezett látogatás: ${purpose}`,description:payload,event_at:when.toISOString(),created_by:user.id}).select("id").single();
+  if(error||!event)throw new Error(error?.message||"A látogatás mentése nem igazolható. Ellenőrizd a listát.");
+  let notificationError=false;
   if(notifyFarmer){
     const href=fieldId?`/fields/${fieldId}`:"/dashboard";
-    await supabase.from("notifications").insert({user_id:farm.owner_id,kind:"advisor_visit",title:"Szaktanácsadói látogatás tervezve",message:`${purpose}${fieldName?` · ${fieldName}`:""} · ${when.toLocaleString("hu-HU")}`,href});
+    try{
+      const{error:sendError}=await supabase.from("notifications").insert({user_id:farm.owner_id,kind:"advisor_visit",title:"Szaktanácsadói látogatás tervezve",message:`${purpose}${fieldName?` · ${fieldName}`:""} · ${when.toLocaleString("hu-HU")}`,href,event_key:`advisor_visit:${event.id}`});
+      if(sendError){console.error("A látogatás elmentődött, de az értesítés sikertelen",sendError);notificationError=true}
+    }catch(sendError){console.error("A látogatás elmentődött, de az értesítés nem ellenőrizhető",sendError);notificationError=true}
   }
   revalidatePath("/admin/visits");revalidatePath("/admin/portfolio");revalidatePath("/admin");
+  if(notificationError)redirect("/admin/visits?notice=notification_failed");
 }
 
 export async function updateAdvisorVisitStatus(formData:FormData){

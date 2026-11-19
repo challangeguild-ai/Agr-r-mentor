@@ -1,13 +1,23 @@
 "use client";
 import Link from "next/link";
-import {useEffect,useMemo,useState} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 
 type Notification={id:string;user_id?:string;kind:string;title:string;message:string|null;href:string|null;read_at:string|null;created_at:string};
 
 export function NotificationBell(){
  const supabase=useMemo(()=>createClient(),[]);
+ const countRequest=useRef(0);
  const[items,setItems]=useState<Notification[]>([]),[unread,setUnread]=useState(0),[open,setOpen]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState("");
+ const refreshUnreadCount=useCallback(async()=>{
+  const requestId=++countRequest.current;
+  const{data:{user}}=await supabase.auth.getUser();
+  if(!user)return;
+  const{count,error:countError}=await supabase.from("notifications").select("id",{count:"exact",head:true}).eq("user_id",user.id).is("read_at",null);
+  if(requestId!==countRequest.current)return;
+  if(countError){setError("Az olvasatlan értesítések száma nem frissíthető.");return}
+  setUnread(count??0);
+ },[supabase]);
  useEffect(()=>{
   let alive=true;let channel:any=null;
   (async()=>{
@@ -25,19 +35,20 @@ export function NotificationBell(){
    setLoading(false);
    channel=supabase.channel(`notification-bell-${user.id}`).on("postgres_changes",{event:"*",schema:"public",table:"notifications",filter:`user_id=eq.${user.id}`},payload=>{
     if(!alive)return;
+    void refreshUnreadCount();
     if(payload.eventType==="INSERT"){
-     const item=payload.new as Notification;setItems(prev=>[item,...prev.filter(x=>x.id!==item.id)].slice(0,20));if(!item.read_at)setUnread(v=>v+1);
+     const item=payload.new as Notification;setItems(prev=>[item,...prev.filter(x=>x.id!==item.id)].slice(0,20));
     }else if(payload.eventType==="UPDATE"){
-     const item=payload.new as Notification;setItems(prev=>{const old=prev.find(x=>x.id===item.id);if(old&&!old.read_at&&item.read_at)setUnread(v=>Math.max(0,v-1));if(old&&old.read_at&&!item.read_at)setUnread(v=>v+1);return prev.map(x=>x.id===item.id?item:x)});
+     const item=payload.new as Notification;setItems(prev=>prev.map(x=>x.id===item.id?item:x));
     }else if(payload.eventType==="DELETE"){
-     const old=payload.old as Notification;setItems(prev=>prev.filter(x=>x.id!==old.id));if(!old.read_at)setUnread(v=>Math.max(0,v-1));
+     const old=payload.old as Notification;setItems(prev=>prev.filter(x=>x.id!==old.id));
     }
    }).subscribe();
   })();
   return()=>{alive=false;if(channel)void supabase.removeChannel(channel)};
- },[supabase]);
- async function markRead(id:string){const{data:{user}}=await supabase.auth.getUser();if(!user)return;const item=items.find(x=>x.id===id);if(item?.read_at)return;const now=new Date().toISOString();const{error:updateError}=await supabase.from("notifications").update({read_at:now}).eq("id",id).eq("user_id",user.id);if(updateError){setError("Az értesítés nem jelölhető olvasottnak.");return}setItems(prev=>prev.map(x=>x.id===id?{...x,read_at:now}:x));setUnread(v=>Math.max(0,v-1))}
- async function markAll(){const{data:{user}}=await supabase.auth.getUser();if(!user)return;const now=new Date().toISOString();const{error:updateError}=await supabase.from("notifications").update({read_at:now}).eq("user_id",user.id).is("read_at",null);if(updateError){setError("Az értesítések nem jelölhetők olvasottnak.");return}setItems(prev=>prev.map(x=>({...x,read_at:x.read_at||now})));setUnread(0)}
+ },[supabase,refreshUnreadCount]);
+ async function markRead(id:string){const{data:{user}}=await supabase.auth.getUser();if(!user)return;const item=items.find(x=>x.id===id);if(item?.read_at)return;const now=new Date().toISOString();const{error:updateError}=await supabase.from("notifications").update({read_at:now}).eq("id",id).eq("user_id",user.id);if(updateError){setError("Az értesítés nem jelölhető olvasottnak.");return}setItems(prev=>prev.map(x=>x.id===id?{...x,read_at:now}:x));await refreshUnreadCount()}
+ async function markAll(){const{data:{user}}=await supabase.auth.getUser();if(!user)return;const now=new Date().toISOString();const{error:updateError}=await supabase.from("notifications").update({read_at:now}).eq("user_id",user.id).is("read_at",null);if(updateError){setError("Az értesítések nem jelölhetők olvasottnak.");return}setItems(prev=>prev.map(x=>({...x,read_at:x.read_at||now})));await refreshUnreadCount()}
  return <div className="notification-wrap">
   <button className="notification-bell" type="button" onClick={()=>setOpen(v=>!v)} aria-label={`Értesítések${unread?`, ${unread} olvasatlan`:""}`} aria-expanded={open}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>{unread>0&&<span>{unread>99?"99+":unread}</span>}</button>
   {open&&<div className="notification-popover">

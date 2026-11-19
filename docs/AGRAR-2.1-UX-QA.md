@@ -244,3 +244,21 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - Megmarad a gazda írási korlátozása, a szaktanácsadói jóváhagyás, az egy nyitott javaslat/tábla szabály és a már megváltozott térképi határ felülírásának tiltása.
 - Új dinamikus regressziós tesztek a mentett javaslat visszakeresésére, téves pozitív megerősítés kizárására, a pont-only egyezésre, valamint forrásalapú tesztek a jóváhagyás és értesítés sorrendjére. A projekt **217/217 Node-teszttel és sikeres Next.js production builddel** zárta ezt a kört.
 - **Kiadási korlát:** a módosított `20261119123000_field_boundary_proposals.sql` még csak a Draft PR része. A migrációt nem alkalmaztuk az éles adatbázison; a gazda–szaktanácsadó–gazda böngészős E2E-t az ellenőrzött telepítés után kell végrehajtani.
+
+
+## 2026-11-19 – nyolc működési terület összevont ellenőrzése
+
+Ezt a kört a meglévő #59-es Draft PR folytatásaként végeztük, nem indult új alkalmazás vagy új fejlesztési ág a termékhez. Az audit a már meglévő teszteket és a tényleges Supabase RLS-szabályokat is felhasználta.
+
+| Terület | Ellenőrzés és célzott javítás | Éles ellenőrzési korlát |
+| --- | --- | --- |
+| 1. Szemlék, bejelentések, visszaellenőrzések | A korábbi mentési/idempotencia-védelmek megmaradtak; a dosszié visszaellenőrzési számlálója már csak a táblánként legfrissebb szemlét veszi figyelembe. | Valódi szemle és gazdálkodói válasz E2E szükséges. |
+| 2. Ügyfelek, kapcsolattartók, látogatások | Az ügyfélállapot pontatlan történelmi duplaszámolása javítva; a kapcsolattartók korábbi mentési tesztjeit megtartottuk; a látogatás elkészült mentése utáni értesítési hibát a felület jelzi, ismételt létrehozás helyett. | A látogatás/értesítés páros működését két szerepkörrel kell próbálni. |
+| 3. Gépek és üzemórák | Hibás vagy negatív szám nem válik csendben NULL-lá; a szervizmezőket is ellenőrizzük; állapotváltásnál elavult adat nem írható felül észrevétlenül. Az élő `can_manage_farm` RLS-szabály szerint az advisor-hozzáférés jelenleg szándékos. | Mentés és gépkiosztás bejelentkezett felhasználókkal tesztelendő. |
+| 4. Belső kommunikáció és e-mail | Olvasatlanszám az adatbázisból frissül a realtime és helyi állapotversenyek után; a központ hibaüzenetet ad sikertelen műveletre. E-mail linkje konfigurált eredetcímet használhat, és HTML-escapeléssel készül. | A küldési szolgáltatás szerepköralapú címzési szabályának és kéretlen küldés elleni korlátainak külön, hitelesített biztonsági próbája szükséges. |
+| 5. Meghívások, jogosultságok, MFA | A szaktanácsadói meghívás a gazdálkodói meghíváshoz hasonlóan pontosan az `APP_PUBLIC_ORIGIN` `/invite` útvonalát engedi. Az export friss MFA-megerősítő végpontja már a TOTP-ellenőrzés előtt megköveteli a rendszeradmin szerepkört. | Valós meghívólevél és authenticator-kód próbája szükséges. |
+| 6. Számlák | A dokumentumfeltöltés nem törli a tárhelyen lévő fájlt bizonytalan metaadatmentés után, hogy egy sikerült DB-mentés ne mutasson hiányzó fájlra. | Az élő számlakategóriában jelenleg 0 dokumentum van; valódi feltöltés/letöltés próba nélkül nem igazolt. |
+| 7. Rendszeradminisztráció, mentések, export | Az export meglévő admin/AAL2 és rövid élettartamú step-up védelme ellenőrizve, a TOTP-végpont előzetes szerepellenőrzése szigorodott. | Tényleges export nem történt; az admin auditnapló és a fájltartalom kézi tesztelendő. |
+| 8. HungaroMet automatikus működés | Cron hitelesítés, nulla lefedettség hibája, állomásfallback és idempotencia kód-/tesztellenőrzése megtörtént. | Az élő projektben 7 földtábla, de **0** `weather_sync_runs` és **0** `field_weather_daily` sor van; Cron/telepítés működése nem igazolt. |
+
+**Nem történt** Supabase adatírás, Edge Function telepítés, Vercel élesítés vagy PR-merge. A korábban felhalmozott, még nem alkalmazott négy Supabase-migráció továbbra is élesítés előtti kapu. A rendszeradmin és gazda/szaktanácsadó felhasználói próbákat nem helyettesíti a zöld automatizált teszt és a Vercel buildje. Az ESLint CLI külön futtatása a tároló hiányzó `eslint.config.*` fájlja miatt nem indul; ez meglévő konfigurációs hiányosság, nem sikeres lintként szerepel.

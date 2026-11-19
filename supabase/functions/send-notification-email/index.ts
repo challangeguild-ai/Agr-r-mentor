@@ -44,10 +44,20 @@ Deno.serve(async(req:Request)=>{
   const {data:target,error:targetError}=await admin.auth.admin.getUserById(targetUserId);
   const email=target?.user?.email;
   if(targetError||!email)return json({error:"A címzett e-mail címe nem található."},404);
-  const appUrl="https://agr-r-mentor.vercel.app";
-  const link=href?`${appUrl}${href}`:appUrl;
+  // Use the currently configured application origin, not a hard-coded preview or old production URL.
+  const configuredOrigin=Deno.env.get("APP_PUBLIC_ORIGIN")||"https://agr-r-mentor.vercel.app";
+  let appUrl:string;
+  try{
+    const origin=new URL(configuredOrigin);
+    if(origin.protocol!=="https:"||origin.username||origin.password||origin.pathname!=="/"||origin.search||origin.hash)
+      return json({error:"Érvénytelen APP_PUBLIC_ORIGIN konfiguráció."},500);
+    appUrl=origin.origin;
+  }catch{return json({error:"Érvénytelen APP_PUBLIC_ORIGIN konfiguráció."},500)}
+  const destination=new URL(href||"/",appUrl);
+  if(destination.origin!==appUrl)return json({error:"Érvénytelen értesítési hivatkozás."},400);
+  const link=destination.href;
   const from=Deno.env.get("NOTIFICATION_EMAIL_FROM")||"Agrár Mentor <noreply@uniqerastudio.hu>";
-  const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${resend}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#24372d"><h2 style="color:#174a32">Agrár Mentor</h2><h3>${esc(subject)}</h3><p style="line-height:1.6">${esc(message).replace(/\n/g,"<br>")}</p><p><a href="${link}" style="display:inline-block;background:#174a32;color:white;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">Megnyitás az Agrár Mentorban</a></p><p style="font-size:12px;color:#6f7c74">Ez egy automatikus értesítés az Agrár Mentor rendszerből.</p></div>`})});
+  const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${resend}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#24372d"><h2 style="color:#174a32">Agrár Mentor</h2><h3>${esc(subject)}</h3><p style="line-height:1.6">${esc(message).replace(/\n/g,"<br>")}</p><p><a href="${esc(link)}" style="display:inline-block;background:#174a32;color:white;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">Megnyitás az Agrár Mentorban</a></p><p style="font-size:12px;color:#6f7c74">Ez egy automatikus értesítés az Agrár Mentor rendszerből.</p></div>`})});
   const result=await response.json().catch(()=>({}));
   if(!response.ok){console.error("Resend error",response.status,result);return json({error:"Az e-mail küldése sikertelen."},502)}
   return json({sent:true,id:result?.id||null});

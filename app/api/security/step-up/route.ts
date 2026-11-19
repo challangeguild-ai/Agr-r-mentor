@@ -10,6 +10,9 @@ export async function POST(req:NextRequest){
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();
  if(!user)return NextResponse.json({error:"Nincs bejelentkezve."},{status:401});
+ const{data:profile,error:profileError}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
+ if(profileError||profile?.role!=="advisor"||profile.system_role!=="admin")
+  return NextResponse.json({error:"A biztonsági export megerősítéséhez rendszeradminisztrátori jogosultság kell."},{status:403});
  let body:{code?:string;action?:string};try{body=await req.json()}catch{return NextResponse.json({error:"Hibás kérés."},{status:400})}
  if(body.action!=="export")return NextResponse.json({error:"Ismeretlen védett művelet."},{status:400});
  const code=(body.code||"").replace(/\s/g,"");

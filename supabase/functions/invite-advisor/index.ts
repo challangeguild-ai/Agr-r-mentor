@@ -14,8 +14,17 @@ Deno.serve(async(req:Request)=>{
   const{data:aal,error:aalError}=await userClient.auth.mfa.getAuthenticatorAssuranceLevel(jwt);if(aalError)return json({error:"Az MFA állapot nem ellenőrizhető."},401);if(aal?.currentLevel!=="aal2")return json({error:"Ehhez a művelethez kétlépcsős hitelesítés szükséges.",code:"MFA_REQUIRED"},403);
   const{data:p,error:pe}=await userClient.from("profiles").select("role,system_role").eq("id",u.user.id).maybeSingle();if(pe)return json({error:pe.message},500);if(p?.role!=="advisor"||p?.system_role!=="admin")return json({error:"Ehhez rendszeradminisztrátori jogosultság szükséges."},403);
   const b=await req.json().catch(()=>({}));const email=String(b.email||"").trim().toLowerCase(),fullName=String(b.full_name||"").trim(),redirectTo=String(b.redirect_to||"").trim();
-  if(!email||!/^\S+@\S+\.\S+$/.test(email)||email.length>250)return json({error:"Érvényes e-mail cím szükséges."},400);if(fullName.length>120)return json({error:"A név túl hosszú."},400);if(redirectTo&&!redirectTo.startsWith("https://agr-r-mentor.vercel.app/"))return json({error:"Érvénytelen visszatérési cím."},400);
-  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});const{data,error}=await admin.auth.admin.inviteUserByEmail(email,{data:{full_name:fullName||email,role:"advisor"},...(redirectTo?{redirectTo}:{})});if(error)return json({error:error.message},error.status||400);
+  if(!email||!/^\S+@\S+\.\S+$/.test(email)||email.length>250)return json({error:"Érvényes e-mail cím szükséges."},400);if(fullName.length>120)return json({error:"A név túl hosszú."},400);
+  const expectedOrigin=Deno.env.get("APP_PUBLIC_ORIGIN")?.trim();
+  if(!expectedOrigin)return json({error:"Az APP_PUBLIC_ORIGIN nincs beállítva a meghívó szolgáltatásban."},503);
+  let configured:URL,destination:URL;
+  try{configured=new URL(expectedOrigin);destination=redirectTo?new URL(redirectTo):new URL("/invite",configured)}
+  catch{return json({error:"Hibás meghívási webcím."},400)}
+  if(configured.protocol!=="https:"||configured.username||configured.password||configured.pathname!=="/"||configured.search||configured.hash
+    ||destination.protocol!=="https:"||destination.origin!==configured.origin||destination.username||destination.password
+    ||destination.pathname!=="/invite"||destination.search||destination.hash)
+    return json({error:"Érvénytelen visszatérési cím."},400);
+  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});const{data,error}=await admin.auth.admin.inviteUserByEmail(email,{data:{full_name:fullName||email,role:"advisor"},redirectTo:destination.toString()});if(error)return json({error:error.message},error.status||400);
   if(data.user?.id){const{error:e}=await admin.from("profiles").upsert({id:data.user.id,full_name:fullName||email,role:"advisor",system_role:"user"},{onConflict:"id"});if(e)return json({error:`A meghívás létrejött, de a profil mentése sikertelen: ${e.message}`},500)}
   console.log("invite-advisor success",{email,userId:data.user?.id||null,actor:u.user.id});return json({id:data.user?.id,email:data.user?.email,invited:true,role:"advisor"});
  }catch(e){return json({error:e instanceof Error?e.message:"Ismeretlen hiba."},500)}
