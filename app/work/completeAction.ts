@@ -2,7 +2,7 @@
 
 import {revalidatePath} from "next/cache";
 import {createClient} from "@/lib/supabase/server";
-import {encodeTaskProof,pointInBoundary,nearestBoundaryDistance,distanceMeters} from "@/lib/taskProof";
+import {encodeTaskProof,pointInBoundary,pointInBoundaryHole,nearestBoundaryDistance,distanceMeters} from "@/lib/taskProof";
 import {notifyAdvisors} from "@/lib/workflowNotifications";
 import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
@@ -39,7 +39,7 @@ export async function completeVerifiedTask(formData:FormData){
   const[{data:field},{data:farm}]=await Promise.all([supabase.from("fields").select("id,name,center_lat,center_lng,boundary_geojson").eq("id",task.field_id).maybeSingle(),supabase.from("farms").select("id,name").eq("id",task.farm_id).maybeSingle()]);if(!field)throw new Error("A földtábla nem található.");
   const isDemo=farm?.name?.trim().toUpperCase()==="AGRÁR MENTOR DEMÓGAZDASÁG";let validation:"inside_boundary"|"near_boundary"|"near_center"|"demo_override"|null=null,distance:number|null=null;
   if(isDemo){validation="demo_override"}
-  else if(field.boundary_geojson){if(pointInBoundary(lat,lng,field.boundary_geojson))validation="inside_boundary";else{distance=nearestBoundaryDistance(lat,lng,field.boundary_geojson);if(distance!==null&&distance<=150)validation="near_boundary"}}
+  else if(field.boundary_geojson){if(pointInBoundary(lat,lng,field.boundary_geojson))validation="inside_boundary";else if(!pointInBoundaryHole(lat,lng,field.boundary_geojson)){distance=nearestBoundaryDistance(lat,lng,field.boundary_geojson);if(distance!==null&&distance<=150)validation="near_boundary"}}
   else if(field.center_lat!=null&&field.center_lng!=null){distance=distanceMeters(lat,lng,Number(field.center_lat),Number(field.center_lng));if(distance<=500)validation="near_center"}
   else throw new Error("Ehhez a táblához még nincs térképi adat. GPS-validált beküldés előtt rögzíteni kell a táblahatárt vagy középpontot.");
   if(!validation)throw new Error(`A GPS alapján nem vagy a munkaterületen${distance!==null?` (kb. ${Math.round(distance)} m távolság)`:""}.`);
