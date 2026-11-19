@@ -91,6 +91,7 @@
 - [ ] **Csapadéknapló (valódi méréssel):** 7/30 nap mm-összeg, esős napok száma és ténylegesen mért napok száma helyes; 0 mm-es mérés külön megjelenik, a hiányzó nap nem számít száraz napnak.
 - [ ] **Napi tételek:** az elmúlt 30 nap mérési napjai csökkenő sorrendben, egy nap csak egyszer, megfelelő állomással és mérési forrással; 06–06 UTC mérési időszak értelmezhető.
 - [ ] **Adatkapcsolat:** rendszeradminisztrátori időjárási oldalon látszik az utolsó sikeres/részleges/hibás futás, az adatfrissítés és a problémás vagy elmaradt szinkron. Kézi szinkront csak előre jóváhagyott tesztadatokon futtassunk.
+- [ ] **Forrásadat hibája:** sérült vagy hiányzó HungaroMet CSV/ZIP, félbeszakadt letöltés és téves állomásazonosító esetén egyértelmű sikertelen/részleges futás jelenjen meg; a hibás adat ne kerüljön be mért csapadékként.
 - [ ] Térképes áttekintés, GPS-problémagócok, események és idővonal.
 - [ ] Üzenetek, értesítések, kapcsolatok, csapat és meghívók.
 - [ ] **Gazdálkodói bejelentés:** új bejelentés után a szaktanácsadó ténylegesen kapjon értesítést, az értesítés a megfelelő bejelentési nézetre vezessen.
