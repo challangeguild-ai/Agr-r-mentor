@@ -46,10 +46,16 @@ export async function createHotspot(formData:FormData){
   try{
    const{data:task,error:taskError}=await supabase.from("tasks").insert({farm_id:field.farm_id,field_id:field.id,title,description:notes||"Térképen jelölt probléma kivizsgálása / kezelése.",due_date:dueDate||null,priority,status:"open",assigned_to:farm.owner_id,created_by:user.id}).select("id").single();
    if(taskError||!task){console.error("Problémagóchoz tartozó teendő létrehozása sikertelen",taskError);warning="A problémagóc elmentődött, de a teendő mentése nem igazolható. Ellenőrizd a teendőlistát, és csak akkor hozd létre külön, ha hiányzik. A térképi jelölést ne rögzítsd újra."}
-   else await notifyUser(supabase,{userId:farm.owner_id,kind:"hotspot",title:severity==="critical"?"Kritikus probléma a táblán":"Új probléma a táblán",message:`${field.name}: ${title}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${event.id}:advisor-task`});
+   else{
+    const notified=await notifyUser(supabase,{userId:farm.owner_id,kind:"hotspot",title:severity==="critical"?"Kritikus probléma a táblán":"Új probléma a táblán",message:`${field.name}: ${title}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${event.id}:advisor-task`});
+    if(!notified)warning="A problémagóc és a teendő elmentődött, de a gazdálkodói értesítés nem igazolható.";
+   }
   }catch(error){console.error("Problémagóchoz tartozó teendő/értesítés sikertelen",error);warning="A problémagóc elmentődött. Ellenőrizd a teendők között, hogy elkészült-e a kapcsolódó feladat; ne jelöld újra a térképen."}
  }else if(profile?.role!=="advisor"){
-  try{await notifyAdvisors(supabase,{kind:"hotspot",title:"Gazdálkodói problémagóc",message:`${farm.name} · ${field.name}: ${title}`,href:"/admin/map",eventKey:`hotspot:${event.id}:created`})}
+  try{
+   const recipients=await notifyAdvisors(supabase,{kind:"hotspot",title:"Gazdálkodói problémagóc",message:`${farm.name} · ${field.name}: ${title}`,href:"/admin/map",eventKey:`hotspot:${event.id}:created`});
+   if(!recipients.length)warning="A problémagóc elmentődött, de nem igazolható, hogy szaktanácsadó kapott értesítést.";
+  }
   catch(error){console.error("Problémagóc értesítése sikertelen",error);warning="A problémagóc elmentődött, de a szaktanácsadó értesítése nem sikerült."}
  }
  try{revalidatePath(`/fields/${field.id}`);revalidatePath(`/fields/${field.id}/hotspots`);revalidatePath("/admin/map");revalidatePath("/map");revalidatePath("/admin/priorities")}

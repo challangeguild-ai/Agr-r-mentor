@@ -18,7 +18,8 @@ export async function createFarmerReport(fieldId:string,title:string,message:str
  const severityLabel=severity==="urgent"?"SÜRGŐS":severity==="high"?"FONTOS":"NORMÁL";
  let warning:string|null=null;
  try{
-  await notifyAdvisors(supabase,{kind:"farmer_report",title:`Új gazdálkodói bejelentés · ${severityLabel}`,message:`${farm.name} · ${field.name} · ${title.trim().slice(0,200)}`,href:"/admin/reports?view=new",eventKey:`report:${report.id}:created`,emailSubject:"Új gazdálkodói bejelentés",emailMessage:`${farm.name}\n${field.name}\n${severityLabel}\n${title.trim()}${message.trim()?`\n\n${message.trim()}`:""}`});
+  const recipients=await notifyAdvisors(supabase,{kind:"farmer_report",title:`Új gazdálkodói bejelentés · ${severityLabel}`,message:`${farm.name} · ${field.name} · ${title.trim().slice(0,200)}`,href:"/admin/reports?view=new",eventKey:`report:${report.id}:created`,emailSubject:"Új gazdálkodói bejelentés",emailMessage:`${farm.name}\n${field.name}\n${severityLabel}\n${title.trim()}${message.trim()?`\n\n${message.trim()}`:""}`});
+  if(!recipients.length)warning="A bejelentés elmentődött, de nem igazolható, hogy szaktanácsadó kapott értesítést. A bejelentést ne küldd el még egyszer.";
  }catch(error){console.error("Mentett bejelentés értesítése sikertelen",error);warning="A bejelentés rögzítve, de a szaktanácsadó értesítése nem igazolható. A bejelentést ne küldd be újra."}
  return{id:report.id,warning};
 }

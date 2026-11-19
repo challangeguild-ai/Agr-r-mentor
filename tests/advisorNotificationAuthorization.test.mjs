@@ -70,3 +70,11 @@ test("farmer report attachments survive wizard navigation and interrupted upload
  assert.match(farmerReportForm,/Hiányzó csatolmányok újrapróbálása/);
  assert.match(reports,/return\{id:report\.id,warning\}/);
 });
+
+test("silent notification failure cannot be presented as confirmed delivery",()=>{
+ assert.match(reports,/const recipients=await notifyAdvisors/);
+ assert.match(reports,/if\(!recipients\.length\)warning=/);
+ assert.match(hotspotActions,/const recipients=await notifyAdvisors/);
+ assert.match(hotspotActions,/if\(!recipients\.length\)warning=/);
+ assert.match(hotspotActions,/if\(!notified\)warning=/);
+});
