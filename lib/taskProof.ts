@@ -29,6 +29,7 @@ export function distanceMeters(aLat:number,aLng:number,bLat:number,bLng:number){
 }
 
 function pointInRing(lat:number,lng:number,ring:any[]){
+ if(!Array.isArray(ring)||ring.length<3)return false;
  let inside=false;
  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
   const xi=Number(ring[i]?.[0]),yi=Number(ring[i]?.[1]),xj=Number(ring[j]?.[0]),yj=Number(ring[j]?.[1]);
@@ -38,18 +39,54 @@ function pointInRing(lat:number,lng:number,ring:any[]){
  }
  return inside;
 }
-export function pointInBoundary(lat:number,lng:number,boundary:any){
- if(!boundary)return false;
- if(boundary.type==="Polygon")return Array.isArray(boundary.coordinates?.[0])&&pointInRing(lat,lng,boundary.coordinates[0]);
- if(boundary.type==="MultiPolygon")return Array.isArray(boundary.coordinates)&&boundary.coordinates.some((p:any)=>Array.isArray(p?.[0])&&pointInRing(lat,lng,p[0]));
- return false;
-}
 
-function flattenBoundary(boundary:any):Array<[number,number]>{
- if(boundary?.type==="Polygon")return (boundary.coordinates?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number]).filter((p:[number,number])=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
- if(boundary?.type==="MultiPolygon")return (boundary.coordinates||[]).flatMap((poly:any)=>(poly?.[0]||[]).map((p:any)=>[Number(p?.[1]),Number(p?.[0])] as [number,number])).filter((p:[number,number])=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+/** GeoJSON Polygon is a list of rings; the first is exterior, the rest are holes. */
+function polygonRings(boundary:any):any[][][]{
+ if(boundary?.type==="Polygon"&&Array.isArray(boundary.coordinates))
+  return [boundary.coordinates];
+ if(boundary?.type==="MultiPolygon"&&Array.isArray(boundary.coordinates))
+  return boundary.coordinates;
  return [];
 }
+export function pointInBoundary(lat:number,lng:number,boundary:any){
+ return polygonRings(boundary).some(rings=>
+  Array.isArray(rings?.[0])&&pointInRing(lat,lng,rings[0])&&
+  !rings.slice(1).some(hole=>pointInRing(lat,lng,hole)));
+}
+/** A hole is excluded farmland even when its edge is within GPS tolerance. */
+export function pointInBoundaryHole(lat:number,lng:number,boundary:any){
+ return polygonRings(boundary).some(rings=>
+  Array.isArray(rings?.[0])&&pointInRing(lat,lng,rings[0])&&
+  rings.slice(1).some(hole=>pointInRing(lat,lng,hole)));
+}
+
+/** Local tangent plane: accurate for the short field-boundary distances we accept. */
+function distanceToSegmentMeters(lat:number,lng:number,aLat:number,aLng:number,bLat:number,bLng:number){
+ const rad=Math.PI/180,earthRadius=6371000;
+ const scaleX=rad*earthRadius*Math.cos(((lat+aLat+bLat)/3)*rad);
+ const scaleY=rad*earthRadius;
+ const ax=(aLng-lng)*scaleX,ay=(aLat-lat)*scaleY;
+ const bx=(bLng-lng)*scaleX,by=(bLat-lat)*scaleY;
+ const dx=bx-ax,dy=by-ay,lengthSquared=dx*dx+dy*dy;
+ const t=lengthSquared>0?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/lengthSquared)):0;
+ return Math.hypot(ax+t*dx,ay+t*dy);
+}
+/**
+ * Distance to the nearest exterior edge, not just its vertices. Interior hole
+ * rings are intentionally excluded: they are not a valid GPS override zone.
+ */
 export function nearestBoundaryDistance(lat:number,lng:number,boundary:any){
- const points=flattenBoundary(boundary);if(!points.length)return null;return Math.min(...points.map(([a,b])=>distanceMeters(lat,lng,a,b)));
+ if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+ let nearest=Infinity;
+ for(const rings of polygonRings(boundary)){
+  const exterior=rings?.[0];
+  if(!Array.isArray(exterior)||exterior.length<3)continue;
+  for(let i=0;i<exterior.length;i++){
+   const a=exterior[i],b=exterior[(i+1)%exterior.length];
+   const aLat=Number(a?.[1]),aLng=Number(a?.[0]),bLat=Number(b?.[1]),bLng=Number(b?.[0]);
+   if(![aLat,aLng,bLat,bLng].every(Number.isFinite))continue;
+   nearest=Math.min(nearest,distanceToSegmentMeters(lat,lng,aLat,aLng,bLat,bLng));
+  }
+ }
+ return Number.isFinite(nearest)?nearest:null;
 }
