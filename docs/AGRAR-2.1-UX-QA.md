@@ -134,3 +134,16 @@ A tesztág **nem** módosítja a production adatbázist vagy az éles honlapot.
 4. Az utolsó dokumentációs commit Preview-buildjének sikeres ellenőrzése, és csak később külön merge-jóváhagyás.
 
 Az éles app, Supabase adatbázis és production domain nem módosult.
+
+
+## 2026-11-19 – hetedik kör: tervezési határok és időpontfüggő jogosultság
+
+- A növényvédelmi jóváhagyó engedélyének nemcsak ma, hanem a jövőbeli tervezett kijuttatás napján is érvényesnek kell lennie. A szaktanácsadói űrlap ugyanígy szűri a választható személyeket.
+- A gazdálkodói művelet regisztrálásakor és jóváhagyásakor az engedély lejárata a **budapesti naptári nap** szerint értendő, nem UTC-nap szerint.
+- A szaktanácsadói terv szerveroldalon csak ismert művelettípust fogad el, a tervezett terület nem lehet nulla/negatív, és a terület nem lépheti túl a kiválasztott földtábla méretét.
+- Csak **aktív, ugyanahhoz a gazdasághoz tartozó** gépet lehet feladathoz rendelni. A gépválasztó földtáblaváltáskor törli a korábbi gépet; a területbeviteli mező az új tábla területét ajánlja fel.
+- A tiszta validációs függvényekhez 3 új regressziós teszt került: engedély érvényessége a tervezett időpontig, sérült engedélydátum, területhatárok. Összesen **37 Node teszteset** szerepel a projektben.
+- A legutolsó módosított tesztfájlt helyi Node.js 24 környezetben ellenőriztük: **7/7 PASS**. A teljes tesztcsomagot a Vercel Preview npm test && next build kapuja futtatja.
+- A kapcsolt „Agrár mentor” Supabase projekt 2026.11.19-én **INACTIVE** állapotú volt; nem indítottuk el. Ezért az aktív adatbázisra irányuló lekérdezést, RLS/MFA-integrációt és többfelhasználós E2E-t külön kell igazolni.
+
+**A #59-es PR továbbra is Draft; nem történt production merge, domain-változtatás vagy adatbázis-írás.**
