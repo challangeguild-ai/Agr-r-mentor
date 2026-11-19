@@ -7,6 +7,7 @@ import {TaskProofCompleteForm} from "@/components/TaskProofCompleteForm";
 import {TaskProofPhoto} from "@/components/TaskProofPhoto";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {decodeTaskProof} from "@/lib/taskProof";
+import {canSubmitTaskProof} from "@/lib/taskWorkflow";
 import styles from "./tasks.module.css";
 
 type SearchParams=Promise<{view?:string}>;
@@ -57,7 +58,7 @@ export default async function TasksPage({searchParams}:{searchParams:SearchParam
    <section className={styles.listPanel}>
     <div className={styles.listHead}><span>Feladat</span><span>Határidő</span><span>Prioritás</span><span>Állapot / Művelet</span></div>
     <div className={styles.list}>
-     {visible.length?visible.map(t=>{const field=fields?.find(f=>f.id===t.field_id),farm=farms?.find(f=>f.id===t.farm_id),plan=planMap.get(t.id),report=reportMap.get(t.id),proof=report?.proof?decodeTaskProof(report.proof):null,isOverdue=t.status!=="done"&&t.status!=="submitted"&&!!t.due_date&&t.due_date<today;return <article className={`${styles.card} ${isOverdue?styles.overdue:""}`} key={t.id}>
+     {visible.length?visible.map(t=>{const field=fields?.find(f=>f.id===t.field_id),farm=farms?.find(f=>f.id===t.farm_id),plan=planMap.get(t.id),report=reportMap.get(t.id),proof=report?.proof?decodeTaskProof(report.proof):null,canSubmit=canSubmitTaskProof(t.status,t.field_id),isOverdue=t.status!=="done"&&t.status!=="submitted"&&!!t.due_date&&t.due_date<today;return <article id={`task-${t.id}`} className={`${styles.card} ${isOverdue?styles.overdue:""}`} key={t.id}>
       <div className={styles.taskInfo}><span className={`${styles.taskIcon} ${t.priority==="urgent"?styles.iconUrgent:t.priority==="high"?styles.iconHigh:styles.iconNormal}`}>{t.task_kind==="operation"?"✣":"✓"}</span><div><strong>{t.title}</strong><small>{farm?.name||"Gazdaság"} · {field?.name||"Teljes gazdaság"}</small></div></div>
       <div className={`${styles.deadline} ${isOverdue?styles.deadlineOver:""}`}>{isOverdue?"● ":""}{formatDate(t.due_date)}</div>
       <span className={`${styles.priority} ${t.priority==="urgent"||t.priority==="high"?styles.high:styles.normal}`}>{priorityLabel(t.priority)}</span>
@@ -67,12 +68,12 @@ export default async function TasksPage({searchParams}:{searchParams:SearchParam
        {t.field_id&&<Link className={styles.linkButton} href={`/fields/${t.field_id}`}>Tábla →</Link>}
        {t.linked_operation_id&&<Link className={styles.linkButton} href={`/operations/${t.linked_operation_id}`}>Napló →</Link>}
       </div>
-      {(t.description||plan||t.review_status==="rejected"||report)&&<div className={styles.details}>
+      {(t.description||plan||t.review_status==="rejected"||report||canSubmit)&&<div className={styles.details}>
        {t.description&&<p>{t.description}</p>}
        {plan&&<div className={styles.plan}><b>{plan.country_code==="HU"?"🇭🇺":"🇸🇰"} {plan.product_name||plan.subtype||plan.operation_type}</b><span>{plan.crop||""}{plan.target?` · ${plan.target}`:""}{plan.planned_dose!=null?` · ${plan.planned_dose} ${plan.dose_unit||""}`:""}</span></div>}
        {t.review_status==="rejected"&&<div className={styles.rejected}><b>Javításra visszaküldve.</b> {t.review_note||"Rögzítsd újra a végrehajtást."}</div>}
        {report&&t.status==="submitted"&&<p><b>Beküldött végrehajtás:</b> {report.actual_dose!=null?`${report.actual_dose} ${report.dose_unit||""}`:"dózis nélkül"}{report.actual_area!=null?` · ${report.actual_area} ha`:""}</p>}
-       <div className={styles.proofActions}>{proof&&<TaskProofPhoto path={proof.photoPath} name={proof.photoName}/>} {t.status!=="done"&&t.status!=="submitted"&&t.field_id&&<TaskProofCompleteForm taskId={t.id} hasMachine={machineTasks.has(t.id)} plan={plan?{operationType:plan.operation_type,productName:plan.product_name,plannedDose:plan.planned_dose,doseMin:plan.dose_min,doseMax:plan.dose_max,doseUnit:plan.dose_unit,plannedArea:plan.planned_area,plannedQuantity:plan.planned_quantity,quantityUnit:plan.quantity_unit}:null}/>}</div>
+       <div className={styles.proofActions}>{proof&&<TaskProofPhoto path={proof.photoPath} name={proof.photoName}/>} {canSubmit&&<TaskProofCompleteForm taskId={t.id} hasMachine={machineTasks.has(t.id)} plan={plan?{operationType:plan.operation_type,productName:plan.product_name,plannedDose:plan.planned_dose,doseMin:plan.dose_min,doseMax:plan.dose_max,doseUnit:plan.dose_unit,plannedArea:plan.planned_area,plannedQuantity:plan.planned_quantity,quantityUnit:plan.quantity_unit}:null}/>}</div>
       </div>}
      </article>}):<div className={styles.empty}>Ebben a nézetben nincs teendő.</div>}
     </div>

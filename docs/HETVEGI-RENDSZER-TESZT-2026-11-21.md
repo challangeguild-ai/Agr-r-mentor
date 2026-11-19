@@ -62,6 +62,10 @@
 - [ ] Napi munka, teendők, ellenőrzési és jóváhagyási körök.
 - [ ] Munkatárs telefonon GPS-t kér; jogosultság megtagadva, rossz pontosság, határon kívüli hely kezelése.
 - [ ] Fénykép csatolása, végrehajtási adatok, lezárás, egyértelmű sikervisszajelzés.
+- [ ] **Földtábla adatlapjáról indított munka:** „Igazolás beküldése” a megfelelő teendőhöz visz; nem lehet közvetlenül „Kész” állapotba tenni a szaktanácsadói jóváhagyás előtt.
+- [ ] **Egyszerű, leírás nélküli táblafeladat:** a GPS- és fényképes űrlap akkor is elérhető, ha a feladatnak nincs részletes leírása vagy műveleti terve.
+- [ ] **Ellenőrzésre váró / lezárt / törölt teendő:** a térképi adatlap és a teendőlista sem kínál új végrehajtás-beküldést; az ellenőrzésre váró állapot egyértelmű.
+- [ ] **Csak gazdasághoz, tábla nélkül kiosztott általános teendő:** ellenőrizni a lezárási lehetőséget; a GPS-es beküldés jelenleg földtáblához kötött, ezért ez még külön tisztázandó munkafolyamat.
 - [ ] Ismételt vagy részben sikeres beküldés nem tüntet el bizonyító fotót és nem hoz létre dupla lezárást.
 - [ ] Gépnyilvántartás és tényleges géphasználat a kapcsolt feladaton.
 
