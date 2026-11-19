@@ -3,10 +3,10 @@
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
-import {prepareFieldBatch,type IncomingField} from "@/lib/fieldBatchImport";
+import {planFieldBatch,type IncomingField} from "@/lib/fieldBatchImport";
 
-/** Creates one farm's validated fields in a single database INSERT statement. */
-export async function importFarmFields(farmId:string,fields:IncomingField[]):Promise<{saved:number;firstId:string}>{
+/** Repeats after ambiguous network failures only insert missing fields; no overwrites. */
+export async function importFarmFields(farmId:string,fields:IncomingField[]):Promise<{saved:number;already:number;firstId:string}>{
   const supabase=await createClient();
   const{data:{user}}=await supabase.auth.getUser();
   if(!user)redirect("/login");
@@ -15,12 +15,12 @@ export async function importFarmFields(farmId:string,fields:IncomingField[]):Pro
   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(farmId))throw new Error("Érvénytelen gazdaságazonosító.");
   const{data:farm,error:farmError}=await supabase.from("farms").select("id,owner_id").eq("id",farmId).maybeSingle();
   if(farmError||!farm)throw new Error("A kiválasztott gazdaság nem érhető el.");
-  const{data:existing,error:existingError}=await supabase.from("fields").select("name,boundary_geojson").eq("farm_id",farmId).limit(1000);
+  const{data:existing,error:existingError}=await supabase.from("fields").select("id,name,boundary_geojson").eq("farm_id",farmId).limit(1000);
   if(existingError||!existing)throw new Error("Nem ellenőrizhetők a gazdaság korábbi táblái. A mentés megszakadt.");
   if(existing.length>=1000)throw new Error("Túl sok meglévő tábla: a duplikációellenőrzés nem teljes. Az importot nem indítjuk el.");
-  const prepared=prepareFieldBatch(fields,existing.map(field=>({name:field.name,geometry:field.boundary_geojson})));
+  const plan=planFieldBatch(fields,existing.map(field=>({id:field.id,name:field.name,geometry:field.boundary_geojson})));
   const now=new Date().toISOString();
-  const rows=prepared.map(field=>({
+  const rows=plan.toCreate.map(field=>({
     farm_id:farmId,
     name:field.name,
     area_ha:field.area_ha,
@@ -32,10 +32,14 @@ export async function importFarmFields(farmId:string,fields:IncomingField[]):Pro
     geometry_source:"external",
     geometry_source_updated_at:now,
   }));
-  const{data:saved,error}=await supabase.from("fields").insert(rows).select("id");
-  if(error)throw new Error(`A tömeges import nem sikerült: ${error.message}`);
-  if(!saved||saved.length!==rows.length)throw new Error("A mentés eredménye nem ellenőrizhető. Mielőtt újra próbálkozol, nézd meg a gazdaság táblalistáját, nehogy duplikátum keletkezzen.");
-  revalidatePath("/admin/map");revalidatePath("/admin/clients");revalidatePath(`/admin/clients/${farm.owner_id}/farms/${farmId}`);
+  let saved:{id:string}[]=[];
+  if(rows.length){
+    const result=await supabase.from("fields").insert(rows).select("id");
+    if(result.error)throw new Error(`A tömeges import nem sikerült: ${result.error.message}`);
+    if(!result.data||result.data.length!==rows.length)throw new Error("A mentés eredménye nem ellenőrizhető. Mielőtt újra próbálkozol, nézd meg a gazdaság táblalistáját, nehogy duplikátum keletkezzen.");
+    saved=result.data;
+  }
+  revalidatePath("/admin/map");revalidatePath("/admin/map/import");revalidatePath("/admin/clients");revalidatePath(`/admin/clients/${farm.owner_id}/farms/${farmId}`);
   revalidatePath("/fields");revalidatePath("/map");revalidatePath("/dashboard");
-  return {saved:saved.length,firstId:saved[0].id};
+  return {saved:saved.length,already:plan.already.length,firstId:saved[0]?.id||plan.already[0].id};
 }

@@ -1,8 +1,10 @@
 import {parseFieldGeometry,type FieldGeometry} from "./fieldGeometry.ts";
+import {fieldGeometryFingerprint} from "./fieldGeometryIdentity.ts";
 
 /** Shared client/server preparation. Not an official survey or ownership proof. */
 export type IncomingField={name:string;geometry:unknown};
 export type PreparedField={name:string;geometry:FieldGeometry;center_lat:number;center_lng:number;area_ha:number};
+export type ExistingFieldBoundary={id:string;name:string;geometry?:unknown};
 
 export const MAX_BULK_FIELDS=50;
 export const MAX_BULK_PAYLOAD_BYTES=850_000;
@@ -37,7 +39,11 @@ export function prepareFieldBatch(fields:IncomingField[],existing:{name:string;g
   try{raw=JSON.stringify(fields)}catch{throw new Error("A feltöltött adatok nem alakíthatók át földtáblákká.")}
   if(raw.length>MAX_BULK_PAYLOAD_BYTES)throw new Error("A kiválasztott táblák túl sok koordinátát tartalmaznak. Kevesebbet válassz egyszerre.");
   const names=new Set(existing.map(row=>fieldNameKey(row.name)));
-  const geometries=new Set(existing.filter(row=>row.geometry).map(row=>JSON.stringify(row.geometry)));
+  const geometries=new Set<string>();
+  for(const row of existing){
+    if(!row.geometry)continue;
+    try{geometries.add(fieldGeometryFingerprint(parseFieldGeometry(row.geometry).geometry))}catch{/* Legacy invalid boundaries do not hide name conflicts. */}
+  }
   return fields.map((field,index)=>{
     if(!field||typeof field.name!=="string")throw new Error(`${index+1}. tábla: hiányzó név.`);
     const name=field.name.trim().replace(/\s+/g," ");
@@ -46,11 +52,44 @@ export function prepareFieldBatch(fields:IncomingField[],existing:{name:string;g
     if(names.has(key))throw new Error(`Már létezik ilyen nevű tábla ebben a gazdaságban, vagy kétszer szerepel a fájlban: ${name}`);
     names.add(key);
     const checked=parseFieldGeometry(field.geometry);
-    const fingerprint=JSON.stringify(checked.geometry);
+    const fingerprint=fieldGeometryFingerprint(checked.geometry);
     if(geometries.has(fingerprint))throw new Error(`Azonos geometriát kétszer importálnál: ${name}`);
     geometries.add(fingerprint);
     const area_ha=estimatedFieldHectares(checked.geometry);
     if(!Number.isFinite(area_ha)||area_ha<=0||area_ha>100000)throw new Error(`${name}: a táblahatárból nem számítható ésszerű terület.`);
     return {name,geometry:checked.geometry,center_lat:checked.stats.centerLat,center_lng:checked.stats.centerLng,area_ha};
   });
+}
+
+/** Re-importing a *perfectly identical* existing field is a safe no-op.
+ * Same name with changed outline, or same outline under a new name, is not.
+ */
+export function planFieldBatch(fields:IncomingField[],existing:ExistingFieldBoundary[]):{
+  toCreate:PreparedField[];already:{id:string;name:string}[];
+}{
+  const prepared=prepareFieldBatch(fields);
+  const names=new Map<string,ExistingFieldBoundary>();
+  const geometries=new Map<string,ExistingFieldBoundary>();
+  const fingerprints=new Map<string,string>();
+  for(const row of existing){
+    names.set(fieldNameKey(row.name),row);
+    if(row.geometry){
+      try{
+        const fingerprint=fieldGeometryFingerprint(parseFieldGeometry(row.geometry).geometry);
+        fingerprints.set(row.id,fingerprint);geometries.set(fingerprint,row);
+      }catch{/* Existing record may not have a valid boundary. Name checks still apply. */}
+    }
+  }
+  const toCreate:PreparedField[]=[],already:{id:string;name:string}[]=[];
+  for(const field of prepared){
+    const key=fieldNameKey(field.name),fingerprint=fieldGeometryFingerprint(field.geometry);
+    const byName=names.get(key),byGeometry=geometries.get(fingerprint);
+    if(byName&&byGeometry&&byName.id===byGeometry.id&&fingerprints.get(byName.id)===fingerprint){
+      already.push({id:byName.id,name:field.name});continue;
+    }
+    if(byName)throw new Error(`A(z) „${field.name}” tábla már létezik, de más a határa. Meglévő táblát importtal nem írunk felül.`);
+    if(byGeometry)throw new Error(`A(z) „${field.name}” határa már más néven szerepel a gazdaságban: ${byGeometry.name}.`);
+    toCreate.push(field);
+  }
+  return {toCreate,already};
 }

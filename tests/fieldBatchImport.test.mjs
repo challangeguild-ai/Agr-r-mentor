@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {estimatedFieldHectares,prepareFieldBatch,MAX_BULK_FIELDS} from "../lib/fieldBatchImport.ts";
+import {estimatedFieldHectares,prepareFieldBatch,planFieldBatch,MAX_BULK_FIELDS} from "../lib/fieldBatchImport.ts";
+import {fieldGeometryFingerprint} from "../lib/fieldGeometryIdentity.ts";
 import {escapeHtml} from "../lib/escapeHtml.ts";
 import {fieldLocationHint} from "../lib/fieldLocationHint.ts";
 
@@ -63,4 +64,34 @@ test("geographic sanity warning catches likely swapped axes without rejecting fo
   assert.match(fieldLocationHint(3.1,47.1),/kívül esik/);
   assert.match(fieldLocationHint(100,10),/kívül esik/);
   assert.match(fieldLocationHint(NaN,47),/nem értelmezhető/);
+});
+
+test("field identity is independent of ring start, winding, and multipolygon part ordering",()=>{
+  const open=outer.slice(0,-1);
+  const shifted=[...open.slice(2),...open.slice(0,2),open[2]];
+  const reversed=[...open].reverse();reversed.push(reversed[0]);
+  assert.equal(fieldGeometryFingerprint(a),fieldGeometryFingerprint({type:"Polygon",coordinates:[shifted]}));
+  assert.equal(fieldGeometryFingerprint(a),fieldGeometryFingerprint({type:"Polygon",coordinates:[reversed]}));
+  const mp1={type:"MultiPolygon",coordinates:[[outer,hole],[other]]};
+  const mp2={type:"MultiPolygon",coordinates:[[other],[shifted,[...hole].reverse()]]};
+  assert.equal(fieldGeometryFingerprint(mp1),fieldGeometryFingerprint(mp2));
+  assert.throws(()=>prepareFieldBatch([{name:"A",geometry:a},{name:"B",geometry:{type:"Polygon",coordinates:[shifted]}}]),/Azonos geometriát/);
+});
+
+test("a successful import can be retried safely without creating identical fields again",()=>{
+  const existing=[{id:"old-1",name:"Első",geometry:a},{id:"old-2",name:"Második",geometry:b}];
+  const result=planFieldBatch([{name:"első",geometry:{type:"Polygon",coordinates:[outer.slice(1,-1).concat([outer[0],outer[1]])]}},{name:"Második",geometry:b}],existing);
+  assert.equal(result.toCreate.length,0);
+  assert.deepEqual(result.already.map(row=>row.id),["old-1","old-2"]);
+});
+
+test("a mixed retry adds only missing fields; conflicting names or geometries remain blocked",()=>{
+  const existing=[{id:"old-1",name:"Első",geometry:a}];
+  const mixed=planFieldBatch([{name:"Első",geometry:a},{name:"Második",geometry:b}],existing);
+  assert.equal(mixed.toCreate.length,1);
+  assert.equal(mixed.toCreate[0].name,"Második");
+  assert.equal(mixed.already.length,1);
+  assert.throws(()=>planFieldBatch([{name:"Első",geometry:b}],existing),/más a határa/);
+  assert.throws(()=>planFieldBatch([{name:"Új név",geometry:a}],existing),/már más néven/);
+  assert.throws(()=>planFieldBatch([{name:"Első",geometry:a}],[{id:"old-1",name:"Első",geometry:null}]),/más a határa/);
 });

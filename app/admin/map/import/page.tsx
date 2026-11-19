@@ -13,7 +13,7 @@ export default async function AdminFieldImportPage(){
   if(profile?.role!=="advisor")redirect("/dashboard");
   const [{data:farms,error:farmError},{data:fields,error:fieldError}]=await Promise.all([
     supabase.from("farms").select("id,name").order("name"),
-    supabase.from("fields").select("name,farm_id,boundary_geojson").order("name").limit(10000),
+    supabase.from("fields").select("id,name,farm_id,boundary_geojson").order("name").limit(10000),
   ]);
   return <main className="admin-shell">
     <header className="admin-header"><div><span className="eyebrow">DIGITÁLIS TÁBLAHATÁROK</span><h1>Tömeges földtábla-import</h1><p>GeoJSON vagy SHP ZIP állományból egyszerre több földtábla határát rögzítheted.</p></div></header>

@@ -6,11 +6,11 @@ import {useRouter} from "next/navigation";
 import {importFarmFields} from "@/app/admin/bulk-field-actions";
 import {fieldFileCandidates} from "@/lib/fieldFileCandidates";
 import {parseFieldGeometry,type FieldGeometry} from "@/lib/fieldGeometry";
-import {estimatedFieldHectares,MAX_BULK_FIELDS,prepareFieldBatch} from "@/lib/fieldBatchImport";
+import {estimatedFieldHectares,MAX_BULK_FIELDS,planFieldBatch} from "@/lib/fieldBatchImport";
 import {fieldLocationHint} from "@/lib/fieldLocationHint";
 
 type Farm={id:string;name:string};
-type ExistingField={farm_id:string;name:string;boundary_geojson:unknown};
+type ExistingField={id:string;farm_id:string;name:string;boundary_geojson:unknown};
 type Candidate={id:string;name:string;geometry:FieldGeometry;area:number;selected:boolean};
 
 function outlinePath(geometry:FieldGeometry){
@@ -124,19 +124,20 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
   const[loading,setLoading]=useState(false);
   const[saving,setSaving]=useState(false);
   const[error,setError]=useState("");
-  const[success,setSuccess]=useState<{saved:number;firstId:string}|null>(null);
+  const[success,setSuccess]=useState<{saved:number;already:number;firstId:string}|null>(null);
 
   const selected=useMemo(()=>candidates.filter(c=>c.selected),[candidates]);
   const active=candidates.find(c=>c.id===activeId)||candidates[0];
   const activeStats=useMemo(()=>active?parseFieldGeometry(active.geometry).stats:null,[active?.geometry]);
   const locationHint=activeStats?fieldLocationHint(activeStats.centerLng,activeStats.centerLat):null;
-  const check=useMemo(()=>{
-    if(!selected.length)return "Jelölj ki legalább egy táblát.";
+  const validation=useMemo(()=>{
+    if(!selected.length)return {error:"Jelölj ki legalább egy táblát.",newCount:0,alreadyCount:0};
     try{
-      prepareFieldBatch(selected.map(c=>({name:c.name,geometry:c.geometry})),existingFields.filter(f=>f.farm_id===farmId).map(f=>({name:f.name,geometry:f.boundary_geojson})));
-      return "";
-    }catch(err){return err instanceof Error?err.message:"Nem megfelelő táblaadatok."}
+      const plan=planFieldBatch(selected.map(c=>({name:c.name,geometry:c.geometry})),existingFields.filter(f=>f.farm_id===farmId).map(f=>({id:f.id,name:f.name,geometry:f.boundary_geojson})));
+      return {error:"",newCount:plan.toCreate.length,alreadyCount:plan.already.length};
+    }catch(err){return {error:err instanceof Error?err.message:"Nem megfelelő táblaadatok.",newCount:0,alreadyCount:0}}
   },[selected,existingFields,farmId]);
+  const check=validation.error;
 
   async function onFile(file:File){
     setError("");setSuccess(null);setCandidates([]);setActiveId("");setFilename("");
@@ -177,7 +178,7 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
     </div>
     {loading&&<p role="status" style={{marginTop:10}}>A fájl feldolgozása…</p>}
     {error&&<p className="error-box" role="alert" style={{marginTop:12}}>{error}</p>}
-    {success&&<p role="status" style={{marginTop:12,padding:12,background:"#e1f1e4",borderRadius:8}}><strong>{success.saved} földtábla létrejött.</strong> <Link href={`/admin/map?field=${success.firstId}`}>Az első megtekintése →</Link></p>}
+    {success&&<p role="status" style={{marginTop:12,padding:12,background:"#e1f1e4",borderRadius:8}}><strong>{success.saved} új földtábla létrejött; {success.already} már korábban is szerepelt, ezért nem került be újra.</strong> <Link href={`/admin/map?field=${success.firstId}`}>Az egyik megtekintése →</Link></p>}
     {!!candidates.length&&<div style={{marginTop:14}}>
       <p><strong>{filename}</strong> · {candidates.length} terület, ebből {selected.length} kijelölve (maximum {MAX_BULK_FIELDS}). A név szerkeszthető. A mentésig semmit nem rögzítünk.</p>
       {candidates.length>MAX_BULK_FIELDS&&<p style={{color:"#a56406"}}>A fájl {MAX_BULK_FIELDS}-nél több táblát tartalmaz. Az első {MAX_BULK_FIELDS} van kijelölve; a többiből külön importot indíthatsz.</p>}
@@ -196,8 +197,8 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
             <p style={{color:"#57685c",fontSize:12}}>A műholdképen ellenőrizd, hogy a határ tényleg a megfelelő művelt területre esik. A forrás nem hiteles földhivatali adat; a poligon minden eredeti töréspontja és különálló része megmarad.</p></>}
         </div>
       </div>
-      {check&&<p className="error-box" role="alert" style={{marginTop:10}}>{check}</p>}
-      <div style={{display:"flex",gap:9,alignItems:"center",flexWrap:"wrap",marginTop:14}}><button type="button" className="btn btn-primary" disabled={saving||!!check||!farmId} onClick={()=>void save()}>{saving?"Táblák mentése…":`${selected.length} földtábla mentése`}</button><span style={{color:"#57685c",fontSize:12}}>A feltöltés nem módosítja a már meglévő táblákat.</span></div>
+      {check?<p className="error-box" role="alert" style={{marginTop:10}}>{check}</p>:validation.alreadyCount>0&&<p style={{fontSize:12,color:"#526255",marginTop:10}}>{validation.alreadyCount} táblahatár már pontosan így szerepel a gazdaságban. Ezeket a rendszer nem menti kétszer.</p>}
+      <div style={{display:"flex",gap:9,alignItems:"center",flexWrap:"wrap",marginTop:14}}><button type="button" className="btn btn-primary" disabled={saving||!!check||!farmId} onClick={()=>void save()}>{saving?"Táblák mentése…":validation.newCount?`${validation.newCount} új tábla mentése`:"Meglévő táblák ellenőrzése"}</button><span style={{color:"#57685c",fontSize:12}}>A feltöltés nem módosítja a már meglévő táblákat.</span></div>
     </div>}
   </details>;
 }

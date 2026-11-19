@@ -34,6 +34,7 @@
 - [ ] **Tömeges táblaimport:** szaktanácsadó → Táblaimport; tesztgazdaság és több poligont tartalmazó GeoJSON/SHP ZIP; fájl-előnézet, tábla neve, pipálás, mentés, majd ellenőrzés az összesített térképen.
 - [ ] **Import előnézet műholdképen:** a kiválasztott alak valóban a megfelelő helyen látható-e; belső kivágások és különálló részek; utcatérképre váltás; felcserélt koordináták figyelmeztetése; műholdas térképszolgáltató hibája esetén alakvázlat.
 - [ ] **Tömeges import védelmei:** már meglévő táblanév, fájlon belüli névütközés, duplikált geometria, érvénytelen vetület, több mint 50 kijelölés és megszakadt kapcsolat. Gazdálkodói szerepkörrel nem írható.
+- [ ] **Ismételt feltöltés és félbeszakadt mentés:** azonos név és határ esetén 0 új rekord, eltérő határ / azonos név esetén tiltás; vegyes fájlból csak a ténylegesen hiányzó táblák jönnek létre.
 - [ ] Térképfotó/PDF: zárt határ kiválasztása, három illesztési pont a dokumentumon és a térképen, poligon előnézet.
 - [ ] Ferde fotó négy illesztési ponttal; gyenge fotó, nyitott határ és több PDF-oldal kezelése.
 - [ ] **Valóságellenőrzés:** poligon élei és sarkai a műholdképhez képest; a művelt tábla és a jogi földrészlet esetleges különbsége.

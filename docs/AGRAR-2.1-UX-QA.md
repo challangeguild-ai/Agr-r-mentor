@@ -3,6 +3,7 @@
 ## Változások
 - Opcionális, ingyenes **tömeges földtábla-import** a szaktanácsadói „Táblaimport” menüpontból (GeoJSON, SHP ZIP). Gazdaság választása, legfeljebb 50 kijelölt táblahatár, szerkeszthető név, alakhelyes vázlat, duplikációellenőrzés, közös adatbázis-mentés. Nem hivatalos földhivatali adat; nem igényel HRSZ-t.
 - A tömeges import kiválasztott táblája **műholdas/utcatérképes, valós földrajzi előnézeten** látszik mentés előtt (MultiPolygon és lyukak is). Az eseti koordinátasorrend-hibára térségi figyelmeztetés hívja fel a figyelmet, hálózati térképhiba esetén marad az alakvázlat.
+- A tömeges import **ismételt beküldése** pontos név+geometria-egyezés esetén nem készít új rekordot, akkor sem, ha a poligongyűrű más töréspontnál kezdődik vagy fordítva járja körül a határt. A szerver csak a hiányzó sorokat hozza létre egy közös INSERT-ben; eltérő nevű vagy határú ütközések tiltottak. Párhuzamos, egymásnak ellentmondó importok ellen adatbázis-szintű egyediség még nem garantált.
 - A Leaflet összesített térkép HTML-ablakai immár escape-elik a feltöltésből érkező tábla- és farmneveket. A hétvégi kézi rendszerpróba itt még nem történt meg.
 - A meghívók URL-je nem a korábbi Vercel-címet használja, hanem az ellenőrzött `APP_PUBLIC_ORIGIN` változót.
 - A `invite-farmer` Edge Function csak az adott origin pontos `/invite` útvonalát engedi át.
