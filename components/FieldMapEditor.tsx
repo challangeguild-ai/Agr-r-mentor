@@ -5,8 +5,9 @@ import {saveFieldMap} from "@/app/fields/[id]/actions";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {parseFieldGeometry,parseFieldGeometryText} from "@/lib/fieldGeometry";
 import {osmFieldSuggestions,type OsmFieldSuggestion} from "@/lib/osmFieldBoundary";
+import {fieldFileCandidates,type FieldFileCandidate} from "@/lib/fieldFileCandidates";
 
-declare global{interface Window{L:any}}
+declare global{interface Window{L:any;shp?: (data:ArrayBuffer)=>Promise<unknown>}}
 
 type Hotspot={lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"};
 type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;geometrySource?:string|null;hotspots?:Hotspot[];compact?:boolean};
@@ -24,6 +25,8 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const[boundarySource,setBoundarySource]=useState(geometrySource||"manual");
   const[importMessage,setImportMessage]=useState("");
   const[importError,setImportError]=useState("");
+  const[fileCandidates,setFileCandidates]=useState<FieldFileCandidate[]>([]);
+  const[fileLoading,setFileLoading]=useState(false);
   const[pointChosen,setPointChosen]=useState((lat!=null&&lng!=null)||!!boundary);
   const[osmLoading,setOsmLoading]=useState(false);
   const[osmCandidates,setOsmCandidates]=useState<OsmFieldSuggestion[]>([]);
@@ -49,12 +52,12 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         const drawControl=new L.Control.Draw({edit:{featureGroup:group,remove:true},draw:{polyline:false,rectangle:false,circle:false,circlemarker:false,marker:false,polygon:{allowIntersection:false,showArea:true}}});map.addControl(drawControl);
         const syncDrawnLayers=()=>{
           const parts=group.getLayers().map((layer:any)=>layer.toGeoJSON().geometry).filter(Boolean);
-          if(!parts.length){setGeojson("");setBoundarySource("manual");setImportMessage("");setOsmCandidates([]);return}
+          if(!parts.length){setGeojson("");setBoundarySource("manual");setImportMessage("");setOsmCandidates([]);setFileCandidates([]);return}
           const rings=parts.flatMap((g:any)=>g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:[]);
           const g=rings.length===1?{type:"Polygon",coordinates:rings[0]}:{type:"MultiPolygon",coordinates:rings};
           try{
             const checked=parseFieldGeometry(g);
-            setGeojson(JSON.stringify(checked.geometry));setBoundarySource("manual");setPointChosen(true);setOsmCandidates([]);setOsmMessage("");
+            setGeojson(JSON.stringify(checked.geometry));setBoundarySource("manual");setPointChosen(true);setOsmCandidates([]);setOsmMessage("");setFileCandidates([]);
             setImportMessage(`Kézzel szerkesztett táblahatár: ${checked.stats.vertices} töréspont.`);setImportError("");
             const c=group.getBounds().getCenter();setCenterLat(c.lat);setCenterLng(c.lng);
             if(markerRef.current)map.removeLayer(markerRef.current);markerRef.current=L.marker([c.lat,c.lng]).addTo(map);
@@ -81,7 +84,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
     setCenterLat(c.lat);setCenterLng(c.lng);setGeojson(JSON.stringify(geometry));setBoundarySource(source);setPointChosen(true);
     if(markerRef.current)map.removeLayer(markerRef.current);
     markerRef.current=L.marker([c.lat,c.lng]).addTo(map);
-    setOsmCandidates([]);setOsmMessage("");setImportError("");
+    setOsmCandidates([]);setOsmMessage("");setImportError("");setFileCandidates([]);
     setImportMessage(`${description}: ${stats.vertices} töréspont, ${stats.polygons} poligon, ${stats.holes} belső kivágás. Ellenőrizd a térképen, majd mentsd.`);
   }
 
@@ -107,17 +110,47 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
     }
   }
 
-  async function importGeoJson(file:File){
-    setImportError("");setImportMessage("");
-    if(file.size>2_000_000){setImportError("Legfeljebb 2 MB méretű GeoJSON fájl importálható.");return}
+  async function loadShapefileParser(){
+    if(typeof window.shp==="function")return window.shp;
+    await new Promise<void>((resolve,reject)=>{
+      const src="https://unpkg.com/shpjs@6.2.0/dist/shp.min.js";
+      const already=document.querySelector(`script[src="${src}"]`) as HTMLScriptElement|null;
+      const script=already||document.createElement("script");
+      if(already&&already.dataset.loaded==="1"){reject(new Error("A SHP-olvasó nem indult el. Próbáld GeoJSON fájllal."));return}
+      const onLoad=()=>{script.dataset.loaded="1";cleanup();resolve()};
+      const onError=()=>{cleanup();script.remove();reject(new Error("Az ingyenes SHP-olvasó modul nem tölthető be. Próbáld később, vagy használj GeoJSON-t."))};
+      const cleanup=()=>{script.removeEventListener("load",onLoad);script.removeEventListener("error",onError)};
+      script.addEventListener("load",onLoad,{once:true});
+      script.addEventListener("error",onError,{once:true});
+      if(!already){script.src=src;script.async=true;document.body.appendChild(script)}
+    });
+    if(typeof window.shp!=="function")throw new Error("A SHP-olvasó nem indult el. Próbáld GeoJSON fájllal.");
+    return window.shp;
+  }
+
+  async function importBoundaryFile(file:File){
+    setImportError("");setImportMessage("");setFileCandidates([]);
+    const zipped=/\\.zip$/i.test(file.name);
+    const geoJson=/\\.(geojson|json)$/i.test(file.name);
+    if(!zipped&&!geoJson){setImportError("GeoJSON (.geojson/.json) vagy Shape-fájlt tartalmazó ZIP (.zip) választható.");return}
+    if(file.size>(zipped?8_000_000:2_000_000)){setImportError(zipped?"Legfeljebb 8 MB-os SHP ZIP csomagot válassz.":"Legfeljebb 2 MB méretű GeoJSON fájl importálható.");return}
+    setFileLoading(true);
     try{
-      const {geometry}=parseFieldGeometryText(await file.text());
-      previewGeometry(geometry,"external",file.name);
-    }catch(error){setImportError(error instanceof Error?error.message:"A GeoJSON importálása nem sikerült.")}
+      let data:unknown;
+      if(zipped){const parse=await loadShapefileParser();data=await parse(await file.arrayBuffer())}
+      else{try{data=JSON.parse(await file.text())}catch{throw new Error("A GeoJSON fájl nem érvényes JSON.")}}
+      const candidates=fieldFileCandidates(data).map(candidate=>({...candidate,geometry:parseFieldGeometry(candidate.geometry).geometry}));
+      if(candidates.length===1)previewGeometry(candidates[0].geometry,"external",`${file.name} · ${candidates[0].label}`);
+      else{
+        setFileCandidates(candidates);
+        setImportMessage(`${file.name}: ${candidates.length} poligon található. Válaszd ki az ehhez a földtáblához tartozót; egyiket sem mentjük automatikusan.`);
+      }
+    }catch(error){setImportError(error instanceof Error?error.message:"A táblahatár-fájl nem dolgozható fel.")}
+    finally{setFileLoading(false)}
   }
 
   return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map" data-tour="farmer-field-map">
-    {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A táblához már egyetlen térképi pont is elegendő. Ha szeretnéd, választhatsz közeli OpenStreetMap-határjavaslatot, feltölthetsz GeoJSON fájlt, vagy kézzel is körberajzolhatod. A problémagócok külön jelennek meg.",important:"A határjavaslat nem hiteles földhivatali adat, és a művelt tábla eltérhet a helyrajzi számmal jelölt földrészlettől. Csak az ellenőrzött poligont mentsd; a későbbi GPS-ellenőrzések erre támaszkodhatnak.",example:"Példa: az új tábla belsejére kattintasz, megkeresed az OSM-határjavaslatokat, ellenőrzöd a műholdképen, és egy kattintással előnézetbe emeled. Ha nincs jó javaslat, a helypontot is elmentheted.",steps:["Nagyíts a földtábla környékére.","Kattints a tábla belsejére: a helypont önmagában is elegendő.","Ha van, keress OSM-határjavaslatot, vagy tölts fel GeoJSON fájlt.","A kézi rajzolás és szerkesztés is választható.","Ellenőrizd, hogy a poligon valóban a művelt területet jelöli.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
+    {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A táblához már egyetlen térképi pont is elegendő. Ha szeretnéd, választhatsz közeli OpenStreetMap-határjavaslatot, feltölthetsz GeoJSON-t vagy ZIP-be csomagolt SHP-fájlt, vagy kézzel is körberajzolhatod. A problémagócok külön jelennek meg.",important:"A határjavaslat nem hiteles földhivatali adat, és a művelt tábla eltérhet a helyrajzi számmal jelölt földrészlettől. Csak az ellenőrzött poligont mentsd; a későbbi GPS-ellenőrzések erre támaszkodhatnak.",example:"Példa: az új tábla belsejére kattintasz, megkeresed az OSM-határjavaslatokat, ellenőrzöd a műholdképen, és egy kattintással előnézetbe emeled. Ha nincs jó javaslat, a helypontot is elmentheted.",steps:["Nagyíts a földtábla környékére.","Kattints a tábla belsejére: a helypont önmagában is elegendő.","Ha van, keress OSM-határjavaslatot, vagy tölts fel GeoJSON/SHP ZIP fájlt.","A kézi rajzolás és szerkesztés is választható.","Ellenőrizd, hogy a poligon valóban a művelt területet jelöli.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
     <div ref={mapRef} style={{height:compact?260:420,width:"100%",borderRadius:compact?9:12,overflow:"hidden",background:"#e7ece7"}}/>
     {!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
     {!compact&&hotspots.length>0&&<p style={{margin:"10px 0 0",color:"#6f7c74",fontSize:12}}>A színes pontok helyszíni GPS-szel rögzített problémagócokat jelölnek. Kattints a pontra a részletekért.</p>}
@@ -136,12 +169,14 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         <small style={{color:"#526253"}}>Az OSM-határ lehet hiányos vagy több táblát összefogó alakzat. Nem hivatalos pontossági garancia; csak ellenőrzés után mentsd. A keresés sikertelensége nem akadályozza a táblafelvételt. Adatok: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap közreműködői (ODbL)</a>.</small>
       </div>
       <div style={{padding:12,border:"1px solid #d7e2d6",borderRadius:10,background:"#f6faf5",display:"grid",gap:7}}>
-        <strong>Határvonal importálása fájlból (GeoJSON)</strong>
-        <label style={{fontSize:13}}>WGS84 (EPSG:4326) vektoros fájl
-          <input aria-label="GeoJSON táblahatárfájl kiválasztása" type="file" accept=".geojson,.json,application/geo+json,application/json" disabled={!ready} onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)await importGeoJson(file)}}/>
+        <strong>Saját határfájl feltöltése (GeoJSON vagy SHP ZIP)</strong>
+        <label style={{fontSize:13}}>Saját mérés vagy korábban beszerzett poligonfájl
+          <input aria-label="GeoJSON vagy SHP ZIP táblahatárfájl kiválasztása" type="file" accept=".geojson,.json,.zip,application/geo+json,application/json,application/zip" disabled={!ready||fileLoading} onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)await importBoundaryFile(file)}}/>
         </label>
-        <small style={{color:"#526253"}}>A fájl valamennyi töréspontját, a belső kivágásokat és a MultiPolygon részeit megőrizzük. EOV/SHP/GML fájlt előbb WGS84 GeoJSON-ra kell alakítani. A fájl nem bizonyítja önmagában a hivatalos földrészlethatárt.</small>
+        <small style={{color:"#526253"}}>A GeoJSON WGS84 (EPSG:4326) legyen. Az SHP-fájlokat egy ZIP-be csomagold a hozzájuk tartozó .shx, .dbf és .prj állománnyal; a vetületet helyben alakítjuk át. A mobilGAZDA saját mérési exportja is használható lehet. Minden töréspont és belső kivágás megmarad. EOV esetén külön ellenőrizd az elhelyezkedést; GML/DXF még nem fogadható. Nem szükséges fizetős adatszolgáltatás. Korábban vásárolt adat csak megfelelő felhasználási joggal tölthető fel; a teljes ZIP-et nem tároljuk, csak a külön mentett kiválasztott poligont.</small>
+        {fileLoading&&<p role="status" style={{margin:0,color:"#526253"}}>Fájl feldolgozása a böngésződben…</p>}
         {importMessage&&<p role="status" style={{margin:0,color:"#2f7430"}}>{importMessage}</p>}
+        {fileCandidates.length>0&&<div role="group" aria-label="Fájlból választható poligonok" style={{display:"grid",gap:6}}>{fileCandidates.map(candidate=><button key={candidate.id} type="button" className="ghost-btn" style={{justifyContent:"flex-start",textAlign:"left",whiteSpace:"normal"}} onClick={()=>{try{previewGeometry(candidate.geometry,"external",candidate.label)}catch(error){setImportError(error instanceof Error?error.message:"A választott poligon nem használható.")}}}>{candidate.label} – Előnézet</button>)}</div>}
         {importError&&<p role="alert" style={{margin:0,color:"#b3342b"}}>{importError}</p>}
       </div>
       <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen} style={{justifySelf:"start"}}>Térképi adatok mentése</button>
