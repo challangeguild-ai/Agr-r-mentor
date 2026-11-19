@@ -10,6 +10,7 @@ import {parseFieldGeometry,parseFieldGeometryText} from "@/lib/fieldGeometry";
 import {osmFieldSuggestions,type OsmFieldSuggestion} from "@/lib/osmFieldBoundary";
 import {fieldFileCandidates,type FieldFileCandidate} from "@/lib/fieldFileCandidates";
 import {assessFieldBoundary} from "@/lib/fieldBoundaryQuality";
+import {escapeHtml} from "@/lib/escapeHtml";
 import {FieldBoundaryQualityPanel} from "@/components/FieldBoundaryQualityPanel";
 
 declare global{interface Window{L:any;shp?: (data:ArrayBuffer)=>Promise<unknown>}}
@@ -41,6 +42,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const[centerLng,setCenterLng]=useState(lng??19.5);
   const[geojson,setGeojson]=useState(boundary?JSON.stringify(boundary):"");
   const[ready,setReady]=useState(false);
+  const[mapLoadError,setMapLoadError]=useState("");
   const[boundarySource,setBoundarySource]=useState(proposalMode?(geometrySource==="external"?"external":"manual"):(geometrySource||"manual"));
   const[proposalSaving,setProposalSaving]=useState(false);
   const[proposalFeedback,setProposalFeedback]=useState<{ok:boolean;message:string}|null>(null);
@@ -72,7 +74,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
       const group=new L.FeatureGroup().addTo(map);drawnLayer.current=group;
       if(boundary){const layer=L.geoJSON(boundary,{style:{color:"#2f7430",weight:3,fillColor:"#5c9a46",fillOpacity:.18}});layer.eachLayer((part:any)=>group.addLayer(part));try{map.fitBounds(group.getBounds(),{padding:[25,25]});if(lat==null||lng==null){const c=group.getBounds().getCenter();setCenterLat(c.lat);setCenterLng(c.lng)}}catch{}}
       if(lat!=null&&lng!=null){markerRef.current=L.marker([lat,lng]).addTo(map)}
-      hotspots.forEach(h=>{if(!Number.isFinite(h.lat)||!Number.isFinite(h.lng))return;const color=h.severity==="critical"?"#c93832":h.severity==="attention"?"#d89d24":"#3f8a48";const m=L.circleMarker([h.lat,h.lng],{radius:10,color:"#fff",weight:3,fillColor:color,fillOpacity:1}).addTo(map);m.bindPopup(`<strong>${h.title}</strong>${h.description?`<br><small>${h.description}</small>`:""}<br><small>GPS: ${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}</small>`)});
+      hotspots.forEach(h=>{if(!Number.isFinite(h.lat)||!Number.isFinite(h.lng))return;const color=h.severity==="critical"?"#c93832":h.severity==="attention"?"#d89d24":"#3f8a48";const m=L.circleMarker([h.lat,h.lng],{radius:10,color:"#fff",weight:3,fillColor:color,fillOpacity:1}).addTo(map);m.bindPopup(`<strong>${escapeHtml(h.title)}</strong>${h.description?`<br><small>${escapeHtml(h.description)}</small>`:""}<br><small>GPS: ${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}</small>`)});
       if(editable){
         const drawControl=new L.Control.Draw({edit:{featureGroup:group,remove:true},draw:{polyline:false,rectangle:false,circle:false,circlemarker:false,marker:false,polygon:{allowIntersection:false,showArea:true}}});map.addControl(drawControl);
         const syncDrawnLayers=()=>{
@@ -94,7 +96,11 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         map.on("click",(e:any)=>{if(documentMapClickRef.current){documentMapClickRef.current(e.latlng.lat,e.latlng.lng);return}if(group.getLayers().length)return;osmAbortRef.current?.abort();setOsmCandidates([]);setOsmMessage("");setPointChosen(true);setCenterLat(e.latlng.lat);setCenterLng(e.latlng.lng);if(markerRef.current)map.removeLayer(markerRef.current);markerRef.current=L.marker(e.latlng).addTo(map)});
       }
       setReady(true);
-    })().catch(console.error);
+    })().catch(error=>{
+      if(cancelled)return;
+      console.error("A földtábla térképének betöltése sikertelen",error);
+      setMapLoadError("A térképi modul nem tölthető be. Ellenőrizd az internetkapcsolatot, majd próbáld újra az oldal frissítésével.");
+    });
     return()=>{cancelled=true;osmAbortRef.current?.abort();documentMapClickRef.current=null;documentAnchorMarkers.current=[];if(mapInstance.current){mapInstance.current.remove();mapInstance.current=null}};
   },[]);
 
@@ -189,7 +195,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map" data-tour="farmer-field-map">
     {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A táblához már egyetlen térképi pont is elegendő. Ha szeretnéd, választhatsz közeli OpenStreetMap-határjavaslatot, feltölthetsz GeoJSON-t vagy ZIP-be csomagolt SHP-fájlt, vagy kézzel is körberajzolhatod. A problémagócok külön jelennek meg.",important:"A határjavaslat nem hiteles földhivatali adat, és a művelt tábla eltérhet a helyrajzi számmal jelölt földrészlettől. Csak az ellenőrzött poligont mentsd; a későbbi GPS-ellenőrzések erre támaszkodhatnak.",example:"Példa: az új tábla belsejére kattintasz, megkeresed az OSM-határjavaslatokat, ellenőrzöd a műholdképen, és egy kattintással előnézetbe emeled. Ha nincs jó javaslat, a helypontot is elmentheted.",steps:["Nagyíts a földtábla környékére.","Kattints a tábla belsejére: a helypont önmagában is elegendő.","Ha van, keress OSM-határjavaslatot, vagy tölts fel GeoJSON/SHP ZIP fájlt.","A kézi rajzolás és szerkesztés is választható.","Ellenőrizd, hogy a poligon valóban a művelt területet jelöli.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
     <div ref={mapRef} style={{height:compact?260:420,width:"100%",borderRadius:compact?9:12,overflow:"hidden",background:"#e7ece7"}}/>
-    {!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
+    {mapLoadError?<p role="alert" style={{color:"#b3342b",fontSize:compact?10:13}}>{mapLoadError}</p>:!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
     {!compact&&hotspots.length>0&&<p style={{margin:"10px 0 0",color:"#6f7c74",fontSize:12}}>A színes pontok helyszíni GPS-szel rögzített problémagócokat jelölnek. Kattints a pontra a részletekért.</p>}
     {!compact&&editable?<form action={proposalMode?undefined:saveFieldMap} onSubmit={proposalMode?handleProposalSubmit:undefined} style={{display:"grid",gap:10,marginTop:14}}>
       <input type="hidden" name="field_id" value={fieldId}/><input type="hidden" name="center_lat" value={pointChosen?centerLat:""}/><input type="hidden" name="center_lng" value={pointChosen?centerLng:""}/><input type="hidden" name="boundary_geojson" value={geojson}/><input type="hidden" name="boundary_source" value={boundarySource}/>

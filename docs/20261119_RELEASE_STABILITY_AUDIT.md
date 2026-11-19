@@ -1,0 +1,37 @@
+# AgrárMentor 2.1 – záró stabilitási javítási kör (2026-11-19)
+
+**Hatókör:** a már elfogadott funkciók hibajavítása a #59 Draft PR ágán, az arculat módosítása nélkül. **Nincs éles Supabase-migráció, Edge Function-telepítés, PR-összevonás vagy Vercel Production deploy.**
+
+## Kiindulási állapot
+
+- A helyi `fix/eight-layer-audit` és a Draft PR távoli ága eltérő commitazonosítókat tartalmazott, de a teljes fájltartalmuk egyezett (`git diff HEAD origin/fix/agrar-mentor-21-wizard-ux-hardening` üres).
+- A 225 meglévő automatikus teszt átment. A teljes build mégis megszakadt, mert az előzőleg félretett, eredeti Supabase Edge Function-mentések (`docs/rollback/**`) bekerültek a Next.js TypeScript-ellenőrzésébe.
+- Az `npm run lint` egyáltalán nem indult el: hiányzott az ESLint 9 konfiguráció.
+- A helyi projekt nem tartalmazott valódi Supabase-környezeti változókat; a build ezt követően csak nem működő, tesztcélú URL-lel és publikus kulcshelyőrzővel futtatható. Valódi hozzáférési kulcsot nem másoltunk a repo-ba.
+
+## Elvégzett javítások
+
+1. **Kiadás előtti fordítás:** a rollback-snapshotok kimaradnak a Next.js typecheckből; a fájlok érintetlenül megmaradnak.
+2. **Statikus ellenőrzés:** ESLint 9 és a telepített Next.js 15 szabályok használhatók; az új, explicit fejlesztői függőség a csomagzárban is szerepel.
+3. **Diagnosztikai végpontok:** `/api/uksup-health` és `/api/nebih-public-meta` külső forráslekérései csak hitelesített, MFA-val belépett rendszeradminisztrátor számára indulhatnak el. A felületek nem használják közvetlenül ezeket a végpontokat.
+4. **Rendszermentés:** sikeres export után a friss TOTP-megerősítő sütit pontosan azon az `/admin/backup` útvonalon járatjuk le, amelyen létrejött. Hálózati hiba után az exportgomb ismét használható és konkrét üzenetet ad.
+5. **Térképes biztonság:** a FieldMapEditor problémagóc-címe és -leírása, valamint a FieldsOverviewMap buborékcíme HTML-escape-et kap a Leaflet által HTML-ként értelmezett tartalom előtt.
+6. **Térkép állapota:** külső térképi modul betöltési hibája nem marad végtelen „Betöltés…” jelzés; a felhasználó hibaüzenetet kap. Az importálási előnézet memoizálása pontos függőséget használ.
+
+**Ellenőrzés:** 230/230 automatikus teszt sikeres; `npm run lint`: 0 hiba, 17 figyelmeztetés (meglévő képhasználati és React-hook javaslatok). A Next.js 15 production build és mind az 53 statikus/útvonal-előkészítési lépés sikerült kizárólag nem működő tesztkörnyezeti helyőrzőkkel. A hook-jelzéseket nem „javítottuk” általános függőségtömb-átírással, mert a térképszerkesztés és a piszkozatmegőrzés állapotát érdemi újrapróba nélkül felboríthatná.
+
+## Éles környezet: csak olvasásos ellenőrzés
+
+- Supabase: az éles projekten továbbra is a négy előkészített migráció előtti állapot fut; egy `update_own_profile` anonim `SECURITY DEFINER` végrehajtási figyelmeztetését az **előre elkészült** `20261119093000_authorized_advisor_notifications.sql` szigorítja majd. Az autentikált `SECURITY DEFINER` RPC-figyelmeztetéseket nem szabad pusztán a linter alapján visszavonni, mert a folyamatok jogosult hívói ezeket használják.
+- A `weather_sync_runs` táblán a policy nélküli RLS szándékos, a hozzáférés szolgáltatói szerepre korlátozott. A teljesen használaton kívülinek jelentett indexeket csekély éles adatmennyiség mellett nem töröltük bizonyíték nélkül.
+- Vercel: a javítóág legújabb Preview telepítése READY; a 7 napos lekérdezés nem adott összesített runtime hibát, de ez nem helyettesíti a belépett szerepkörös próbát és nem bizonyítja, hogy minden útvonalat használtak.
+
+## Kiadási kapuk – változatlanul nyitva
+
+1. A felhasználó gépén már sikeresen visszaállított teljes SQL-mentés megőrzése (és külön biztonságos második másolat); két Storage-objektum külön mentve.
+2. A négy függő SQL-migráció helyi, visszaállított klónon történő tranzakciós kipróbálása, majd csak jóváhagyással a megfelelő Supabase célen történő alkalmazása.
+3. A három előkészített Edge Function telepítése és az `APP_PUBLIC_ORIGIN` / Auth redirect beállítások egyeztetése; az éles Vercel még a régi kódot szolgálja ki.
+4. Izolált tesztadatokkal gazda–munkatárs–szaktanácsadó–admin E2E, meghívó/e-mail, GPS/fotó, táblahatár, növényvédelmi és HungaroMet-próba. A jelenlegi Preview ugyanazt az éles Supabase-hátteret használhatja, ezért nem hajtunk végre próbaadat-írást rajta ellenőrizetlenül.
+5. Külön jóváhagyás a Draft PR összevonásához és a Production élesítéshez. **Csak ezután következik a felület egységes arculati köre.**
+
+**Megjegyzés:** a forráskódellenőrzés és a sikeres build nem bizonyítja a még nem telepített SQL/RPC- és hálózati integrációk teljes működését.

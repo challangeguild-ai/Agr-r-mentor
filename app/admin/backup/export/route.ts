@@ -21,7 +21,9 @@ export async function GET(){
  const{data,error}=await admin.rpc("export_app_backup_service",{p_actor:user.id});
  if(error){await log(user.id,"backup_export_failed","high",45,{reason:error.message});return NextResponse.json({error:error.message},{status:500})}
  await log(user.id,"backup_export_success","medium",10,{fresh_mfa:true,system_admin:true,service_route:true});
- cookieStore.delete(STEP_UP_COOKIE);
  const stamp=new Date().toISOString().replace(/[:.]/g,"-");
- return new NextResponse(JSON.stringify(data,null,2),{status:200,headers:{"Content-Type":"application/json; charset=utf-8","Content-Disposition":`attachment; filename="agrar-mentor-backup-${stamp}.json"`,"Cache-Control":"no-store, private","Pragma":"no-cache"}});
+ const response=new NextResponse(JSON.stringify(data,null,2),{status:200,headers:{"Content-Type":"application/json; charset=utf-8","Content-Disposition":`attachment; filename="agrar-mentor-backup-${stamp}.json"`,"Cache-Control":"no-store, private","Pragma":"no-cache"}});
+ // The grant was issued for /admin/backup, so its expiry must use that path.
+ response.cookies.set(STEP_UP_COOKIE,"",{path:"/admin/backup",maxAge:0,httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict"});
+ return response;
 }

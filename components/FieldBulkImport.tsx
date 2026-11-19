@@ -128,7 +128,8 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
 
   const selected=useMemo(()=>candidates.filter(c=>c.selected),[candidates]);
   const active=candidates.find(c=>c.id===activeId)||candidates[0];
-  const activeStats=useMemo(()=>active?parseFieldGeometry(active.geometry).stats:null,[active?.geometry]);
+  const activeGeometry=active?.geometry;
+  const activeStats=useMemo(()=>activeGeometry?parseFieldGeometry(activeGeometry).stats:null,[activeGeometry]);
   const locationHint=activeStats?fieldLocationHint(activeStats.centerLng,activeStats.centerLat):null;
   const validation=useMemo(()=>{
     if(!selected.length)return {error:"Jelölj ki legalább egy táblát.",newCount:0,alreadyCount:0};

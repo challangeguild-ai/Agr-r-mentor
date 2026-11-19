@@ -1,4 +1,5 @@
 import {NextResponse} from "next/server";
+import {requireSystemAdminProbe} from "@/lib/security/probeAuth";
 
 export const dynamic="force-dynamic";
 const URL="https://novenyvedoszer.nebih.gov.hu/Engedelykereso/Kereso";
@@ -7,6 +8,8 @@ function attrs(tag:string){const out:Record<string,string>={};for(const m of tag
 function strip(s:string){return decode(s.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim())}
 
 export async function GET(){
+ const accessError=await requireSystemAdminProbe();
+ if(accessError)return accessError;
  try{
   const first=await fetch(URL,{cache:"no-store",headers:{"user-agent":"Agrar-Mentor/1.0 catalog-integration-probe","accept":"text/html,application/xhtml+xml"}});const html=await first.text();
   const body=new URLSearchParams();for(const m of html.matchAll(/<input\b([^>]*)>/gi)){const a=attrs(m[1]);if(!a.name)continue;if(a.type==="hidden")body.set(a.name,a.value||"");}
