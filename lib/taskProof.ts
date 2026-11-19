@@ -1,5 +1,10 @@
 export const TASK_PROOF_EVENT="task_completed_verified";
 
+/** Only a confirmed pre-write rejection permits deleting uploaded evidence. */
+export function confirmedSafeToDeleteProof(result:{ok:boolean;safeToRemoveProof?:boolean}|null|undefined):boolean{
+ return result?.ok===false&&result.safeToRemoveProof===true;
+}
+
 export type TaskProof={
  lat:number;
  lng:number;
