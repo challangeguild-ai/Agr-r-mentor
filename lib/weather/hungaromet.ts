@@ -1,5 +1,6 @@
 import "server-only";
 import {parseHungaroMetDailyCsv,parseHungaroMetStations,unzipOfficialCsv,type HungaroMetStation} from "./hungarometParsing";
+import {stationDistanceKm} from "./stationSelection";
 export type {HungaroMetStation,HungaroMetDailyObservation} from "./hungarometParsing";
 export {unzipOfficialCsv as unzipSingleText} from "./hungarometParsing";
 
@@ -31,17 +32,12 @@ export async function fetchHungaroMetStations(){
  return parseHungaroMetStations(csv);
 }
 
-export function distanceKm(lat1:number,lng1:number,lat2:number,lng2:number){
- const r=6371,toRad=(x:number)=>x*Math.PI/180;
- const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
- const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
- return 2*r*Math.asin(Math.sqrt(a));
-}
+export {stationDistanceKm as distanceKm} from "./stationSelection";
 
 export function nearestStation(stations:HungaroMetStation[],lat:number,lng:number){
  let best:{station:HungaroMetStation;distanceKm:number}|null=null;
  for(const station of stations){
-  const distance=distanceKm(lat,lng,station.latitude,station.longitude);
+  const distance=stationDistanceKm(lat,lng,station.latitude,station.longitude);
   if(!best||distance<best.distanceKm)best={station,distanceKm:distance};
  }
  return best;

@@ -57,6 +57,7 @@ test("weather sync reports partial results whenever some fields or stations are 
  assert.equal(weatherSyncStatus(7,6,0),"partial");
  assert.equal(weatherSyncStatus(7,7,1),"partial");
  assert.equal(weatherSyncStatus(7,7,0),"success");
+ assert.equal(weatherSyncStatus(7,7,0,1),"partial");
 });
 
 test("initial rainy-day import creates only a rain event, not dry-day noise",()=>{
@@ -87,6 +88,22 @@ test("rerun is idempotent, while corrected rain updates its existing timeline ev
  const changedToDry=planWeatherTimelineChanges([{...row,precipitation_mm:0}],[event],field,"73211","official-url");
  assert.equal(changedToDry.inserts.length,0);
  assert.equal(changedToDry.updates[0].title,"Csapadék helyesbítve: 0 mm");
+});
+
+test("switching to a backup station updates the same day's timeline rather than duplicating it",()=>{
+ const field={id:"field-1",farm_id:"farm-1"};
+ const previous={id:"old-event",event_at:"2026-11-18T12:00:00Z",source_id:"primary-record",title:"Csapadék: 3 mm",description:"Régi mérés"};
+ const newRow={id:"backup-record",weather_date:"2026-11-18",precipitation_mm:7,distance_km:13,station_name:"Tartalék"};
+ const result=planWeatherTimelineChanges([newRow],[previous],field,"backup-station","official-url");
+ assert.equal(result.inserts.length,0);
+ assert.equal(result.updates.length,1);
+ assert.equal(result.updates[0].event_id,"old-event");
+ assert.equal(result.updates[0].source_id,"backup-record");
+ assert.equal(result.updates[0].technical_payload.station_number,"backup-station");
+ const repeat=planWeatherTimelineChanges([newRow],[{
+  ...previous,source_id:"backup-record",title:result.updates[0].title,description:result.updates[0].description
+ }],field,"backup-station","official-url");
+ assert.deepEqual(repeat,{inserts:[],updates:[]});
 });
 
 test("invalid stored precipitation fails before generating an event",()=>{

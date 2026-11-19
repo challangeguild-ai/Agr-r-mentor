@@ -56,8 +56,8 @@ export async function fetchAllWeatherFields<T>(fetchPage:(from:number,to:number)
  }
 }
 
-export function weatherSyncStatus(totalFields:number,syncedFields:number,stationFailures:number):"success"|"partial"{
- return stationFailures===0&&syncedFields===totalFields?"success":"partial";
+export function weatherSyncStatus(totalFields:number,syncedFields:number,stationFailures:number,staleFields=0):"success"|"partial"{
+ return stationFailures===0&&staleFields===0&&syncedFields===totalFields?"success":"partial";
 }
 
 type StoredWeather={
@@ -67,17 +67,18 @@ type StoredWeather={
  distance_km:number|string|null;
  station_name:string|null;
 };
-type ExistingWeatherEvent={source_id:string|null;title:string;description:string|null};
+type ExistingWeatherEvent={id?:string;event_at?:string;source_id:string|null;title:string;description:string|null};
 
 export function planWeatherTimelineChanges(
  observations:readonly StoredWeather[],existingEvents:readonly ExistingWeatherEvent[],
  field:{id:string;farm_id:string},stationNumber:string,officialDescriptionUrl:string
 ){
  const existingBySource=new Map(existingEvents.map(e=>[e.source_id,e]));
+ const existingByDate=new Map(existingEvents.filter(e=>e.event_at).map(e=>[e.event_at!.slice(0,10),e]));
  const inserts=[];
- const updates:Array<{source_id:string;title:string;description:string}>=[];
+ const updates:Array<{event_id?:string;source_id:string;title:string;description:string;technical_payload?:Record<string,unknown>}>=[];
  for(const weather of observations){
-  const existing=existingBySource.get(weather.id);
+  const existing=existingBySource.get(weather.id)??existingByDate.get(weather.weather_date);
   const rainValue=Number(weather.precipitation_mm);
   if(!Number.isFinite(rainValue)||rainValue<0)throw new Error("Érvénytelen napi csapadékmérés a szinkronban.");
   if(rainValue===0&&!existing)continue;
@@ -85,8 +86,20 @@ export function planWeatherTimelineChanges(
   const distance=weather.distance_km==null?"távolság ismeretlen":`${Number(weather.distance_km).toLocaleString("hu-HU",{maximumFractionDigits:1})} km a táblától`;
   const description=`${rain} mm mért napi csapadék · HungaroMet ${weather.station_name||stationNumber} állomás · ${distance} · mérési időszak: 06–06 UTC`;
   const title=rainValue>0?`Csapadék: ${rain} mm`:`Csapadék helyesbítve: ${rain} mm`;
+  const technical_payload={
+   provider:"HungaroMet",source_type:"measured",station_number:stationNumber,
+   distance_km:weather.distance_km,measurement_period:"06_utc_to_next_06_utc",
+   official_description_url:officialDescriptionUrl
+  };
   if(existing){
-   if(existing.title!==title||existing.description!==description)updates.push({source_id:weather.id,title,description});
+   if(existing.title!==title||existing.description!==description||existing.source_id!==weather.id){
+    const replacedStation=existing.source_id!==weather.id&&!!existing.id;
+    updates.push({
+     ...(existing.id?{event_id:existing.id}:{}),
+     source_id:weather.id,title,description,
+     ...(replacedStation?{technical_payload}:{})
+    });
+   }
    continue;
   }
   inserts.push({
@@ -96,11 +109,7 @@ export function planWeatherTimelineChanges(
    title,description,
    event_at:`${weather.weather_date}T12:00:00Z`,
    source_id:weather.id,
-   technical_payload:{
-    provider:"HungaroMet",source_type:"measured",station_number:stationNumber,
-    distance_km:weather.distance_km,measurement_period:"06_utc_to_next_06_utc",
-    official_description_url:officialDescriptionUrl
-   }
+   technical_payload
   });
  }
  return {inserts,updates};
