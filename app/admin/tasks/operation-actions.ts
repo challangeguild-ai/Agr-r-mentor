@@ -3,7 +3,7 @@
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
-import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
+import {parseDecimalOrNull,validDateOnly,licenseCoversDate} from "@/lib/operationInput";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
 
@@ -38,7 +38,7 @@ export async function createPlannedOperationTask(formData:FormData){
    supabase.from("profile_plant_protection_licenses").select("authorization_level,valid_until,active").eq("user_id",requestedApproverId).eq("active",true).maybeSingle(),
    supabase.from("profiles").select("role").eq("id",requestedApproverId).maybeSingle()
   ]);
-  if(!assignment||!licence||!licence.valid_until||licence.valid_until<budapestCalendarDate())
+  if(!assignment||!licence||!licenseCoversDate(licence.valid_until,dueDate,budapestCalendarDate()))
    throw new Error("A kijelölt növényvédelmi jóváhagyó nem rendelkezik érvényes gazdasági jogosultsággal.");
   if(!approverProfile||approverProfile.role==="advisor")
    throw new Error("Szaktanácsadó nem lehet gazdasági kijuttatási jóváhagyó.");
