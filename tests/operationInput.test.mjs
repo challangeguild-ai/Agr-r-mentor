@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parseDecimalOrNull,validDateOnly} from "../lib/operationInput.ts";
+import {parseDecimalOrNull,validDateOnly,licenseCoversDate} from "../lib/operationInput.ts";
 
 test("accepts real calendar dates including leap day",()=>{
  assert.equal(validDateOnly("2028-02-29"),true);
@@ -11,6 +11,19 @@ test("rejects impossible or malformed calendar dates",()=>{
   assert.equal(validDateOnly(value),false,value);
  }
 });
+test("license must cover both today and a future scheduled application",()=>{
+ assert.equal(licenseCoversDate("2026-11-19","","2026-11-19"),true);
+ assert.equal(licenseCoversDate("2026-11-18","","2026-11-19"),false);
+ assert.equal(licenseCoversDate("2026-12-01","2026-12-01","2026-11-19"),true);
+ assert.equal(licenseCoversDate("2026-11-30","2026-12-01","2026-11-19"),false);
+ assert.equal(licenseCoversDate("2026-12-01","2026-11-01","2026-11-19"),true);
+});
+test("missing or malformed license dates never pass authorization",()=>{
+ assert.equal(licenseCoversDate(null,"2026-12-01","2026-11-19"),false);
+ assert.equal(licenseCoversDate("2026-02-30","2026-12-01","2026-11-19"),false);
+ assert.equal(licenseCoversDate("2026-12-01","2026-13-01","2026-11-19"),false);
+});
+
 test("accepts comma and dot decimals while preserving negative values for range checks",()=>{
  assert.equal(parseDecimalOrNull(" 12,4 "),12.4);
  assert.equal(parseDecimalOrNull("12.4"),12.4);
