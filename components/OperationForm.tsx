@@ -2,6 +2,7 @@
 
 import {useEffect,useMemo,useRef,useState} from "react";
 import {createFieldOperation} from "@/app/operations/actions";
+import {operationSubmissionFingerprint,reuseOperationAttempt,type OperationSubmissionAttempt} from "@/lib/operationSubmissionAttempt";
 import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
@@ -29,6 +30,8 @@ function localToday(){const d=new Date();return `${d.getFullYear()}-${String(d.g
 export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId}:{fields:FieldOption[];machines?:MachineOption[];defaultFieldId?:string;draftOwnerId:string}){
  const formRef=useRef<HTMLFormElement>(null);
  const draftKey=`agrar-mentor:operation-draft:v1:${draftOwnerId}`;
+ const attemptKey=`agrar-mentor:operation-attempt:v1:${draftOwnerId}`;
+ const attemptRef=useRef<OperationSubmissionAttempt|null>(null);
  const draftPending=useRef<OperationDraft|null>(null);
  const draftInitialized=useRef(false);
  const draftInputsRestored=useRef(false);
@@ -235,10 +238,19 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  async function submit(formData:FormData){
   if(submitting.current||saved.current)return;
   for(let s=0;s<3;s++){const message=validateStep(s,formData);if(message){setStep(s);setError(message);return}}
+  const fingerprint=operationSubmissionFingerprint(formData);
+  let previous:unknown=attemptRef.current;
+  if(!previous){try{previous=JSON.parse(sessionStorage.getItem(attemptKey)||"null")}catch{}}
+  const attempt=reuseOperationAttempt(previous,fingerprint,Date.now(),()=>crypto.randomUUID());
+  attemptRef.current=attempt;
+  formData.set("request_id",attempt.id);
+  try{sessionStorage.setItem(attemptKey,JSON.stringify(attempt))}catch{}
   submitting.current=true;setBusy(true);setError("");
   try{
    const result=await createFieldOperation(formData);
    saved.current=true;
+   attemptRef.current=null;
+   try{sessionStorage.removeItem(attemptKey)}catch{}
    try{sessionStorage.removeItem(draftKey)}catch{}
    if(result.warning){
     setSavedWarning(result.warning);

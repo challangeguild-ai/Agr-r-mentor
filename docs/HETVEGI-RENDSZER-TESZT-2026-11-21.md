@@ -60,6 +60,7 @@
 - [ ] Szaktanácsadói terv és jóváhagyási folyamat külön jogosultságokkal.
 - [ ] Egyszeri mentés utáni idővonal/művelet megjelenése; véletlen dupla kattintás kezelése.
 - [ ] Hiba utáni részleges siker: ne keletkezzen duplikált művelet vagy terv.
+- [ ] **Gazdálkodói műveleti napló megszakadt mentése:** az első sikeres adatbázis-írás után elveszett válasz esetén ugyanabból az űrlapból újraküldve csak egy művelet marad; az idővonal sem duplázódik. Böngészőfrissítés után a változatlan kitöltés megőrzi a mentési próbálkozás azonosítóját, az eltérő kitöltés új próbálkozásnak számít. A naplót ellenőrizni kell, ha az idővonal-frissítés eredménye bizonytalan.
 - [ ] **Műveleti terv kétlépcsős mentésének újrapróbálása:** ha a feladat már létrejött, de a részletes terv mentése megszakad, a feladat nem törlődik; ugyanebből az űrlapból újraküldve csak a hiányzó terv mentődik. Ha az első mentés valójában sikeres volt, második terv és értesítés nem keletkezik. A gép hozzárendelése külön pótolható; eltérő tervvel újrafelhasznált mentési azonosító hibát ad.
 
 ## 4. Munkakiosztás, végrehajtás, gépek (P0)
