@@ -61,6 +61,8 @@
 - [ ] Helyes státuszok: kiosztva, folyamatban, ellenőrzésre vár, javításra visszaküldve, kész.
 - [ ] Napi munka, teendők, ellenőrzési és jóváhagyási körök.
 - [ ] Munkatárs telefonon GPS-t kér; jogosultság megtagadva, rossz pontosság, határon kívüli hely kezelése.
+- [ ] **Friss GPS:** 15 percnél régebben rögzített pozícióval ne engedjen beküldeni, kérjen új mérést; friss pozícióval engedjen tovább (a fotót és az űrlapadatokat ne veszítse el).
+- [ ] **GPS-mérési idő:** a beküldött igazolásban az eredeti telefonos mérés időpontja szerepeljen, ne a fotófeltöltés vagy a szerveres mentés időpontja. Hosszabb/félbeszakadt feltöltés után a szerver is utasítsa el az elavult pozíciót.
 - [ ] Fénykép csatolása, végrehajtási adatok, lezárás, egyértelmű sikervisszajelzés.
 - [ ] **Földtábla adatlapjáról indított munka:** „Igazolás beküldése” a megfelelő teendőhöz visz; nem lehet közvetlenül „Kész” állapotba tenni a szaktanácsadói jóváhagyás előtt.
 - [ ] **Egyszerű, leírás nélküli táblafeladat:** a GPS- és fényképes űrlap akkor is elérhető, ha a feladatnak nincs részletes leírása vagy műveleti terve.

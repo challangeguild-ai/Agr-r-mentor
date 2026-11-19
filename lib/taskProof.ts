@@ -1,4 +1,13 @@
 export const TASK_PROOF_EVENT="task_completed_verified";
+export const MAX_TASK_GPS_AGE_MS=15*60*1000;
+const MAX_TASK_GPS_FUTURE_SKEW_MS=2*60*1000;
+
+/** A GPS fix must be recent relative to submission, not merely uploaded recently. */
+export function gpsFixFreshEnough(capturedAtMs:number,nowMs:number):boolean{
+ if(!Number.isFinite(capturedAtMs)||capturedAtMs<=0||!Number.isFinite(nowMs)||nowMs<=0)return false;
+ const ageMs=nowMs-capturedAtMs;
+ return ageMs<=MAX_TASK_GPS_AGE_MS&&ageMs>=-MAX_TASK_GPS_FUTURE_SKEW_MS;
+}
 
 /** Only a confirmed pre-write rejection permits deleting uploaded evidence. */
 export function confirmedSafeToDeleteProof(result:{ok:boolean;safeToRemoveProof?:boolean}|null|undefined):boolean{
