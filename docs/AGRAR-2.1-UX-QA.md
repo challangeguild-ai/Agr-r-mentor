@@ -161,3 +161,14 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - **Határ:** a hálózati bizonytalanság nem egyenlő teljes szerveroldali idempotenciával. Az adatbázis-függvény, RLS, GPS/fotó-hozzáférés és többfelhasználós E2E valós Supabase-környezettel továbbra is ellenőrizendő.
 
 **A #59-es PR Draft marad; sem éles merge, sem adatbázis-migráció nem történt.**
+
+
+## 2026-11-19 – kilencedik kör: valós táblahatár-geometria és helyrajzi szám
+
+- Az Agrár mentor Supabase projektet a felhasználó újraaktiválta; 2026.11.19-én a projekt `ACTIVE_HEALTHY` státusza és a `fields` tábla sémája **csak olvasással** ellenőrzött. Hét tábla mindegyikén `Polygon` geometria van; hat táblán van HRSZ. A hét határgyűrű mindegyike hat koordinátát (öt önálló töréspontot + zárópontot) tartalmaz, ezért nem tekintjük őket önmagukban hivatalosan ellenőrzött határnak. A `geometry_source` minden esetben `manual`.
+- A korábbi GPS-határbecslés a legközelebbi csúcs helyett a határ **szakaszait** méri; belső kizárt terület (GeoJSON hole) és MultiPolygon figyelembevétele. Hat új GPS-regressziós teszt sikeres; a `cbb18d3` commit Vercel státusza `success`.
+- Pontos GeoJSON import `Polygon`, `MultiPolygon`, `Feature` és egyetlen geometriát tartalmazó `FeatureCollection` bemenetre. Az összes töréspont és belső kivágás megőrződik; nincs automatikus leegyszerűsítés. WGS84-koordinátatartomány, zárt gyűrű, nemnulla terület, méret és elemszám ellenőrzése. EOV/vetületi koordináták téves GPS-ként való kezelése elutasítva. Hét új tiszta regressziós teszt: **7/7 PASS**; összesen **52 Node teszteset**.
+- A szaktanácsadói térképen fájlból betöltött geometriát mentés előtt meg kell nézni; új rajzolás/szerkesztés kézi eredetet, fájlimport külső eredetet jelöl. A szerver ugyanazt a geometriavizsgálatot alkalmazza mentéskor. A táblaváltás a térképet újrainicializálja, elkerülve az előző tábla alakzatának megjelenését.
+- Kijavított HRSZ-metadatakezelés: a felület korábban `official_cadastral`, `external_api`, `gml_import` értékeket írt volna, noha az éles adatbázis csak `manual`, `cadastral`, `mepar`, `external` értékeket fogad el. A helyrajzi szám puszta mentése most már **nem** írja át a tényleges geometriát és annak forrását.
+- **Korlát:** nincs automatikus hivatalos HRSZ → vektoros poligon API a projektben. A Lechner/GeoShop jogszerű adatbeszerzése vagy adatszolgáltatói megállapodása későbbi integráció. A földrészlethatár és a tényleges művelt tábla határa eltérhet. A GeoJSON fájl eredetét/szakszerű vetületi konverzióját a felhasználónak ellenőriznie kell; a strukturális ellenőrzés nem teljes topológiai és jogi hitelességvizsgálat.
+- **Nem történt élő Supabase írás, schema migration, production merge vagy domainváltoztatás.** A #59 PR továbbra is Draft; Supabase-be bejelentkezett személyekkel végzett import/mentés E2E még szükséges.
