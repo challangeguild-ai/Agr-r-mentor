@@ -12,6 +12,15 @@ export function licenseCoversDate(validUntil:string|null|undefined,scheduledDate
  return validUntil>=(scheduledDate>today?scheduledDate:today);
 }
 
+/** Planned areas must be positive and cannot exceed their field boundary. */
+export function validatePlannedArea(area:number|null,fieldArea:number|null):string|null{
+ if(area===null)return null;
+ if(!Number.isFinite(area)||area<=0)return "A tervezett területnek pozitív számnak kell lennie.";
+ if(fieldArea!==null&&Number.isFinite(fieldArea)&&area>fieldArea)
+  return "A tervezett terület nem haladhatja meg a földtábla méretét.";
+ return null;
+}
+
 /** Blank values are optional; malformed numeric values are never silently discarded. */
 export function parseDecimalOrNull(input:string):number|null{
  const normalized=input.trim().replace(",",".");
