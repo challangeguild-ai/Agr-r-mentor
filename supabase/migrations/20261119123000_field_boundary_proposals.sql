@@ -52,7 +52,7 @@ create function public.submit_field_boundary_proposal(
   p_geometry_source text default 'manual',
   p_note text default ''
 )
-returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+returns uuid language plpgsql security definer set search_path='' as $$
 declare
   v_user uuid := (select auth.uid());
   v_field public.fields%rowtype;
@@ -117,7 +117,7 @@ create function public.review_field_boundary_proposal(
   p_approve boolean,
   p_note text default null
 )
-returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+returns uuid language plpgsql security definer set search_path='' as $$
 declare
   v_user uuid := (select auth.uid());
   v_proposal public.field_boundary_proposals%rowtype;

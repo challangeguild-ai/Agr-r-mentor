@@ -17,6 +17,7 @@ test("farmers may not insert into or update the authoritative fields table from 
   assert.match(sql,/revoke all on public\.field_boundary_proposals from public,anon,authenticated/);
   assert.match(sql,/grant select on public\.field_boundary_proposals to authenticated/);
   assert.match(sql,/create policy "boundary proposals visible to authorized participants"/);
+  assert.equal((sql.match(/security definer set search_path=''/g)||[]).length,2);
 });
 
 test("proposer, farm and baseline are derived from trusted database rows",()=>{

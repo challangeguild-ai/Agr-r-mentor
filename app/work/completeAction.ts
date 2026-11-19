@@ -20,6 +20,11 @@ export async function completeVerifiedTask(formData:FormData){
   if(operationDate>budapestCalendarDate())throw new Error("Jövőbeli dátumra nem küldhető be végrehajtott munka.");if(notes.length>3000||weather.length>1000)throw new Error("A végrehajtási megjegyzés túl hosszú.");
   if(!Number.isFinite(lat)||lat<-90||lat>90||!Number.isFinite(lng)||lng<-180||lng>180)throw new Error("Érvényes GPS-pozíció szükséges a munka beküldéséhez.");if(!Number.isFinite(accuracy)||accuracy<=0||accuracy>200)throw new Error("A GPS pontossága nem megfelelő. Menj szabad ég alá, majd kérj új pozíciót.");if(!gpsFixFreshEnough(gpsCapturedAt,Date.now()))throw new Error("A GPS-mérés túl régi vagy érvénytelen. Kérj új, legfeljebb 15 perces GPS-pozíciót.");if(!photoPath||!photoName)throw new Error("A munka beküldéséhez helyszíni fotó szükséges.");if(!photoPath.startsWith(`${user.id}/task-proofs/${taskId}/`))throw new Error("Érvénytelen fotóhivatkozás.");
   const{data:task,error:taskError}=await supabase.from("tasks").select("id,title,farm_id,field_id,assigned_to,status,task_kind").eq("id",taskId).eq("assigned_to",user.id).maybeSingle();if(taskError||!task)throw new Error("A teendő nem található vagy nincs hozzá jogosultságod.");if(task.status==="done"||task.status==="submitted")return{ok:true,submitted:false};if(!task.field_id)throw new Error("GPS-validált beküldés csak földtáblához kapcsolt munkánál használható.");
+  const[{data:ownFarm},{data:activeMembership}]=await Promise.all([
+   supabase.from("farms").select("id").eq("id",task.farm_id).eq("owner_id",user.id).maybeSingle(),
+   supabase.from("farm_members").select("id").eq("farm_id",task.farm_id).eq("user_id",user.id).eq("active",true).maybeSingle()
+  ]);
+  if(!ownFarm&&!activeMembership)throw new Error("Ehhez a gazdasághoz már nincs aktív jogosultságod.");
   if(task.task_kind==="operation"){
    const{data:plan}=await supabase.from("task_operation_plans").select("operation_type,product_id,plant_protection_use_id,dose_min,dose_max,dose_unit,country_code").eq("task_id",taskId).maybeSingle();
    const spraying=plan&&(plan.operation_type==="spraying"||plan.operation_type==="plant_protection");
@@ -36,10 +41,9 @@ export async function completeVerifiedTask(formData:FormData){
     const min=use.dose_min==null?plan.dose_min:Number(use.dose_min),max=use.dose_max==null?plan.dose_max:Number(use.dose_max),officialUnit=use.dose_unit||plan.dose_unit||null;if(max!=null&&actualDose>Number(max))throw new Error(`A tényleges dózis meghaladja a jelenlegi hivatalos maximumot (${max} ${officialUnit||""}).`);if(min!=null&&actualDose<Number(min))throw new Error(`A tényleges dózis kisebb a jelenlegi hivatalos minimumnál (${min} ${officialUnit||""}).`);if(officialUnit&&officialUnit!==doseUnit)throw new Error("A tényleges dózis mértékegysége nem egyezik a jelenlegi hivatalos felhasználással.");
    }
   }
-  const[{data:field},{data:farm}]=await Promise.all([supabase.from("fields").select("id,name,center_lat,center_lng,boundary_geojson").eq("id",task.field_id).maybeSingle(),supabase.from("farms").select("id,name").eq("id",task.farm_id).maybeSingle()]);if(!field)throw new Error("A földtábla nem található.");
-  const isDemo=farm?.name?.trim().toUpperCase()==="AGRÁR MENTOR DEMÓGAZDASÁG";let validation:"inside_boundary"|"near_boundary"|"near_center"|"demo_override"|null=null,distance:number|null=null;
-  if(isDemo){validation="demo_override"}
-  else if(field.boundary_geojson){if(pointInBoundary(lat,lng,field.boundary_geojson))validation="inside_boundary";else if(!pointInBoundaryHole(lat,lng,field.boundary_geojson)){distance=nearestBoundaryDistance(lat,lng,field.boundary_geojson);if(distance!==null&&distance<=150)validation="near_boundary"}}
+  const{data:field}=await supabase.from("fields").select("id,name,center_lat,center_lng,boundary_geojson").eq("id",task.field_id).eq("farm_id",task.farm_id).maybeSingle();if(!field)throw new Error("A földtábla nem található.");
+  let validation:"inside_boundary"|"near_boundary"|"near_center"|null=null,distance:number|null=null;
+  if(field.boundary_geojson){if(pointInBoundary(lat,lng,field.boundary_geojson))validation="inside_boundary";else if(!pointInBoundaryHole(lat,lng,field.boundary_geojson)){distance=nearestBoundaryDistance(lat,lng,field.boundary_geojson);if(distance!==null&&distance<=150)validation="near_boundary"}}
   else if(field.center_lat!=null&&field.center_lng!=null){distance=distanceMeters(lat,lng,Number(field.center_lat),Number(field.center_lng));if(distance<=500)validation="near_center"}
   else throw new Error("Ehhez a táblához még nincs térképi adat. GPS-validált beküldés előtt rögzíteni kell a táblahatárt vagy középpontot.");
   if(!validation)throw new Error(`A GPS alapján nem vagy a munkaterületen${distance!==null?` (kb. ${Math.round(distance)} m távolság)`:""}.`);

@@ -1,14 +1,7 @@
 -- The authenticated Data API can call this SECURITY DEFINER RPC directly.
 -- Validate its GPS/photo evidence inside the transaction, even if a caller bypasses Next.js.
 -- Staged only: do not apply to the hosted database before the release decision.
--- Freeze existing demo farm exemptions, so renaming a real farm cannot disable GPS checks.
-create table if not exists app_private.verified_task_demo_farms (
-  farm_id uuid primary key references public.farms(id) on delete cascade
-);
-alter table app_private.verified_task_demo_farms enable row level security;
-insert into app_private.verified_task_demo_farms(farm_id)
-select id from public.farms where upper(trim(name))='AGRÁR MENTOR DEMÓGAZDASÁG'
-on conflict do nothing;
+-- No demo-farm GPS bypass: a farm name must never disable location verification.
 
 create or replace function public.submit_verified_task_execution(
   p_task_id uuid,
@@ -24,7 +17,7 @@ create or replace function public.submit_verified_task_execution(
   p_finished_hours numeric default null,
   p_worked_hectares numeric default null
 ) returns void
-language plpgsql security definer set search_path='public','pg_temp' as $$
+language plpgsql security definer set search_path='' as $$
 declare
   v_task public.tasks%rowtype;
   v_plan public.task_operation_plans%rowtype;
@@ -56,6 +49,14 @@ begin
   if v_task.status='submitted' then raise exception 'A munka már ellenőrzésre be lett küldve'; end if;
   if v_task.status not in ('open','in_progress') then raise exception 'Ez a teendő nem küldhető be végrehajtottnak'; end if;
   if v_task.field_id is null then raise exception 'GPS-validált lezárás csak földtáblához kapcsolt munkánál használható'; end if;
+  if not exists (
+    select 1 from public.farms f where f.id=v_task.farm_id and f.owner_id=auth.uid()
+  ) and not exists (
+    select 1 from public.farm_members fm
+    where fm.farm_id=v_task.farm_id and fm.user_id=auth.uid() and fm.active
+  ) then
+    raise exception 'Ehhez a gazdasághoz már nincs aktív jogosultságod';
+  end if;
 
   if left(coalesce(p_proof,''),10)<>'TASKPROOF:' or length(p_proof)>5000 then
     raise exception 'Érvénytelen GPS/fotó igazolás';
@@ -107,9 +108,7 @@ begin
   select * into v_field from public.fields where id=v_task.field_id and farm_id=v_task.farm_id;
   if not found then raise exception 'A földtábla nem található'; end if;
   v_point := gis.ST_SetSRID(gis.ST_MakePoint(v_lng::double precision,v_lat::double precision),4326);
-  if exists(select 1 from app_private.verified_task_demo_farms where farm_id=v_task.farm_id) then
-    v_validation := 'demo_override';
-  elsif v_field.boundary_geojson is not null then
+  if v_field.boundary_geojson is not null then
     v_boundary := gis.ST_SetSRID(gis.ST_GeomFromGeoJSON(v_field.boundary_geojson::text),4326);
     if gis.ST_GeometryType(v_boundary) not in ('ST_Polygon','ST_MultiPolygon')
        or not gis.ST_IsValid(v_boundary) then
@@ -206,5 +205,5 @@ begin
   update public.tasks set status='submitted',review_status='pending',completed_at=null,reviewed_by=null,reviewed_at=null,review_note=null,updated_at=now() where id=v_task.id;
 end $$;
 
-revoke all on function public.submit_verified_task_execution(uuid,text,date,numeric,text,numeric,numeric,text,text,text,numeric,numeric) from public,anon;
+revoke all on function public.submit_verified_task_execution(uuid,text,date,numeric,text,numeric,numeric,text,text,text,numeric,numeric) from public,anon,authenticated;
 grant execute on function public.submit_verified_task_execution(uuid,text,date,numeric,text,numeric,numeric,text,text,text,numeric,numeric) to authenticated;

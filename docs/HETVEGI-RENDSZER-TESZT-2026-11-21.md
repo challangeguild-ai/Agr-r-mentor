@@ -73,6 +73,7 @@
 - [ ] **Friss GPS:** 15 percnél régebben rögzített pozícióval ne engedjen beküldeni, kérjen új mérést; friss pozícióval engedjen tovább (a fotót és az űrlapadatokat ne veszítse el).
 - [ ] **GPS-mérési idő:** a beküldött igazolásban az eredeti telefonos mérés időpontja szerepeljen, ne a fotófeltöltés vagy a szerveres mentés időpontja. Hosszabb/félbeszakadt feltöltés után a szerver is utasítsa el az elavult pozíciót.
 - [ ] **Közvetlen RPC megkerülési kísérletek (tesztfiókkal):** hamis `TASKPROOF` szöveg, hiányzó fotó, idegen felhasználói tárhelyút, 15 percnél régebbi GPS, táblán kívüli koordináta, kizárt belső poligonlyuk és nem aktív növényvédő szer minden esetben álljon meg az adatbázisban. Éles gazda adatait ne használjuk.
+- [ ] **Megszűnt gazdasági tagság és demó-GPS:** a feladathoz rendelt, de a gazdaságból időközben eltávolított végrehajtó se a webfelületen, se közvetlen RPC-n ne tudjon beküldeni. A „DEMÓGAZDASÁG” elnevezés soha ne mentesítsen a tényleges helyellenőrzés alól; a próbaföldtáblát a valós teszthelyszín közelében kell felvenni.
 - [ ] Fénykép csatolása, végrehajtási adatok, lezárás, egyértelmű sikervisszajelzés.
 - [ ] **Földtábla adatlapjáról indított munka:** „Igazolás beküldése” a megfelelő teendőhöz visz; nem lehet közvetlenül „Kész” állapotba tenni a szaktanácsadói jóváhagyás előtt.
 - [ ] **Egyszerű, leírás nélküli táblafeladat:** a GPS- és fényképes űrlap akkor is elérhető, ha a feladatnak nincs részletes leírása vagy műveleti terve.
@@ -150,6 +151,10 @@ Képernyőkép vagy videó:
 **Csapadék előfeltétel (2026-11-19):** a kapcsolt Supabase adatbázisban 7 tábla található, de a `field_weather_daily` és a `weather_sync_runs` egyaránt üres. A HungaroMet-szinkron működése ezért még nincs éles vagy Preview-adattal igazolva. A Vercel Cron csak Production telepítésen időzített; a Preview ellenőrzéshez egy külön, jogosult és előre egyeztetett kézi futás szükséges. Nem szabad a hiányzó adatot 0 mm-es csapadékként értelmezni.
 
 **GPS-es RPC biztonsági előfeltétel:** a `20261119110000_verified_task_proof_rpc_guard.sql` migráció a közvetlen adatbázis-hívásnál ellenőrzi a GPS-t, a ténylegesen feltöltött fényképet, a táblahatárt és az aktuális növényvédelmi kapcsolatok alapvető érvényességét. Ez a migráció is **csak előkészítve**, az éles Supabase adatbázison nincs alkalmazva. A konkrét SQL-működés kézi/integrációs kipróbálása a hétvégi teszt része.
+
+**Kiemelt jogosultsági figyelmeztetés (2026-11-19):** a kapcsolt Supabase adatbázis jelenleg telepített `submit_verified_task_execution` függvénye a csak olvasható ellenőrzés szerint még nem tartalmaz külön aktív gazdasági tagság- és tényleges Storage-fotóellenőrzést. A Draft PR-ban előkészített szigorított migráció most már mindkettőt megköveteli, valamint a demónév alapján adott GPS-felmentést is megszünteti. **A módosított migráció telepítése és jogosultsági ellenőrzése nélkül ezt a P0 biztonsági pontot nem szabad lezártnak tekinteni.** Jelen körben nem történt éles adatbázis-módosítás.
+
+**Stabilitási kódellenőrzés:** a GPS-es beküldés szerveroldali tagságellenőrzése és a két táblahatár-javaslati `SECURITY DEFINER` függvény szűkített `search_path` beállítása is elkészült. **154/154 automatizált teszt és teljes helyi production build sikeres**; az SQL-migrációk éles végrehajtása nem történt meg.
 
 **Gazdálkodói táblahatár-javaslatok előfeltétele:** a `20261119123000_field_boundary_proposals.sql` migráció létrehozza a függő javaslatokat, a koordinátor jogosultsági ellenőrzését és az atomikus szaktanácsadói jóváhagyást. Ez is **csak a Draft PR része**, nem került az éles adatbázisba. Telepítés nélkül a gazda adatlapján a beküldés nem érhető el; a hétvégi teszt előtt az alkalmazást és a DB-migrációkat össze kell hangolni a tesztkörnyezettel.
 
