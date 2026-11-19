@@ -5,8 +5,9 @@ import {createFieldOperation} from "@/app/operations/actions";
 import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
-import {parseDecimalOrNull,validDateOnly} from "@/lib/operationInput";
+import {parseDecimalOrNull,validDateOnly,licenseCoversDate} from "@/lib/operationInput";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
+import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
 import {parseOperationDraft,type OperationDraft} from "@/lib/operationDraft";
 import {requiresPlantProtectionApprover,licenseAllowsCategory,regulatoryCategory} from "@/lib/plantProtectionApproval";
 
@@ -161,7 +162,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  }):null;
  const normalizedCategory=regulatoryCategory(selectedProduct?.regulatory_category);
  const approvalNeeded=!!selectedProduct&&hasUseCatalog&&requiresPlantProtectionApprover(country,selectedProduct);
- const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&licenseAllowsCategory(a.authorization_level,normalizedCategory)),[approvers,normalizedCategory]);
+ const eligibleApprovers=useMemo(()=>approvers.filter(a=>a.role!=="advisor"&&licenseAllowsCategory(a.authorization_level,normalizedCategory)&&licenseCoversDate(a.valid_until,"",budapestCalendarDate())),[approvers,normalizedCategory]);
  const fertilizerOptions=catalog.length?catalog.map(x=>x.name):fertilizerCatalog.map(x=>x.name),methodOptions=catalog.length?catalog.map(x=>x.name):(type==="soil_work"?soilWork:[]),availableMachines=machines.filter(m=>!selectedField||m.farmId===selectedField.farmId),selectedMachine=machines.find(m=>m.id===machineId),effectiveProduct=product==="Egyéb"?customProduct:product;
  const nutrientSummary=useMemo(()=>{if(!fert||!effectiveProduct)return"";const d=Number(dose.replace(",","."));if(!Number.isFinite(d)||d<=0)return"";const item=catalog.find(x=>x.name===effectiveProduct)||fertilizerCatalog.find(x=>x.name===effectiveProduct);const meta=item?.metadata||{};return Object.entries(meta).filter(([,v])=>typeof v==="number").map(([k,v])=>`${k}: ${Math.round(d*(v as number))/100} kg/ha`).join(" · ")},[fert,effectiveProduct,dose,catalog]);
  function changeField(next:string){
