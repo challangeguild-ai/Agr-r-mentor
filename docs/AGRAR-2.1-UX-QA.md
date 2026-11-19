@@ -220,3 +220,16 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - A szaktanácsadói jóváhagyó oldal további, ugyanazon gazdasághoz tartozó legfeljebb 50 poligonon keres lehetséges átfedést. A geometriai heurisztika megkülönbözteti a közös mezsgyét a valódi területi átfedéstől; kezeli a MultiPolygon részeket és a belső kivágásokat. Túl bonyolult vagy hiányos ellenőrzés esetén jelzi a bizonytalanságot. Nem helyettesíti a PostGIS/geodéziai topológiai igazolást.
 - Az admin **Határellenőrzés** oldal 50-es lapokon mutatja a hiányzó/pontra korlátozódó/gyanús régi földtáblákat, ahonnan közvetlenül nyitható a szaktanácsadói térképszerkesztő. Az áttekintő számlálók az éppen betöltött lapra vonatkoznak.
 - **Kiadási kapu:** valós térképi adatokkal, eltérő méretű és több részből álló táblákkal, gazda/szaktanácsadó jogosultságokkal végzett hétvégi kézi próba. Sem a figyelmeztetés, sem az előzetes tesztek nem jelentik a jogi táblahatár hitelesítését.
+
+
+## 2026-11-19 – munkavégzői munkalépés és szaktanácsadói értesítés végigjavítása
+
+- A `notify_advisors` RPC-hibája többé nem tűnik el üres címzettlistaként: a hívó elkülönítheti a tényleges hibát a nulla új értesítéstől.
+- Munka elfogadásakor és megkezdésekor a szerver előbb ellenőrzi a végrehajtó korábbi eseményét, és csak hiányzó eseményt ment. Sikertelen eseménylekérdezés esetén nem kockáztat új naplóbejegyzést.
+- A mentett esemény utáni értesítési hiba esetén a felületen **részleges siker** látszik és külön újrapróbálható az értesítés. A szerver már létező esemény mellett is újrahívhatja az értesítési RPC-t; a `(user_id,event_key)` egyedi index megakadályozza az ismételt belső értesítést.
+- A szerver a munkakezdés előtt a jelenlegi végrehajtó saját, már mentett elfogadási eseményét kéri. Közvetlen hívással sem hagyható ki az elfogadás.
+- A munkavégző saját elfogadási/kezdési állapotát látja; korábban másik munkatárs által rögzített munkalépés átadás után nem léptetheti őt jogosulatlanul a következő fázisba.
+- A mobilos munkavégzői gomb a beküldés alatt zárolt, az értesítési figyelmeztetést külön jelzi; hiba esetén nem állítja, hogy maga a munkalépés is elbukott.
+- A mentés utáni nézetfrissítés külön, nem blokkoló mellékfolyamat; hibája nem változtatja a már mentett eseményt tévesen sikertelen beküldéssé.
+- Automatikus ellenőrzés: új három regressziós eset a mentés/értesítés sorrendjére, jogosultsági lépésrendre és duplikációmentes újrapróbálásra; a korábbi három dinamikus értesítési teszt is megmaradt. Teljes projekt: **211/211 Node-teszt**, Next.js production build és TypeScript-ellenőrzés sikeres.
+- **Kiadási korlát:** a `20261119093000_authorized_advisor_notifications.sql` még nincs alkalmazva az élő Supabase rendszerben, ezért a valós többfelhasználós értesítési próbát az egyeztetett migráció után kell elvégezni. A Draft PR nem éles kiadás.

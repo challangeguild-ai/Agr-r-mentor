@@ -19,12 +19,24 @@ async function context(taskId:string){
 export async function setWorkerTaskStage(formData:FormData){
  const taskId=String(formData.get("task_id")||""),stage=String(formData.get("stage")||"");if(!taskId||!["accepted","started"].includes(stage))throw new Error("Érvénytelen munkafolyamat-lépés.");
  const{supabase,user,task}=await context(taskId);const eventType=stage==="started"?TASK_STARTED_EVENT:TASK_ACCEPTED_EVENT;
- const{data:existing}=await supabase.from("timeline_events").select("id").eq("source_id",task.id).eq("event_type",eventType).maybeSingle();
+ const{data:existing,error:lookupError}=await supabase.from("timeline_events").select("id").eq("source_id",task.id).eq("event_type",eventType).eq("created_by",user.id).limit(1).maybeSingle();
+ if(lookupError)throw new Error("A korábbi munkalépés ellenőrzése nem sikerült. Új eseményt nem rögzítettünk.");
+ if(stage==="started"){
+  const{data:accepted,error:acceptedError}=await supabase.from("timeline_events").select("id").eq("source_id",task.id).eq("event_type",TASK_ACCEPTED_EVENT).eq("created_by",user.id).limit(1).maybeSingle();
+  if(acceptedError)throw new Error("A munka elfogadásának ellenőrzése nem sikerült.");
+  if(!accepted)throw new Error("A munka megkezdése előtt előbb el kell fogadnod a feladatot.");
+ }
  if(!existing){
   const now=new Date().toISOString(),title=stage==="started"?`Munka megkezdve: ${task.title}`:`Munka elfogadva: ${task.title}`;
   const{error}=await supabase.from("timeline_events").insert({farm_id:task.farm_id,field_id:task.field_id,event_type:eventType,title,description:null,event_at:now,created_by:user.id,source_id:task.id});if(error)throw new Error(error.message);
-  try{await notifyAdvisors(supabase,{kind:eventType,title:stage==="started"?"A végrehajtó megkezdte a munkát":"A végrehajtó elfogadta a munkát",message:task.title,href:"/admin/tasks?view=open",eventKey:`task:${task.id}:${stage}`});}
-  catch(e){console.error("A munkafolyamat-lépés elmentve, de az értesítés nem igazolt",e)}
  }
- revalidatePath("/work");revalidatePath("/tasks");revalidatePath("/admin/tasks");if(task.field_id)revalidatePath(`/fields/${task.field_id}`);
+ let warning:string|null=null;
+ // A mentett esemény utáni RPC-hiba esetén ugyanaz a kérés újrapróbálható.
+ // A notify_advisors egyedi event_key-je meggátolja a dupla értesítést.
+ try{await notifyAdvisors(supabase,{kind:eventType,title:stage==="started"?"A végrehajtó megkezdte a munkát":"A végrehajtó elfogadta a munkát",message:task.title,href:"/admin/tasks?view=open",eventKey:`task:${task.id}:${stage}`});}
+ catch(e){console.error("A munkafolyamat-lépés elmentve, de az értesítés nem igazolt",e);warning="A munkalépés elmentődött, de a szaktanácsadói értesítés nem igazolt. Az értesítést ugyanitt újrapróbálhatod; új munkalépés nem keletkezik."}
+ for(const path of ["/work","/tasks","/admin/tasks",...(task.field_id?[`/fields/${task.field_id}`]:[])]){
+  try{revalidatePath(path)}catch(e){console.error("A mentett munkalépés utáni nézetfrissítés sikertelen",e)}
+ }
+ return{ok:true as const,warning};
 }
