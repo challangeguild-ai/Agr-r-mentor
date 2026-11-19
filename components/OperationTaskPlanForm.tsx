@@ -6,7 +6,7 @@ import {operationTypes} from "@/lib/operations";
 import {fertilizerCatalog,soilWork,type CountryCode} from "@/lib/operationCatalog";
 import {PlantProtectionUseDetails} from "@/components/PlantProtectionUseDetails";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
-import {licenseCoversDate} from "@/lib/operationInput";
+import {licenseCoversDate,parseDecimalOrNull,validatePlannedArea} from "@/lib/operationInput";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
 import {requiresPlantProtectionApprover,licenseAllowsCategory,regulatoryCategory} from "@/lib/plantProtectionApproval";
 
@@ -44,6 +44,8 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   if(permitBlock){setError(permitBlock);return}
   submitting.current=true;setBusy(true);setError("");
   try{
+   const areaError=validatePlannedArea(parseDecimalOrNull(String(fd.get("planned_area")??"")),field?.areaHa??null);
+   if(areaError){setError(areaError);setBusy(false);return}
    const result=await createPlannedOperationTask(fd);
    saved.current=true;
    if(result.warnings.length){
@@ -56,7 +58,7 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   }finally{submitting.current=false}
  }
  return <form action={submit} className="admin-form operation-form" style={{marginTop:14}}>
-  <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>setFieldId(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.farmName} — {f.name}{f.crop?` · ${f.crop}`:""}</option>)}</select></label><input type="hidden" name="farm_id" value={farmId}/>
+  <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>{setFieldId(e.target.value);setMachineId("")}} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.farmName} — {f.name}{f.crop?` · ${f.crop}`:""}</option>)}</select></label><input type="hidden" name="farm_id" value={farmId}/>
   <label>Ország<div style={{minHeight:46,display:"flex",alignItems:"center",padding:"0 12px",border:"1px solid #dce5dc",borderRadius:10,background:"#f7faf7",fontWeight:800}}>{country==="HU"?"🇭🇺 Magyarország":"🇸🇰 Szlovákia"}</div></label>
   <label>Művelet<select name="operation_type" value={type} onChange={e=>setType(e.target.value)}>{operationTypes.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></label>
   <label>Végrehajtó<select name="assigned_to"><option value="">Gazdaság tulajdonosa</option>{availablePeople.map(p=><option key={p.id} value={p.id}>{p.name} · {p.roleLabel}</option>)}</select></label>
@@ -65,7 +67,7 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   {fert&&<><label>Műtrágya / anyag<select value={productName} onChange={e=>setProductName(e.target.value)}><option value="">Válassz</option>{fertOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját</option></select><input type="hidden" name="product" value={effectiveProduct}/></label>{productName==="Egyéb"&&<label>Saját termék<input value={customProduct} onChange={e=>setCustomProduct(e.target.value)} required/></label>}</>}
   {spraying&&<>{uses.length>0&&<label>Kultúra<select name="crop" value={crop} onChange={e=>{setCrop(e.target.value);setProductId("");setUseId("");setDose("")}} required><option value="">Válassz kultúrát</option>{cropOptions.map(c=><option key={c}>{c}</option>)}</select></label>}<label>Készítmény<select name="product_id" value={productId} onChange={e=>{setProductId(e.target.value);setUseId("");setDose("")}} disabled={loading||!crop} required><option value="">{loading?"Betöltés…":crop?"Válassz készítményt":"Előbb kultúrát válassz"}</option>{filteredProducts.map(p=><option key={p.id} value={p.id}>{p.name}{p.regulatory_category?` · ${p.regulatory_category}. kategória`:""}</option>)}</select></label>{productId&&<label>Engedélyezett felhasználás<select name="use_id" value={useId} onChange={e=>chooseUse(e.target.value)} required><option value="">Válassz célt / felhasználást</option>{productUses.map(u=><option key={u.id} value={u.id}>{u.target||u.application_method||u.crop}{u.dose_max!=null?` · max. ${u.dose_max} ${u.dose_unit||""}`:""}</option>)}</select></label>}{selectedUse&&<PlantProtectionUseDetails use={selectedUse} country={country}/>} {permitBlock&&<div className="error-box operation-wide" role="alert">{permitBlock}</div>}</>}
   {(spraying||fert)&&<><label>Tervezett dózis<input name="planned_dose" value={dose} onChange={e=>setDose(e.target.value)} inputMode="decimal" required={spraying}/>{selectedUse?.dose_min!=null||selectedUse?.dose_max!=null?<small>Engedélyezett: {selectedUse.dose_min??"—"}–{selectedUse.dose_max??"—"} {selectedUse.dose_unit||""}</small>:null}</label><label>Dózis egysége{selectedUse?.dose_unit?<><input value={selectedUse.dose_unit} readOnly/><input type="hidden" name="dose_unit" value={selectedUse.dose_unit}/></>:<select name="dose_unit" defaultValue={fert?"kg/ha":"l/ha"}><option>l/ha</option><option>kg/ha</option><option>g/ha</option><option>ml/ha</option></select>}</label></>}
-  <label>Tervezett terület (ha)<input name="planned_area" inputMode="decimal" defaultValue={field?.areaHa??""}/></label><label>Tervezett összes mennyiség<input name="planned_quantity" inputMode="decimal"/></label><label>Mennyiség egysége<select name="quantity_unit" defaultValue={fert?"kg":"l"}><option>l</option><option>kg</option><option>g</option><option>db</option><option>m³</option><option>t</option></select></label>
+  <label>Tervezett terület (ha)<input key={fieldId} name="planned_area" inputMode="decimal" defaultValue={field?.areaHa??""}/></label><label>Tervezett összes mennyiség<input name="planned_quantity" inputMode="decimal"/></label><label>Mennyiség egysége<select name="quantity_unit" defaultValue={fert?"kg":"l"}><option>l</option><option>kg</option><option>g</option><option>db</option><option>m³</option><option>t</option></select></label>
   <label>Gép / eszköz<select name="machine_id" value={machineId} onChange={e=>setMachineId(e.target.value)}><option value="">Nincs hozzárendelve</option>{availableMachines.map(m=><option key={m.id} value={m.id}>{m.name}{m.detail?` · ${m.detail}`:""}</option>)}</select></label>
   {approvalNeeded&&<div className="operation-wide" style={{padding:14,border:"1px solid #e1b95d",borderRadius:12,background:"#fffaf0"}}><b>⚠ Gazdasági növényvédelmi jóváhagyás szükséges</b>{eligibleApprovers.length?<label style={{marginTop:8}}>Jóváhagyó<select name="requested_approver_id" required><option value="">Válassz jogosult személyt</option>{eligibleApprovers.map(a=><option key={a.id} value={a.id}>{a.full_name||"Jogosult személy"} · {a.authorization_level}. kategória{a.valid_until?` · ${a.valid_until}-ig`:""}</option>)}</select></label>:<div className="error-box" style={{marginTop:8}}>Nincs olyan jóváhagyó, akinek az engedélye a tervezett időpontig érvényes.</div>}</div>}
   <label className="operation-wide">Végrehajtási utasítás / megjegyzés<textarea name="notes" rows={3} placeholder="Mikor, milyen körülmények között, mire figyeljen a végrehajtó?"/></label>
