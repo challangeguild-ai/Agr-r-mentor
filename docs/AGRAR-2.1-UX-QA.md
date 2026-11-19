@@ -211,3 +211,12 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - A felhasználó az eredményt csak **előnézetbe** helyezheti, majd külön ment; a forrás a meglévő `external` érték, nem `cadastral` hitelesítés. A meglévő `saveFieldMap` szerveres geometriavalidáció és csak tanácsadónak engedő RLS változatlan. A felhasználói dokumentum forrását, hitelességét és a ténylegesen művelt területtel való egyezését nem bizonyítjuk.
 - Nyolc új tiszta teszt: zárt négyszög + HRSZ-szerű felirat, konkáv L-alakú határ, szomszédos földrészletek különválasztása, nyitott vonal elutasítása, halvány nyomat küszöbe, 3 pontos affin, 4 pontos projektív és degenerált pontok elutasítása. Teljes projekt: **73 Node-teszt**.
 - **Korlátok/kiadási kapu:** nincs OCR-alapú HRSZ automatikus keresés, országos kataszteri georeferenciáló szolgáltatás, geometriai pontossági garancia vagy közvetlen gazdálkodói adatbázis-mentési jogosultság. Valódi földhivatali térképmásolatos, mobilos PDF/fotós, bejelentkezett tanácsadói mentés/újranyitás E2E és Supabase RLS még külön ellenőrzendő. Éles adatbázis, production vagy migráció érintetlen.
+
+
+## 2026-11-19 – táblahatárok előzetes minőségellenőrzése
+
+- A gazda rajzolás, fájlimport vagy OSM-javaslat után a mentési gomb előtt **becsült hektárt, töréspontszámot és figyelmeztetéseket** lát. A csak helypontból álló felvétel megmarad; nem mutatunk megtévesztő pontossági százalékot.
+- A megadott hektárhoz képest jelentős geometriai eltérés, a korábban mentett helyponttól nagy távolság és egy már létező poligon pont-only javaslattal való lecserélése külön jelzést kap. Ezek **tanácsadói ellenőrzési javaslatok**, nem automatikus elutasítások.
+- A szaktanácsadói jóváhagyó oldal további, ugyanazon gazdasághoz tartozó legfeljebb 50 poligonon keres lehetséges átfedést. A geometriai heurisztika megkülönbözteti a közös mezsgyét a valódi területi átfedéstől; kezeli a MultiPolygon részeket és a belső kivágásokat. Túl bonyolult vagy hiányos ellenőrzés esetén jelzi a bizonytalanságot. Nem helyettesíti a PostGIS/geodéziai topológiai igazolást.
+- Az admin **Határellenőrzés** oldal 50-es lapokon mutatja a hiányzó/pontra korlátozódó/gyanús régi földtáblákat, ahonnan közvetlenül nyitható a szaktanácsadói térképszerkesztő. Az áttekintő számlálók az éppen betöltött lapra vonatkoznak.
+- **Kiadási kapu:** valós térképi adatokkal, eltérő méretű és több részből álló táblákkal, gazda/szaktanácsadó jogosultságokkal végzett hétvégi kézi próba. Sem a figyelmeztetés, sem az előzetes tesztek nem jelentik a jogi táblahatár hitelesítését.

@@ -1,6 +1,6 @@
 "use client";
 
-import {useCallback,useEffect,useRef,useState,type FormEvent} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 import {useRouter} from "next/navigation";
 import {saveFieldMap} from "@/app/fields/[id]/actions";
 import {submitFieldBoundaryProposal} from "@/app/fields/[id]/proposal-actions";
@@ -9,13 +9,15 @@ import {FieldDocumentImport} from "@/components/FieldDocumentImport";
 import {parseFieldGeometry,parseFieldGeometryText} from "@/lib/fieldGeometry";
 import {osmFieldSuggestions,type OsmFieldSuggestion} from "@/lib/osmFieldBoundary";
 import {fieldFileCandidates,type FieldFileCandidate} from "@/lib/fieldFileCandidates";
+import {assessFieldBoundary} from "@/lib/fieldBoundaryQuality";
+import {FieldBoundaryQualityPanel} from "@/components/FieldBoundaryQualityPanel";
 
 declare global{interface Window{L:any;shp?: (data:ArrayBuffer)=>Promise<unknown>}}
 
 type Hotspot={lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"};
-type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;geometrySource?:string|null;hotspots?:Hotspot[];compact?:boolean;proposalMode?:boolean};
+type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;geometrySource?:string|null;hotspots?:Hotspot[];compact?:boolean;proposalMode?:boolean;areaHa?:number|null};
 
-export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource="manual",hotspots=[],compact=false,proposalMode=false}:Props){
+export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource="manual",hotspots=[],compact=false,proposalMode=false,areaHa=null}:Props){
   const router=useRouter();
   const mapRef=useRef<HTMLDivElement|null>(null);
   const mapInstance=useRef<any>(null);
@@ -50,6 +52,10 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const[osmLoading,setOsmLoading]=useState(false);
   const[osmCandidates,setOsmCandidates]=useState<OsmFieldSuggestion[]>([]);
   const[osmMessage,setOsmMessage]=useState("");
+  const quality=useMemo(()=>{
+    try{return assessFieldBoundary({geometry:geojson?JSON.parse(geojson):null,proposedLat:pointChosen?centerLat:null,proposedLng:pointChosen?centerLng:null,oldLat:lat,oldLng:lng,oldBoundary:boundary,declaredHa:areaHa})}
+    catch{return null}
+  },[geojson,pointChosen,centerLat,centerLng,lat,lng,boundary,areaHa]);
 
   useEffect(()=>{
     function loadCss(href:string){if(document.querySelector(`link[href="${href}"]`))return;const l=document.createElement("link");l.rel="stylesheet";l.href=href;document.head.appendChild(l)}
@@ -211,6 +217,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         {importError&&<p role="alert" style={{margin:0,color:"#b3342b"}}>{importError}</p>}
       </div>
       <FieldDocumentImport ready={ready} onCaptureMapPoint={captureDocumentMapClick} onShowMapAnchors={showDocumentMapAnchors} onPreview={(geometry,description)=>previewGeometry(geometry,"external",description)}/>
+      {quality&&pointChosen&&<FieldBoundaryQualityPanel quality={quality} compact/>}
       {proposalMode&&<div style={{display:"grid",gap:7}}><label htmlFor={`proposal-note-${fieldId}`} style={{fontWeight:700,fontSize:13}}>Megjegyzés a szaktanácsadónak (nem kötelező)</label><textarea id={`proposal-note-${fieldId}`} name="proposal_note" rows={2} maxLength={1000} placeholder="Pl. a műholdkép és a művelt terület széle között eltérés lehet" style={{width:"100%",padding:10,border:"1px solid #d7e2d6",borderRadius:9,font:"inherit"}}/><small>A javaslat nem kerül fel automatikusan a gazdaság térképére. A szaktanácsadó ellenőrzi, majd elfogadja vagy elutasítja. A helyrajzi szám önmagában nem hitelesíti a határt.</small></div>}
       {proposalFeedback&&<p role={proposalFeedback.ok?"status":"alert"} style={{color:proposalFeedback.ok?"#2f7430":"#b3342b",margin:0}}>{proposalFeedback.message}</p>}
       <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen||proposalSaving||proposalFeedback?.ok===true} style={{justifySelf:"start"}}>{proposalSaving?"Javaslat küldése…":proposalMode?"Táblahatár-javaslat beküldése":"Térképi adatok mentése"}</button>

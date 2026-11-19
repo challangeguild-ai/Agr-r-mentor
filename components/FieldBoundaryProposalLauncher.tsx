@@ -6,12 +6,12 @@ import {FieldMapEditor} from "@/components/FieldMapEditor";
 type ProposalStatus={status:string;created_at:string;review_note:string|null}|null;
 
 type Props={
-  fieldId:string;fieldName:string;lat:number|null;lng:number|null;
+  fieldId:string;fieldName:string;lat:number|null;lng:number|null;areaHa:number|null;
   boundary:unknown;geometrySource?:string|null;
   lastProposal:ProposalStatus;enabled:boolean;
 };
 
-export function FieldBoundaryProposalLauncher({fieldId,fieldName,lat,lng,boundary,geometrySource,lastProposal,enabled}:Props){
+export function FieldBoundaryProposalLauncher({fieldId,fieldName,lat,lng,areaHa,boundary,geometrySource,lastProposal,enabled}:Props){
   const [editing,setEditing]=useState(false);
   const pending=lastProposal?.status==="pending";
   return <section className="panel" style={{marginTop:14}} aria-label="Táblahatár-javaslat">
@@ -23,6 +23,6 @@ export function FieldBoundaryProposalLauncher({fieldId,fieldName,lat,lng,boundar
     {lastProposal?.status==="rejected"&&<p role="status" style={{color:"#9b3f25"}}>A korábbi javaslatot nem fogadták el.{lastProposal.review_note?` Indok: ${lastProposal.review_note}`:""} Új javaslat készíthető.</p>}
     {lastProposal?.status==="approved"&&<p role="status" style={{color:"#2f7430"}}>A legutóbbi javaslatot jóváhagyták; az elfogadott határ megjelenik a térképen.</p>}
     {!enabled&&<p role="status" style={{color:"#876a2b"}}>A táblahatár-beküldés az adatbázis frissítése után lesz elérhető. A meglévő térképi adatok továbbra is megtekinthetők.</p>}
-    {editing&&!pending&&enabled&&<FieldMapEditor key={fieldId} fieldId={fieldId} lat={lat} lng={lng} boundary={boundary} geometrySource={geometrySource} editable proposalMode/>}
+    {editing&&!pending&&enabled&&<FieldMapEditor key={fieldId} fieldId={fieldId} lat={lat} lng={lng} areaHa={areaHa} boundary={boundary} geometrySource={geometrySource} editable proposalMode/>}
   </section>;
 }

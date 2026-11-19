@@ -6,6 +6,7 @@ const items=[
   {href:"/admin/workday",key:"workday",label:"Munkanap"},
   {href:"/admin/map",key:"map",label:"Térkép"},
   {href:"/admin/map/proposals",key:"map-proposals",label:"Határjavaslatok"},
+  {href:"/admin/map/quality",key:"map-quality",label:"Határellenőrzés"},
   {href:"/admin/map/import",key:"field-import",label:"Táblaimport"},
   {href:"/admin/operations",key:"operations",label:"Műveletek"},
   {href:"/admin/plant-protection-import",key:"plant-protection-import",label:"Növényvédőszer-import"},

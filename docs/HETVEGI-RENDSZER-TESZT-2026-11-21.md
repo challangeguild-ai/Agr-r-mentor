@@ -45,6 +45,10 @@
 - [ ] **Elutasítás:** a javaslat visszautasítható megjegyzéssel, a régi poligon változatlan marad, a gazda új javaslatot küldhet.
 - [ ] **Konfliktus és jogosultság:** a beküldés óta módosított táblahatárra a jóváhagyás nem írhat rá; munkatárs és idegen gazdaság tagja ne küldhessen be javaslatot; gazda ne hagyhasson jóvá; az adatbázis közvetlen írása legyen tiltva.
 - [ ] **Pont alapú javaslat meglévő poligonon:** az elbíráló egyértelmű figyelmeztetést kap, hogy elfogadás esetén az előző poligon törlődik.
+- [ ] **Táblahatár-minőségjelzések:** eltérő nyilvántartott hektár, kilométerekkel elcsúszott poligon és csak helypontra cserélt régi határ jelzése a gazda beküldése előtt; a figyelmeztetés nem tilthatja le az opcionális javaslatot.
+- [ ] **Valódi területi átfedés:** szaktanácsadói javaslat ellenőrzésénél átfedő szomszédos tábla felvetése; közös mezsgye, csak érintkező sarok és poligon belső kivágása ne okozzon hamis riasztást. Több részpoligonból álló terület ellenőrzése.
+- [ ] **Részleges ellenőrzés:** ha túl nagy vagy hibás szomszédgeometria, illetve 50 táblás lekérdezési korlát miatt nem teljes az összehasonlítás, ne jelenjen meg bizonyosságot sugalló „minden rendben” felirat.
+- [ ] **Szaktanácsadói Határellenőrzés oldal:** hiányzó térképi hely, csak helypont, eltérő hektár és hibás régi alakzat listázása; 50 táblás lapozás; a kijelölt földtábla térképszerkesztőjére navigálás. Gazdálkodói fiókkal ne legyen elérhető.
 
 ## 3. Gazdálkodói műveletek, tervek, növényvédelem (P0)
 

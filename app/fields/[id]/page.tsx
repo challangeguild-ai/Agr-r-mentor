@@ -98,7 +98,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
        <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days7}/7 nap`:"—"}</dd></div><div><dt>30 nap csapadék</dt><dd>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days30}/30 nap`:"—"}</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
       </section>
 
-      {canPropose&&<FieldBoundaryProposalLauncher fieldId={field.id} fieldName={field.name} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} lastProposal={lastProposal??null} enabled={!proposalError} />}
+      {canPropose&&<FieldBoundaryProposalLauncher fieldId={field.id} fieldName={field.name} lat={field.center_lat} lng={field.center_lng} areaHa={field.area_ha} boundary={field.boundary_geojson} lastProposal={lastProposal??null} enabled={!proposalError} />}
 
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
        <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
