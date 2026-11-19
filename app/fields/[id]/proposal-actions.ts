@@ -2,7 +2,8 @@
 
 import {revalidatePath} from "next/cache";
 import {createClient} from "@/lib/supabase/server";
-import {parseFieldGeometryText} from "@/lib/fieldGeometry";
+import {parseFieldGeometryText,type FieldGeometry} from "@/lib/fieldGeometry";
+import {matchesPendingBoundaryProposal} from "@/lib/fieldBoundaryProposalPersistence";
 
 export type BoundaryProposalResult={ok:boolean;message:string};
 
@@ -29,19 +30,44 @@ export async function submitFieldBoundaryProposal(formData:FormData):Promise<Bou
   if(note.length>1000)return{ok:false,message:"A megjegyzés legfeljebb 1000 karakter lehet."};
   if(boundaryText.length>2_000_000)return{ok:false,message:"Túl nagy térképi fájl."};
 
-  let geometry:null|Record<string,unknown>=null;
+  let geometry:FieldGeometry|null=null;
   try{if(boundaryText)geometry=parseFieldGeometryText(boundaryText).geometry}
   catch(error){return{ok:false,message:error instanceof Error?error.message:"A táblahatár nem dolgozható fel."}}
 
-  const {error}=await supabase.rpc("submit_field_boundary_proposal",{
-    p_field_id:fieldId,p_center_lat:lat,p_center_lng:lng,p_boundary_geojson:geometry,
-    p_geometry_source:source,p_note:note
-  });
-  if(error){
-    if(error.code==="23505")return{ok:false,message:"Ehhez a táblához már van ellenőrzésre váró javaslat."};
-    return{ok:false,message:error.message||"A javaslat beküldése sikertelen."};
+  function refreshViews(){
+    for(const path of [`/fields/${fieldId}`,"/admin/map/proposals"]){
+      try{revalidatePath(path)}catch(error){console.error("Mentett határjavaslat nézetfrissítése sikertelen",error)}
+    }
   }
-  revalidatePath(`/fields/${fieldId}`);
-  revalidatePath("/admin/map/proposals");
+  let submitError:{code?:string;message?:string}|null=null;
+  try{
+    const {data,error}=await supabase.rpc("submit_field_boundary_proposal",{
+      p_field_id:fieldId,p_center_lat:lat,p_center_lng:lng,p_boundary_geojson:geometry,
+      p_geometry_source:source,p_note:note
+    });
+    if(error)submitError=error;
+    else if(typeof data!=="string")submitError={message:"A beküldés eredménye nem igazolható."};
+  }catch(error){
+    submitError={message:error instanceof Error?error.message:"A hálózati beküldés megszakadt."};
+  }
+
+  if(submitError){
+    // A timeout or duplicate-key response can arrive after a successful commit.
+    // Only the current user's matching pending row confirms this submission.
+    try{
+      const {data:pending,error:lookupError}=await supabase.from("field_boundary_proposals")
+        .select("center_lat,center_lng,boundary_geojson,geometry_source,note")
+        .eq("field_id",fieldId).eq("proposed_by",user.id).eq("status","pending")
+        .limit(1).maybeSingle();
+      if(!lookupError&&matchesPendingBoundaryProposal(pending,{centerLat:lat,centerLng:lng,geometry,source,note})){
+        refreshViews();
+        return{ok:true,message:"A korábban elmentett javaslatot megtaláltuk. Ellenőrzésre vár; ne küldd be még egyszer."};
+      }
+      if(lookupError)console.error("A határjavaslat mentés utáni ellenőrzése sikertelen",lookupError);
+    }catch(error){console.error("A határjavaslat állapotellenőrzése megszakadt",error)}
+    if(submitError.code==="23505")return{ok:false,message:"Ehhez a táblához már van ellenőrzésre váró javaslat. Nézd meg az adatlapján, mielőtt újabbat készítesz."};
+    return{ok:false,message:`A beküldés eredménye nem igazolható (${submitError.message||"ismeretlen hiba"}). Frissítsd a földtábla adatlapját; ne küldd be vakon újra.`};
+  }
+  refreshViews();
   return{ok:true,message:"A javaslatot elküldtük. A táblahatár csak a szaktanácsadó jóváhagyása után változik meg."};
 }

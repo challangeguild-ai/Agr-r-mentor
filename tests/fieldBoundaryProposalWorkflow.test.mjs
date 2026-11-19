@@ -31,7 +31,7 @@ test("proposer, farm and baseline are derived from trusted database rows",()=>{
 test("only one pending proposal per field is allowed",()=>{
   assert.match(sql,/unique index field_boundary_proposals_one_pending_field[\s\S]*?where status='pending'/);
   assert.match(sql,/if exists\(select 1 from public\.field_boundary_proposals where field_id=p_field_id and status='pending'\)/);
-  assert.match(submission,/error\.code==="23505"/);
+  assert.match(submission,/submitError\.code==="23505"/);
   assert.match(farmer,/pending\?\<p role="status"/);
 });
 
@@ -69,6 +69,7 @@ test("both parties can inspect full polygon geometry and make a deliberate decis
 test("pending proposals notify advisors and approved decisions revalidate the field",()=>{
   assert.match(sql,/insert into public\.notifications\(user_id,kind,title,message,href,event_key\)/);
   assert.match(sql,/p\.role='advisor' and coalesce\(p\.system_role,'user'\)<>'admin'/);
-  assert.match(review,/revalidatePath\(`\/fields\/\$\{fieldId\}`\)/);
-  assert.match(submission,/revalidatePath\("\/admin\/map\/proposals"\)/);
+  assert.match(review,/`\/fields\/\$\{fieldId\}`/);
+  assert.match(review,/try\{revalidatePath\(path\)\}catch\(error\)/);
+  assert.match(submission,/`\/fields\/\$\{fieldId\}`,"\/admin\/map\/proposals"/);
 });

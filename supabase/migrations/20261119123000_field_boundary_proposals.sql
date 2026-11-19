@@ -57,6 +57,9 @@ declare
   v_user uuid := (select auth.uid());
   v_field public.fields%rowtype;
   v_geom gis.geometry;
+  v_surface gis.geometry;
+  v_center_lat double precision := p_center_lat;
+  v_center_lng double precision := p_center_lng;
   v_id uuid;
 begin
   if v_user is null then raise exception 'Bejelentkezés szükséges'; end if;
@@ -83,12 +86,20 @@ begin
     if p_boundary_geojson->>'type' not in ('Polygon','MultiPolygon') then
       raise exception 'Csak poligon alakzat fogadható el';
     end if;
-    v_geom := gis.ST_GeomFromGeoJSON(p_boundary_geojson::text);
+    v_geom := gis.ST_SetSRID(gis.ST_GeomFromGeoJSON(p_boundary_geojson::text),4326);
     if gis.ST_IsEmpty(v_geom) or not gis.ST_IsValid(v_geom)
        or gis.ST_NPoints(v_geom)>12150
        or gis.ST_XMin(gis.Box3D(v_geom)) < -180 or gis.ST_XMax(gis.Box3D(v_geom)) > 180
        or gis.ST_YMin(gis.Box3D(v_geom)) < -90 or gis.ST_YMax(gis.Box3D(v_geom)) > 90 then
       raise exception 'Érvénytelen vagy túl részletes táblahatár';
+    end if;
+    -- The bounding-box midpoint of an L-shaped polygon can lie outside the
+    -- field (or inside a hole). Keep a supplied point only when covered.
+    if v_center_lat is null or not gis.ST_Covers(v_geom,
+      gis.ST_SetSRID(gis.ST_MakePoint(v_center_lng,v_center_lat),4326)) then
+      v_surface := gis.ST_PointOnSurface(v_geom);
+      v_center_lat := gis.ST_Y(v_surface);
+      v_center_lng := gis.ST_X(v_surface);
     end if;
   end if;
   if exists(select 1 from public.field_boundary_proposals where field_id=p_field_id and status='pending') then
@@ -98,7 +109,7 @@ begin
     field_id,farm_id,proposed_by,center_lat,center_lng,boundary_geojson,
     geometry_source,note,base_boundary_updated_at
   ) values (
-    p_field_id,v_field.farm_id,v_user,p_center_lat,p_center_lng,p_boundary_geojson,
+    p_field_id,v_field.farm_id,v_user,v_center_lat,v_center_lng,p_boundary_geojson,
     p_geometry_source,coalesce(p_note,''),v_field.boundary_updated_at
   ) returning id into v_id;
   insert into public.notifications(user_id,kind,title,message,href,event_key)
@@ -156,6 +167,24 @@ begin
     reviewed_at=now(),
     review_note=nullif(trim(coalesce(p_note,'')),'')
   where id=p_proposal_id;
+  -- The decision and its in-app feedback commit together, so the farmer and
+  -- proposer do not have to keep refreshing the field page to learn the result.
+  insert into public.notifications(user_id,kind,title,message,href,event_key)
+  select recipients.recipient_id,'field_boundary_review',
+    case when p_approve then 'Táblahatár-javaslat jóváhagyva' else 'Táblahatár-javaslat javítást igényel' end,
+    v_field.name||': '||case when p_approve then 'A szaktanácsadó elfogadta a javaslatot.'
+      else 'A szaktanácsadó elutasította a javaslatot.' end||
+      case when nullif(btrim(coalesce(p_note,'')),'') is not null
+        then ' Megjegyzés: '||left(btrim(p_note),700) else '' end,
+    '/fields/'||v_proposal.field_id::text,
+    'boundary:'||v_proposal.id::text||':review:'||recipients.recipient_id::text
+  from (
+    select v_proposal.proposed_by as recipient_id
+    union
+    select f.owner_id from public.farms f where f.id=v_proposal.farm_id
+  ) recipients
+  where recipients.recipient_id<>v_user
+  on conflict (user_id,event_key) where event_key is not null do nothing;
   return v_proposal.field_id;
 end;
 $$;

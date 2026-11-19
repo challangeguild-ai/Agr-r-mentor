@@ -233,3 +233,14 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - A mentés utáni nézetfrissítés külön, nem blokkoló mellékfolyamat; hibája nem változtatja a már mentett eseményt tévesen sikertelen beküldéssé.
 - Automatikus ellenőrzés: új három regressziós eset a mentés/értesítés sorrendjére, jogosultsági lépésrendre és duplikációmentes újrapróbálásra; a korábbi három dinamikus értesítési teszt is megmaradt. Teljes projekt: **211/211 Node-teszt**, Next.js production build és TypeScript-ellenőrzés sikeres.
 - **Kiadási korlát:** a `20261119093000_authorized_advisor_notifications.sql` még nincs alkalmazva az élő Supabase rendszerben, ezért a valós többfelhasználós értesítési próbát az egyeztetett migráció után kell elvégezni. A Draft PR nem éles kiadás.
+
+
+## 2026-11-19 – táblahatár-javaslat teljes beküldési és elbírálási kör
+
+- A gazda javaslatának RPC-válasza hálózati hiba után elveszhet, miközben a mentés sikerült. A szerver ezért a saját, függőben lévő javaslatot ellenőrzi vissza; azonos poligon/forrás/megjegyzés (vagy azonos csak-pont koordináták) esetén **mentett részleges siker** látszik, nem új beküldést kér. Másik javaslatot nem állít a saját mentésének.
+- A szaktanácsadói döntés bizonytalan RPC-válaszát ugyanígy ellenőrzi: csak ugyanannak a tanácsadónak azonos döntése és megjegyzése igazolja a sikert. Az elbírálás utáni cache-frissítési hiba nem fordítja vissza a már mentett döntést.
+- Jóváhagyáskor vagy elutasításkor a javaslatot beküldő felhasználó és – ha más személy – a gazdaság tulajdonosa egyedi eseménykulcsú **alkalmazáson belüli értesítést** kap. Ez a döntéssel azonos SQL-tranzakcióban történik, a megjegyzés rövidített változatával és a földtábla adatlapjára vezető hivatkozással.
+- Szabálytalan L-alakú poligon esetén a befoglaló téglalap közepe kívül eshet a tényleges táblán. A határjavaslat SQL-beküldése a poligonon kívüli vagy hiányzó helypontot PostGIS `ST_PointOnSurface` belső pontra cseréli, a **teljes poligon geometriájának megváltoztatása nélkül**. A belső pontképzést a kapcsolt Supabase PostGIS-en csak olvasási lekérdezéssel is igazoltuk.
+- Megmarad a gazda írási korlátozása, a szaktanácsadói jóváhagyás, az egy nyitott javaslat/tábla szabály és a már megváltozott térképi határ felülírásának tiltása.
+- Új dinamikus regressziós tesztek a mentett javaslat visszakeresésére, téves pozitív megerősítés kizárására, a pont-only egyezésre, valamint forrásalapú tesztek a jóváhagyás és értesítés sorrendjére. A projekt **217/217 Node-teszttel és sikeres Next.js production builddel** zárta ezt a kört.
+- **Kiadási korlát:** a módosított `20261119123000_field_boundary_proposals.sql` még csak a Draft PR része. A migrációt nem alkalmaztuk az éles adatbázison; a gazda–szaktanácsadó–gazda böngészős E2E-t az ellenőrzött telepítés után kell végrehajtani.

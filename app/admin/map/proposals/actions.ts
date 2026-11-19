@@ -19,11 +19,32 @@ export async function reviewFieldBoundaryProposal(formData:FormData){
   }
   if(decision==="approve"&&formData.get("confirmed")!=="on")
     redirect("/admin/map/proposals?error=A+térképi+ellenőrzés+megerősítése+szükséges");
-  const {data:fieldId,error}=await supabase.rpc("review_field_boundary_proposal",{
-    p_proposal_id:id,p_approve:decision==="approve",p_note:note||null
-  });
-  if(error)redirect(`/admin/map/proposals?error=${encodeURIComponent(error.message)}`);
-  if(fieldId){revalidatePath(`/fields/${fieldId}`);revalidatePath("/admin/map");revalidatePath("/map");revalidatePath("/dashboard")}
-  revalidatePath("/admin/map/proposals");
+  let fieldId:string|null=null;
+  let reviewError:string|null=null;
+  try{
+    const {data,error}=await supabase.rpc("review_field_boundary_proposal",{
+      p_proposal_id:id,p_approve:decision==="approve",p_note:note||null
+    });
+    if(error)reviewError=error.message||"Az elbírálás nem igazolható.";
+    else if(typeof data==="string")fieldId=data;
+    else reviewError="Az elbírálás eredménye nem igazolható.";
+  }catch(error){reviewError=error instanceof Error?error.message:"A kapcsolat megszakadt az elbírálás közben."}
+
+  if(!fieldId){
+    // When the response is lost after commit, check that this advisor's exact
+    // decision and note were persisted before offering an unsafe repeat.
+    try{
+      const {data:reviewed,error:lookupError}=await supabase.from("field_boundary_proposals")
+        .select("field_id,status,reviewed_by,review_note").eq("id",id).maybeSingle();
+      if(!lookupError&&reviewed?.reviewed_by===user.id
+        &&reviewed.status===(decision==="approve"?"approved":"rejected")
+        &&String(reviewed.review_note||"").trim()===note)fieldId=reviewed.field_id;
+      if(lookupError)console.error("Táblahatár-elbírálás állapotellenőrzése sikertelen",lookupError);
+    }catch(error){console.error("Táblahatár-elbírálás állapotellenőrzése megszakadt",error)}
+  }
+  if(!fieldId)redirect(`/admin/map/proposals?error=${encodeURIComponent((reviewError||"Az elbírálás állapota nem igazolható. Ellenőrizd a javaslatlistát, mielőtt újra döntesz.").slice(0,280))}`);
+  for(const path of [`/fields/${fieldId}`,"/admin/map","/map","/dashboard","/admin/map/proposals"]){
+    try{revalidatePath(path)}catch(error){console.error("Mentett táblahatár-eljárás nézetfrissítése sikertelen",error)}
+  }
   redirect(`/admin/map/proposals?result=${decision==="approve"?"approved":"rejected"}`);
 }
