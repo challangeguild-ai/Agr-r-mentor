@@ -1,8 +1,9 @@
 "use client";
 
-import {useEffect,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import {saveFieldMap} from "@/app/fields/[id]/actions";
 import {BlockHelpButton} from "@/components/GuidedTour";
+import {FieldDocumentImport} from "@/components/FieldDocumentImport";
 import {parseFieldGeometry,parseFieldGeometryText} from "@/lib/fieldGeometry";
 import {osmFieldSuggestions,type OsmFieldSuggestion} from "@/lib/osmFieldBoundary";
 import {fieldFileCandidates,type FieldFileCandidate} from "@/lib/fieldFileCandidates";
@@ -18,6 +19,19 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const drawnLayer=useRef<any>(null);
   const markerRef=useRef<any>(null);
   const osmAbortRef=useRef<AbortController|null>(null);
+  const documentMapClickRef=useRef<((lat:number,lng:number)=>void)|null>(null);
+  const documentAnchorMarkers=useRef<any[]>([]);
+  const captureDocumentMapClick=useCallback((callback:((lat:number,lng:number)=>void)|null)=>{documentMapClickRef.current=callback},[]);
+  const showDocumentMapAnchors=useCallback((points:{lat:number;lng:number}[])=>{
+    const map=mapInstance.current,L=window.L;
+    if(!map||!L)return;
+    documentAnchorMarkers.current.forEach(marker=>map.removeLayer(marker));documentAnchorMarkers.current=[];
+    points.forEach((p,index)=>{
+      const marker=L.circleMarker([p.lat,p.lng],{radius:9,color:"#fff",weight:2,fillColor:"#005ecc",fillOpacity:1})
+        .bindTooltip(`Illesztési pont ${index+1}`,{permanent:true,direction:"top"}).addTo(map);
+      documentAnchorMarkers.current.push(marker);
+    });
+  },[]);
   const[centerLat,setCenterLat]=useState(lat??47.2);
   const[centerLng,setCenterLng]=useState(lng??19.5);
   const[geojson,setGeojson]=useState(boundary?JSON.stringify(boundary):"");
@@ -66,11 +80,11 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         map.on(L.Draw.Event.CREATED,(e:any)=>{group.clearLayers();group.addLayer(e.layer);syncDrawnLayers()});
         map.on(L.Draw.Event.EDITED,syncDrawnLayers);
         map.on(L.Draw.Event.DELETED,syncDrawnLayers);
-        map.on("click",(e:any)=>{if(group.getLayers().length)return;osmAbortRef.current?.abort();setOsmCandidates([]);setOsmMessage("");setPointChosen(true);setCenterLat(e.latlng.lat);setCenterLng(e.latlng.lng);if(markerRef.current)map.removeLayer(markerRef.current);markerRef.current=L.marker(e.latlng).addTo(map)});
+        map.on("click",(e:any)=>{if(documentMapClickRef.current){documentMapClickRef.current(e.latlng.lat,e.latlng.lng);return}if(group.getLayers().length)return;osmAbortRef.current?.abort();setOsmCandidates([]);setOsmMessage("");setPointChosen(true);setCenterLat(e.latlng.lat);setCenterLng(e.latlng.lng);if(markerRef.current)map.removeLayer(markerRef.current);markerRef.current=L.marker(e.latlng).addTo(map)});
       }
       setReady(true);
     })().catch(console.error);
-    return()=>{cancelled=true;osmAbortRef.current?.abort();if(mapInstance.current){mapInstance.current.remove();mapInstance.current=null}};
+    return()=>{cancelled=true;osmAbortRef.current?.abort();documentMapClickRef.current=null;documentAnchorMarkers.current=[];if(mapInstance.current){mapInstance.current.remove();mapInstance.current=null}};
   },[]);
 
   function previewGeometry(value:unknown,source:"manual"|"external",description:string){
@@ -179,6 +193,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         {fileCandidates.length>0&&<div role="group" aria-label="Fájlból választható poligonok" style={{display:"grid",gap:6}}>{fileCandidates.map(candidate=><button key={candidate.id} type="button" className="ghost-btn" style={{justifyContent:"flex-start",textAlign:"left",whiteSpace:"normal"}} onClick={()=>{try{previewGeometry(candidate.geometry,"external",candidate.label)}catch(error){setImportError(error instanceof Error?error.message:"A választott poligon nem használható.")}}}>{candidate.label} – Előnézet</button>)}</div>}
         {importError&&<p role="alert" style={{margin:0,color:"#b3342b"}}>{importError}</p>}
       </div>
+      <FieldDocumentImport ready={ready} onCaptureMapPoint={captureDocumentMapClick} onShowMapAnchors={showDocumentMapAnchors} onPreview={(geometry,description)=>previewGeometry(geometry,"external",description)}/>
       <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen} style={{justifySelf:"start"}}>Térképi adatok mentése</button>
     </form>:!compact?<p style={{marginTop:12,color:"#6f7c74",fontSize:12}}>{boundary?"A rögzített táblahatár megjelenik a térképen.":lat!=null&&lng!=null?"A tábla rögzített térképi helye látható.":"Ehhez a táblához még nincs térképi hely rögzítve."}</p>:null}
   </section>
