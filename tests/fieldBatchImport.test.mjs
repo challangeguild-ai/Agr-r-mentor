@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {estimatedFieldHectares,prepareFieldBatch,MAX_BULK_FIELDS} from "../lib/fieldBatchImport.ts";
 import {escapeHtml} from "../lib/escapeHtml.ts";
+import {fieldLocationHint} from "../lib/fieldLocationHint.ts";
 
 const outer=[[19.1,47.1],[19.102,47.1],[19.102,47.102],[19.1,47.102],[19.1,47.1]];
 const other=[[19.2,47.2],[19.201,47.2],[19.201,47.201],[19.2,47.201],[19.2,47.2]];
@@ -53,4 +54,13 @@ test("untrusted field labels are escaped before being inserted into Leaflet HTML
   assert.equal(escaped,'Rossz &lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; társai');
   assert.ok(!escaped.includes("<img"));
   assert.equal(escapeHtml(null),"");
+});
+
+test("geographic sanity warning catches likely swapped axes without rejecting foreign fields",()=>{
+  assert.equal(fieldLocationHint(19.1,47.1),null);
+  assert.equal(fieldLocationHint(20.5,48.9),null);
+  assert.match(fieldLocationHint(47.1,19.1),/felcserélt/);
+  assert.match(fieldLocationHint(3.1,47.1),/kívül esik/);
+  assert.match(fieldLocationHint(100,10),/kívül esik/);
+  assert.match(fieldLocationHint(NaN,47),/nem értelmezhető/);
 });

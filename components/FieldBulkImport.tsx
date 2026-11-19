@@ -1,12 +1,13 @@
 "use client";
 
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {importFarmFields} from "@/app/admin/bulk-field-actions";
 import {fieldFileCandidates} from "@/lib/fieldFileCandidates";
 import {parseFieldGeometry,type FieldGeometry} from "@/lib/fieldGeometry";
 import {estimatedFieldHectares,MAX_BULK_FIELDS,prepareFieldBatch} from "@/lib/fieldBatchImport";
+import {fieldLocationHint} from "@/lib/fieldLocationHint";
 
 type Farm={id:string;name:string};
 type ExistingField={farm_id:string;name:string;boundary_geojson:unknown};
@@ -22,6 +23,77 @@ function outlinePath(geometry:FieldGeometry){
   const scale=Math.min(180/spanX,100/spanY);
   const offsetX=10+(180-spanX*scale)/2,offsetY=10+(100-spanY*scale)/2;
   return rings.map(ring=>ring.map(([lng,lat],i)=>`${i===0?"M":"L"}${(offsetX+(lng-minX)*scale).toFixed(2)},${(offsetY+(maxY-lat)*scale).toFixed(2)}`).join(" ")+" Z").join(" ");
+}
+
+let leafletLoading:Promise<void>|null=null;
+function ensureLeaflet(){
+  if(window.L)return Promise.resolve();
+  if(leafletLoading)return leafletLoading;
+  leafletLoading=new Promise<void>((resolve,reject)=>{
+    const css="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    const js="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    if(!document.querySelector(`link[href="${css}"]`)){
+      const link=document.createElement("link");link.rel="stylesheet";link.href=css;document.head.appendChild(link);
+    }
+    const old=document.querySelector(`script[src="${js}"]`) as HTMLScriptElement|null;
+    const script=old||document.createElement("script");
+    const cleanup=()=>{clearTimeout(timer);script.removeEventListener("load",done);script.removeEventListener("error",failed)};
+    const done=()=>{cleanup();window.L?resolve():reject(new Error("A térképmodul nem indult el."))};
+    const failed=()=>{cleanup();script.remove();reject(new Error("A térképmodul nem tölthető be."))};
+    const timer=setTimeout(failed,12_000);
+    script.addEventListener("load",done,{once:true});script.addEventListener("error",failed,{once:true});
+    if(!old){script.src=js;script.async=true;document.body.appendChild(script)}
+    else if(window.L)done();
+  }).catch(error=>{leafletLoading=null;throw error});
+  return leafletLoading;
+}
+
+/** Georeferenced preview: all polygons and holes, not only the first exterior ring. */
+function FieldSatellitePreview({geometry}:{geometry:FieldGeometry}){
+  const element=useRef<HTMLDivElement|null>(null);
+  const[error,setError]=useState("");
+  const[ready,setReady]=useState(false);
+  const[tileNotice,setTileNotice]=useState("");
+  const[noTiles,setNoTiles]=useState(false);
+  useEffect(()=>{
+    let cancelled=false;
+    let map:any=null;
+    (async()=>{
+      await ensureLeaflet();
+      if(cancelled||!element.current)return;
+      const L=window.L;
+      map=L.map(element.current,{zoomControl:true,scrollWheelZoom:false});
+      const satellite=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"});
+      const street=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
+      let satelliteFailures=0,streetFailures=0;
+      satellite.on("tileerror",()=>{
+        if(++satelliteFailures===3&&!cancelled){
+          setTileNotice("A műholdkép most nem érhető el. Utcatérképre váltottunk; a táblahatár helye továbbra is ellenőrizhető.");
+          if(map.hasLayer(satellite)){map.removeLayer(satellite);street.addTo(map)}
+        }
+      });
+      street.on("tileerror",()=>{
+        if(++streetFailures===3&&!cancelled){
+          setTileNotice("A térképi háttérrétegek nem érhetők el. Az alakvázlatot továbbra is megmutatjuk.");setNoTiles(true);
+        }
+      });
+      satellite.addTo(map);
+      L.control.layers({"Műholdkép":satellite,"Utcatérkép":street},undefined,{position:"topright",collapsed:true}).addTo(map);
+      const boundary=L.geoJSON(geometry,{style:{color:"#f8de54",weight:3,fillColor:"#397b41",fillOpacity:.22}}).addTo(map);
+      const bounds=boundary.getBounds();
+      if(!bounds.isValid())throw new Error("A megadott területnek nincs értelmezhető térképi kiterjedése.");
+      map.fitBounds(bounds,{padding:[24,24],maxZoom:17});
+      window.requestAnimationFrame(()=>{if(!cancelled)map?.invalidateSize()});
+      setReady(true);
+    })().catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:"A térképi előnézet nem érhető el.")});
+    return()=>{cancelled=true;if(map){map.remove();map=null}};
+  },[geometry]);
+  return <div style={{position:"relative",marginTop:8}}>
+    <div ref={element} aria-label="Térképi előnézet, a kiválasztott táblahatár valós földrajzi helyén" role="region" style={{height:275,width:"100%",background:"#e4eade",borderRadius:10,overflow:"hidden"}}/>
+    {!ready&&!error&&<p role="status" style={{fontSize:12,color:"#647268"}}>Műholdas térkép betöltése…</p>}
+    {tileNotice&&<p role="status" style={{padding:9,background:"#fff7e8",fontSize:12,borderRadius:8}}>{tileNotice}</p>}
+    {(error||noTiles)&&<div role="status" style={{padding:9,borderRadius:8,background:"#fff7e8"}}><p style={{fontSize:12}}>{error||"A térképi háttér nem tölthető be."} A fájl alakvázlata ettől függetlenül ellenőrizhető:</p><svg viewBox="0 0 200 120" role="img" aria-label="A táblahatár alakvázlata" style={{width:"100%",height:130,background:"#edf3ea",borderRadius:8}}><path d={outlinePath(geometry)} fill="#9ecba4" fillRule="evenodd" stroke="#255d35" strokeWidth="1.6"/></svg></div>}
+  </div>;
 }
 
 async function loadShapeParser(){
@@ -56,6 +128,8 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
 
   const selected=useMemo(()=>candidates.filter(c=>c.selected),[candidates]);
   const active=candidates.find(c=>c.id===activeId)||candidates[0];
+  const activeStats=useMemo(()=>active?parseFieldGeometry(active.geometry).stats:null,[active?.geometry]);
+  const locationHint=activeStats?fieldLocationHint(activeStats.centerLng,activeStats.centerLat):null;
   const check=useMemo(()=>{
     if(!selected.length)return "Jelölj ki legalább egy táblát.";
     try{
@@ -116,8 +190,10 @@ export function FieldBulkImport({farms,existingFields}:{farms:Farm[];existingFie
         </div>
         <div>
           {active&&<><label style={{display:"grid",gap:5}}><strong>A kiválasztott terület neve</strong><input value={active.name} onChange={event=>edit(active.id,{name:event.target.value})} maxLength={120} disabled={saving} style={{borderRadius:9,padding:10,border:"1px solid #cad7cd",width:"100%"}}/></label>
-            <svg viewBox="0 0 200 120" role="img" aria-label={`A(z) ${active.name} táblahatárának vázlatos előnézete`} style={{width:"100%",height:200,background:"#edf3ea",borderRadius:10,marginTop:8}}><path d={outlinePath(active.geometry)} fill="#9ecba4" fillRule="evenodd" stroke="#255d35" strokeWidth="1.6" strokeLinejoin="round"/></svg>
-            <p style={{color:"#57685c",fontSize:12}}>Alakhelyes vázlat, nem műholdkép. Az import után a térképen ellenőrizd a valós elhelyezkedést és a táblahatárt. A MultiPolygon részei és belső kivágásai megmaradnak.</p></>}
+            <FieldSatellitePreview key={active.id} geometry={active.geometry}/>
+            {activeStats&&<p style={{color:"#57685c",fontSize:12,marginTop:7}}>Középpont: {activeStats.centerLat.toFixed(5)}° É, {activeStats.centerLng.toFixed(5)}° K · {activeStats.vertices} töréspont · {activeStats.polygons} poligon · {activeStats.holes} belső kivágás.</p>}
+            {locationHint&&<p role="alert" style={{padding:10,borderRadius:8,background:"#fff2d9",color:"#81520b",fontSize:12}}>{locationHint}</p>}
+            <p style={{color:"#57685c",fontSize:12}}>A műholdképen ellenőrizd, hogy a határ tényleg a megfelelő művelt területre esik. A forrás nem hiteles földhivatali adat; a poligon minden eredeti töréspontja és különálló része megmarad.</p></>}
         </div>
       </div>
       {check&&<p className="error-box" role="alert" style={{marginTop:10}}>{check}</p>}
