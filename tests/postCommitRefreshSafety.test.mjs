@@ -10,7 +10,7 @@ test("a cache refresh cannot turn a successful work dispatch into a retryable sa
  assert.match(dispatch,/try\{\s*revalidatePath\("\/dispatch"\)/);
  assert.match(dispatch,/catch\(error\)\{console\.error\("Kiosztott munka nézetfrissítési hiba"/);
  assert.match(dispatch,/warnings\.push\("A munka létrejött, de a listák frissítése késhet\."\)/);
- assert.match(dispatch,/return\{ok:true as const,id:task\.id,warnings\}/);
+ assert.match(dispatch,/return\{ok:true as const,id:taskId,warnings\}/);
  assert.match(dispatchForm,/try\{router\.refresh\(\)\}catch\(refreshError\)/);
  assert.match(dispatchForm,/setWarning\(previous=>/);
 });

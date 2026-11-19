@@ -19,6 +19,7 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
  const router=useRouter();
  const formRef=useRef<HTMLFormElement>(null);
  const submitting=useRef(false);
+ const requestIdRef=useRef<string|null>(null);
  const[busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState(""),[warning,setWarning]=useState("");
  const[farmId,setFarmId]=useState("");
  const[fieldId,setFieldId]=useState("");
@@ -43,10 +44,13 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
   event.preventDefault();
   if(submitting.current||!canSubmit)return;
   const data=new FormData(event.currentTarget);
+  if(!requestIdRef.current)requestIdRef.current=crypto.randomUUID();
+  data.set("request_id",requestIdRef.current);
   const taskTitle=title.trim();
   submitting.current=true;setBusy(true);setError("");setSuccess("");setWarning("");
   try{
    const result=await dispatchTask(data);
+   requestIdRef.current=null;
    setSuccess(`„${taskTitle}” feladat rögzítve. A lista frissült.`);
    if(result.warnings.length)setWarning(`A feladat elkészült, de további ellenőrzés szükséges: ${result.warnings.join(" ")}`);
    formRef.current?.reset();

@@ -15,6 +15,7 @@ export function AdvisorSimpleTaskForm({farms,fields,members,people}:{farms:Farm[
   const router=useRouter();
   const form=useRef<HTMLFormElement|null>(null);
   const submitting=useRef(false);
+  const requestIdRef=useRef<string|null>(null);
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState("");
   const[success,setSuccess]=useState("");
@@ -35,10 +36,13 @@ export function AdvisorSimpleTaskForm({farms,fields,members,people}:{farms:Farm[
     event.preventDefault();
     if(submitting.current||!canSubmit)return;
     const formData=new FormData(event.currentTarget);
+    if(!requestIdRef.current)requestIdRef.current=crypto.randomUUID();
+    formData.set("request_id",requestIdRef.current);
     const taskName=title.trim();
     submitting.current=true;setBusy(true);setError("");setSuccess("");setWarning("");
     try{
       const result=await createAssignedTask(formData);
+      requestIdRef.current=null;
       setSuccess(`„${taskName}” teendő létrejött, a munkalistában megtalálható.`);
       if(result.warnings.length)setWarning(`A teendő mentése sikeres, de: ${result.warnings.join(" ")}`);
       form.current?.reset();setFarmId("");setFieldId("");setAssignee("");setTitle("");

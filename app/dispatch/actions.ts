@@ -3,6 +3,7 @@ import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {validDateOnly} from "@/lib/operationInput";
+import {createTaskOnce} from "@/lib/taskCreateIdempotency";
 
 export async function dispatchTask(formData:FormData){
  const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
@@ -15,14 +16,20 @@ export async function dispatchTask(formData:FormData){
  const{data:field}=await supabase.from("fields").select("id,name,farm_id").eq("id",fieldId).eq("farm_id",farmId).maybeSingle();if(!field)throw new Error("A földtábla nem ehhez a gazdasághoz tartozik.");
  const assigneeIsOwner=assignedTo===farm.owner_id;let assigneeOk=assigneeIsOwner;if(!assigneeOk){const{data:member}=await supabase.from("farm_members").select("id,active").eq("farm_id",farmId).eq("user_id",assignedTo).eq("active",true).maybeSingle();assigneeOk=!!member}if(!assigneeOk)throw new Error("A kiválasztott munkatárs nem aktív tagja ennek a gazdaságnak.");
  if(machineId){const{data:machine}=await supabase.from("machines").select("id,farm_id,active").eq("id",machineId).maybeSingle();if(!machine||machine.farm_id!==farmId||!machine.active)throw new Error("A kiválasztott gép nem használható ehhez a gazdasághoz.")}
- const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";const{data:task,error}=await supabase.from("tasks").insert({farm_id:farmId,field_id:fieldId,title,description:description||null,due_date:dueDate||null,priority:safePriority,status:"open",assigned_to:assignedTo,created_by:user.id}).select("id").single();if(error||!task)throw new Error(error?.message||"A munka kiosztása sikertelen.");
+ const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";
+ const{id:taskId,alreadyExists}=await createTaskOnce(supabase,{
+  farm_id:farmId,field_id:fieldId,title,description:description||null,
+  due_date:dueDate||null,priority:safePriority,status:"open",
+  assigned_to:assignedTo,created_by:user.id
+ },String(formData.get("request_id")||""));
+ if(alreadyExists)return{ok:true as const,id:taskId,warnings:["A munka már szerepel a teendőlistában. Ellenőrizd a gép hozzárendelését is; újabb értesítést nem küldtünk."]};
  const warnings:string[]=[];
  // The core task was created. Auxiliary writes must not report the entire
  // operation as failed: a retry would create a duplicate task.
  if(machineId){
   try{
    const{error:machineError}=await supabase.from("task_machine_assignments")
-    .insert({task_id:task.id,machine_id:machineId,assigned_by:user.id});
+    .insert({task_id:taskId,machine_id:machineId,assigned_by:user.id});
    if(machineError)warnings.push("A gép hozzárendelése sikertelen; a feladatot a munkalistában ellenőrizd.");
   }catch(error){
    console.error("Gépkiosztás után keletkezett hiba",error);
@@ -33,7 +40,7 @@ export async function dispatchTask(formData:FormData){
  try{
   const{error:eventError}=await supabase.from("timeline_events").insert({
    farm_id:farmId,field_id:fieldId,event_type:"task",title:`Munka kiosztva: ${title}`,
-   description:description||null,event_at:now,created_by:user.id,source_id:task.id
+   description:description||null,event_at:now,created_by:user.id,source_id:taskId
   });
   if(eventError)warnings.push("A munkanapló-esemény nem került rögzítésre.");
  }catch(error){
@@ -66,5 +73,5 @@ export async function dispatchTask(formData:FormData){
  try{
   revalidatePath("/dispatch");revalidatePath("/work");revalidatePath("/tasks");revalidatePath(`/fields/${fieldId}`);revalidatePath("/admin/tasks");revalidatePath("/machines");
  }catch(error){console.error("Kiosztott munka nézetfrissítési hiba",error);warnings.push("A munka létrejött, de a listák frissítése késhet.")}
- return{ok:true as const,id:task.id,warnings};
+ return{ok:true as const,id:taskId,warnings};
 }
