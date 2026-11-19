@@ -144,7 +144,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         {importMessage&&<p role="status" style={{margin:0,color:"#2f7430"}}>{importMessage}</p>}
         {importError&&<p role="alert" style={{margin:0,color:"#b3342b"}}>{importError}</p>}
       </div>
-      <button className="btn btn-primary" type="submit" style={{justifySelf:"start"}}>Térképi adatok mentése</button>
+      <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen} style={{justifySelf:"start"}}>Térképi adatok mentése</button>
     </form>:!compact?<p style={{marginTop:12,color:"#6f7c74",fontSize:12}}>{boundary?"A rögzített táblahatár megjelenik a térképen.":lat!=null&&lng!=null?"A tábla rögzített térképi helye látható.":"Ehhez a táblához még nincs térképi hely rögzítve."}</p>:null}
   </section>
 }
