@@ -51,7 +51,7 @@ export function DispatchTaskForm({farms,fields,members,machines,people}:{
    if(result.warnings.length)setWarning(`A feladat elkészült, de további ellenőrzés szükséges: ${result.warnings.join(" ")}`);
    formRef.current?.reset();
    setFarmId("");setFieldId("");setAssigneeId("");setMachineId("");setTitle("");setFarmName("");
-   router.refresh();
+   try{router.refresh()}catch(refreshError){console.error("Munkakiosztás utáni lista frissítése sikertelen",refreshError);setWarning(previous=>[previous,"A lista frissítése nem sikerült; a munka ettől létrejött. Frissítsd az oldalt."].filter(Boolean).join(" "))}
   }catch(e){
    setError(e instanceof Error?e.message:"A feladat kiosztása sikertelen. Ellenőrizd az adatokat.");
   }finally{

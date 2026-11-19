@@ -63,6 +63,8 @@ export async function dispatchTask(formData:FormData){
   if(emailError)warnings.push("Az e-mail-értesítés küldése sikertelen.");
  }catch(e){console.error("Munkakiosztási e-mail sikertelen",e);warnings.push("Az e-mail-értesítés nem sikerült.");}
 
- revalidatePath("/dispatch");revalidatePath("/work");revalidatePath("/tasks");revalidatePath(`/fields/${fieldId}`);revalidatePath("/admin/tasks");revalidatePath("/machines");
+ try{
+  revalidatePath("/dispatch");revalidatePath("/work");revalidatePath("/tasks");revalidatePath(`/fields/${fieldId}`);revalidatePath("/admin/tasks");revalidatePath("/machines");
+ }catch(error){console.error("Kiosztott munka nézetfrissítési hiba",error);warnings.push("A munka létrejött, de a listák frissítése késhet.")}
  return{ok:true as const,id:task.id,warnings};
 }
