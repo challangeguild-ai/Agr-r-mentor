@@ -23,7 +23,8 @@ export async function setWorkerTaskStage(formData:FormData){
  if(!existing){
   const now=new Date().toISOString(),title=stage==="started"?`Munka megkezdve: ${task.title}`:`Munka elfogadva: ${task.title}`;
   const{error}=await supabase.from("timeline_events").insert({farm_id:task.farm_id,field_id:task.field_id,event_type:eventType,title,description:null,event_at:now,created_by:user.id,source_id:task.id});if(error)throw new Error(error.message);
-  await notifyAdvisors(supabase,{kind:eventType,title:stage==="started"?"A végrehajtó megkezdte a munkát":"A végrehajtó elfogadta a munkát",message:task.title,href:"/admin/tasks?view=open",eventKey:`task:${task.id}:${stage}`});
+  try{await notifyAdvisors(supabase,{kind:eventType,title:stage==="started"?"A végrehajtó megkezdte a munkát":"A végrehajtó elfogadta a munkát",message:task.title,href:"/admin/tasks?view=open",eventKey:`task:${task.id}:${stage}`});}
+  catch(e){console.error("A munkafolyamat-lépés elmentve, de az értesítés nem igazolt",e)}
  }
  revalidatePath("/work");revalidatePath("/tasks");revalidatePath("/admin/tasks");if(task.field_id)revalidatePath(`/fields/${task.field_id}`);
 }
