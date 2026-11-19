@@ -60,6 +60,11 @@ export function weatherSyncStatus(totalFields:number,syncedFields:number,station
  return stationFailures===0&&staleFields===0&&syncedFields===totalFields?"success":"partial";
 }
 
+/** A cron run that saved no measurements for any existing field is not operational success. */
+export function weatherCronHttpStatus(totalFields:number,syncedFields:number):200|503{
+ return totalFields>0&&syncedFields===0?503:200;
+}
+
 type StoredWeather={
  id:string;
  weather_date:string;

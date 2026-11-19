@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {fieldPoint,fetchAllWeatherFields,weatherSyncStatus,planWeatherTimelineChanges} from "../lib/weather/syncHelpers.ts";
+import {fieldPoint,fetchAllWeatherFields,weatherSyncStatus,weatherCronHttpStatus,planWeatherTimelineChanges} from "../lib/weather/syncHelpers.ts";
 
 test("weather station matching prefers a valid field center",()=>{
  const point=fieldPoint({center_lat:47.5,center_lng:19.2,boundary_geojson:null});
@@ -58,6 +58,14 @@ test("weather sync reports partial results whenever some fields or stations are 
  assert.equal(weatherSyncStatus(7,7,1),"partial");
  assert.equal(weatherSyncStatus(7,7,0),"success");
  assert.equal(weatherSyncStatus(7,7,0,1),"partial");
+});
+
+test("weather cron alerts on zero coverage but accepts an empty farm or a partial useful import",()=>{
+ assert.equal(weatherCronHttpStatus(7,0),503);
+ assert.equal(weatherCronHttpStatus(1,0),503);
+ assert.equal(weatherCronHttpStatus(7,1),200);
+ assert.equal(weatherCronHttpStatus(7,7),200);
+ assert.equal(weatherCronHttpStatus(0,0),200);
 });
 
 test("initial rainy-day import creates only a rain event, not dry-day noise",()=>{
