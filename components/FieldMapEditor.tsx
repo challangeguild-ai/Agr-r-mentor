@@ -1,7 +1,9 @@
 "use client";
 
-import {useCallback,useEffect,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState,type FormEvent} from "react";
+import {useRouter} from "next/navigation";
 import {saveFieldMap} from "@/app/fields/[id]/actions";
+import {submitFieldBoundaryProposal} from "@/app/fields/[id]/proposal-actions";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {FieldDocumentImport} from "@/components/FieldDocumentImport";
 import {parseFieldGeometry,parseFieldGeometryText} from "@/lib/fieldGeometry";
@@ -11,9 +13,10 @@ import {fieldFileCandidates,type FieldFileCandidate} from "@/lib/fieldFileCandid
 declare global{interface Window{L:any;shp?: (data:ArrayBuffer)=>Promise<unknown>}}
 
 type Hotspot={lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"};
-type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;geometrySource?:string|null;hotspots?:Hotspot[];compact?:boolean};
+type Props={fieldId:string;lat:number|null;lng:number|null;boundary:any|null;editable:boolean;geometrySource?:string|null;hotspots?:Hotspot[];compact?:boolean;proposalMode?:boolean};
 
-export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource="manual",hotspots=[],compact=false}:Props){
+export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource="manual",hotspots=[],compact=false,proposalMode=false}:Props){
+  const router=useRouter();
   const mapRef=useRef<HTMLDivElement|null>(null);
   const mapInstance=useRef<any>(null);
   const drawnLayer=useRef<any>(null);
@@ -36,7 +39,9 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const[centerLng,setCenterLng]=useState(lng??19.5);
   const[geojson,setGeojson]=useState(boundary?JSON.stringify(boundary):"");
   const[ready,setReady]=useState(false);
-  const[boundarySource,setBoundarySource]=useState(geometrySource||"manual");
+  const[boundarySource,setBoundarySource]=useState(proposalMode?(geometrySource==="external"?"external":"manual"):(geometrySource||"manual"));
+  const[proposalSaving,setProposalSaving]=useState(false);
+  const[proposalFeedback,setProposalFeedback]=useState<{ok:boolean;message:string}|null>(null);
   const[importMessage,setImportMessage]=useState("");
   const[importError,setImportError]=useState("");
   const[fileCandidates,setFileCandidates]=useState<FieldFileCandidate[]>([]);
@@ -163,12 +168,24 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
     finally{setFileLoading(false)}
   }
 
+  async function handleProposalSubmit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    if(proposalSaving)return;
+    setProposalSaving(true);setProposalFeedback(null);
+    try{
+      const result=await submitFieldBoundaryProposal(new FormData(event.currentTarget));
+      setProposalFeedback(result);
+      if(result.ok)router.refresh();
+    }catch{setProposalFeedback({ok:false,message:"A javaslat beküldése megszakadt. Próbáld újra."})}
+    finally{setProposalSaving(false)}
+  }
+
   return <section className={compact?"field-map-panel field-map-panel-compact":"panel field-map-panel"} data-help-block="field-map" data-tour="farmer-field-map">
     {!compact&&<div className="panel-heading"><div><span className="eyebrow">TÉRKÉP</span><h2>Földtábla helye és határa</h2></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>{boundary&&<span className="user-pill">Táblahatár rögzítve</span>}{hotspots.length>0&&<span className="user-pill">● {hotspots.length} GPS problémagóc</span>}<BlockHelpButton label="A földtábla térképének magyarázata" content={{title:"Földtábla helye és határa",body:"A táblához már egyetlen térképi pont is elegendő. Ha szeretnéd, választhatsz közeli OpenStreetMap-határjavaslatot, feltölthetsz GeoJSON-t vagy ZIP-be csomagolt SHP-fájlt, vagy kézzel is körberajzolhatod. A problémagócok külön jelennek meg.",important:"A határjavaslat nem hiteles földhivatali adat, és a művelt tábla eltérhet a helyrajzi számmal jelölt földrészlettől. Csak az ellenőrzött poligont mentsd; a későbbi GPS-ellenőrzések erre támaszkodhatnak.",example:"Példa: az új tábla belsejére kattintasz, megkeresed az OSM-határjavaslatokat, ellenőrzöd a műholdképen, és egy kattintással előnézetbe emeled. Ha nincs jó javaslat, a helypontot is elmentheted.",steps:["Nagyíts a földtábla környékére.","Kattints a tábla belsejére: a helypont önmagában is elegendő.","Ha van, keress OSM-határjavaslatot, vagy tölts fel GeoJSON/SHP ZIP fájlt.","A kézi rajzolás és szerkesztés is választható.","Ellenőrizd, hogy a poligon valóban a művelt területet jelöli.","Nyomd meg a Térképi adatok mentése gombot."]}}/></div></div>}
     <div ref={mapRef} style={{height:compact?260:420,width:"100%",borderRadius:compact?9:12,overflow:"hidden",background:"#e7ece7"}}/>
     {!ready&&<p style={{color:"#6f7c74",fontSize:compact?9:12}}>Térkép betöltése…</p>}
     {!compact&&hotspots.length>0&&<p style={{margin:"10px 0 0",color:"#6f7c74",fontSize:12}}>A színes pontok helyszíni GPS-szel rögzített problémagócokat jelölnek. Kattints a pontra a részletekért.</p>}
-    {!compact&&editable?<form action={saveFieldMap} style={{display:"grid",gap:10,marginTop:14}}>
+    {!compact&&editable?<form action={proposalMode?undefined:saveFieldMap} onSubmit={proposalMode?handleProposalSubmit:undefined} style={{display:"grid",gap:10,marginTop:14}}>
       <input type="hidden" name="field_id" value={fieldId}/><input type="hidden" name="center_lat" value={pointChosen?centerLat:""}/><input type="hidden" name="center_lng" value={pointChosen?centerLng:""}/><input type="hidden" name="boundary_geojson" value={geojson}/><input type="hidden" name="boundary_source" value={boundarySource}/>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}><span className="user-pill">{pointChosen?`${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}`:"Hely nincs megadva"}</span><span className="user-pill">{geojson?"Poligon megjelenítve – mentsd, ha változtattál":pointChosen?"Csak helypont – poligon még nincs":"Még nincs térképi hely"}</span><small style={{color:"#6f7c74"}}>A pont önmagában is menthető. A poligon pontosságát a forrás és az ellenőrzés határozza meg, nem a kitöltött mezők száma.</small></div>
       <div style={{padding:12,border:"1px solid #d7e2d6",borderRadius:10,background:"#f7faf7",display:"grid",gap:8}}>
@@ -194,7 +211,9 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         {importError&&<p role="alert" style={{margin:0,color:"#b3342b"}}>{importError}</p>}
       </div>
       <FieldDocumentImport ready={ready} onCaptureMapPoint={captureDocumentMapClick} onShowMapAnchors={showDocumentMapAnchors} onPreview={(geometry,description)=>previewGeometry(geometry,"external",description)}/>
-      <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen} style={{justifySelf:"start"}}>Térképi adatok mentése</button>
+      {proposalMode&&<div style={{display:"grid",gap:7}}><label htmlFor={`proposal-note-${fieldId}`} style={{fontWeight:700,fontSize:13}}>Megjegyzés a szaktanácsadónak (nem kötelező)</label><textarea id={`proposal-note-${fieldId}`} name="proposal_note" rows={2} maxLength={1000} placeholder="Pl. a műholdkép és a művelt terület széle között eltérés lehet" style={{width:"100%",padding:10,border:"1px solid #d7e2d6",borderRadius:9,font:"inherit"}}/><small>A javaslat nem kerül fel automatikusan a gazdaság térképére. A szaktanácsadó ellenőrzi, majd elfogadja vagy elutasítja. A helyrajzi szám önmagában nem hitelesíti a határt.</small></div>}
+      {proposalFeedback&&<p role={proposalFeedback.ok?"status":"alert"} style={{color:proposalFeedback.ok?"#2f7430":"#b3342b",margin:0}}>{proposalFeedback.message}</p>}
+      <button className="btn btn-primary" type="submit" disabled={!ready||!pointChosen||proposalSaving||proposalFeedback?.ok===true} style={{justifySelf:"start"}}>{proposalSaving?"Javaslat küldése…":proposalMode?"Táblahatár-javaslat beküldése":"Térképi adatok mentése"}</button>
     </form>:!compact?<p style={{marginTop:12,color:"#6f7c74",fontSize:12}}>{boundary?"A rögzített táblahatár megjelenik a térképen.":lat!=null&&lng!=null?"A tábla rögzített térképi helye látható.":"Ehhez a táblához még nincs térképi hely rögzítve."}</p>:null}
   </section>
 }

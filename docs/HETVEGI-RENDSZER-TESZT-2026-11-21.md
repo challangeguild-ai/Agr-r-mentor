@@ -39,7 +39,12 @@
 - [ ] Ferde fotó négy illesztési ponttal; gyenge fotó, nyitott határ és több PDF-oldal kezelése.
 - [ ] **Valóságellenőrzés:** poligon élei és sarkai a műholdképhez képest; a művelt tábla és a jogi földrészlet esetleges különbsége.
 - [ ] Megjelenített poligon a tábla adatlapján, GPS-ellenőrzéshez megfelelő geometria.
-- [ ] Gazdálkodó közvetlen táblahatár-mentése: jelenleg **nem támogatott**, nem hiba, hanem későbbi jogosultsági fejlesztés.
+- [ ] **Gazda által beküldött táblahatár-javaslat:** tábla adatlapján megjelenő szerkesztő, csak helyponttal, kézi alakzattal, OSM-javaslattal, GeoJSON/SHP ZIP importtal és térképfotó/PDF-képpel külön-külön kipróbálva; semmi sem kötelező a helyponton kívül.
+- [ ] **Javaslat nem változtatja meg azonnal a földtáblát:** gazda beküldése után csak „Szaktanácsadói ellenőrzésre vár” státusz és értesítés jelenik meg. Újabb függő javaslat ugyanahhoz a táblához ne hozható létre.
+- [ ] **Szaktanácsadói jóváhagyás:** Határjavaslatok menü → javaslat → jelenlegi és javasolt teljes, akár több részből álló poligon ellenőrzése → jóváhagyás. Az elfogadott határnak és a forrásnak egyeznie kell a beküldöttel.
+- [ ] **Elutasítás:** a javaslat visszautasítható megjegyzéssel, a régi poligon változatlan marad, a gazda új javaslatot küldhet.
+- [ ] **Konfliktus és jogosultság:** a beküldés óta módosított táblahatárra a jóváhagyás nem írhat rá; munkatárs és idegen gazdaság tagja ne küldhessen be javaslatot; gazda ne hagyhasson jóvá; az adatbázis közvetlen írása legyen tiltva.
+- [ ] **Pont alapú javaslat meglévő poligonon:** az elbíráló egyértelmű figyelmeztetést kap, hogy elfogadás esetén az előző poligon törlődik.
 
 ## 3. Gazdálkodói műveletek, tervek, növényvédelem (P0)
 
@@ -131,3 +136,5 @@ Képernyőkép vagy videó:
 **Értesítési jogosultság:** a bejelentések és problémagócok értesítési javítása a `20261119093000_authorized_advisor_notifications.sql` migrációban vár telepítésre. Alkalmazása nélkül az új értesítési eseteket nem lehet késznek tekinteni.
 
 **GPS-es RPC biztonsági előfeltétel:** a `20261119110000_verified_task_proof_rpc_guard.sql` migráció a közvetlen adatbázis-hívásnál ellenőrzi a GPS-t, a ténylegesen feltöltött fényképet, a táblahatárt és az aktuális növényvédelmi kapcsolatok alapvető érvényességét. Ez a migráció is **csak előkészítve**, az éles Supabase adatbázison nincs alkalmazva. A konkrét SQL-működés kézi/integrációs kipróbálása a hétvégi teszt része.
+
+**Gazdálkodói táblahatár-javaslatok előfeltétele:** a `20261119123000_field_boundary_proposals.sql` migráció létrehozza a függő javaslatokat, a koordinátor jogosultsági ellenőrzését és az atomikus szaktanácsadói jóváhagyást. Ez is **csak a Draft PR része**, nem került az éles adatbázisba. Telepítés nélkül a gazda adatlapján a beküldés nem érhető el; a hétvégi teszt előtt az alkalmazást és a DB-migrációkat össze kell hangolni a tesztkörnyezettel.

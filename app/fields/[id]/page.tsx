@@ -9,6 +9,7 @@ import {InspectionMedia} from "@/components/InspectionMedia";
 import {FarmerReportForm} from "@/components/FarmerReportForm";
 import {FarmerReportMedia} from "@/components/FarmerReportMedia";
 import {FieldMapEditor} from "@/components/FieldMapEditor";
+import {FieldBoundaryProposalLauncher} from "@/components/FieldBoundaryProposalLauncher";
 import {canSubmitTaskProof} from "@/lib/taskWorkflow";
 
 function formatDate(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
@@ -34,7 +35,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   if(!field)notFound();
 
   const[{data:farm},{data:tasks},{data:inspections},{data:timeline},{data:reports},{data:documents},{data:weather}]=await Promise.all([
-    supabase.from("farms").select("name,settlement,address").eq("id",field.farm_id).maybeSingle(),
+    supabase.from("farms").select("name,settlement,address,owner_id").eq("id",field.farm_id).maybeSingle(),
     supabase.from("tasks").select("id,title,description,due_date,priority,status,created_at,assigned_to,completed_at").eq("field_id",id).order("created_at",{ascending:false}),
     supabase.from("inspections").select("id,inspected_at,condition,notes,recommendation,created_at,follow_up_status,next_check_at,issue_status,previous_inspection_id").eq("field_id",id).order("inspected_at",{ascending:false}),
     supabase.from("timeline_events").select("id,event_type,title,description,event_at,created_at").eq("field_id",id).order("event_at",{ascending:false}),
@@ -51,6 +52,12 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   ]);
 
   const openTasks=(tasks??[]).filter(t=>t.status!=="done");
+  const isOwner=farm?.owner_id===user.id;
+  const [{data:membership},{data:lastProposal,error:proposalError}]=await Promise.all([
+    isOwner||profile?.role==="advisor"?Promise.resolve({data:null}):supabase.from("farm_members").select("member_role").eq("farm_id",field.farm_id).eq("user_id",user.id).eq("active",true).maybeSingle(),
+    supabase.from("field_boundary_proposals").select("status,created_at,review_note").eq("field_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle()
+  ]);
+  const canPropose=profile?.role!=="advisor"&&(isOwner||membership?.member_role==="manager"||membership?.member_role==="agronomist");
   const latestInspection=(inspections??[])[0];
   const weatherRows=weather??[];
   const {rain7,rain30,days7,days30}=summarizeStationPrecipitation(weatherRows);
@@ -90,6 +97,8 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
        <article id="terkep" className={styles.mapCard}><div className={styles.cardTitle}><h2>Térképi nézet</h2><span>{field.area_ha?field.area_ha+" ha":""}</span></div><FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots} compact/></article>
        <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days7}/7 nap`:"—"}</dd></div><div><dt>30 nap csapadék</dt><dd>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${days30}/30 nap`:"—"}</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
       </section>
+
+      {canPropose&&<FieldBoundaryProposalLauncher fieldId={field.id} fieldName={field.name} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} lastProposal={lastProposal??null} enabled={!proposalError} />}
 
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
        <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
