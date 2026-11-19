@@ -3,7 +3,8 @@
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
-import {parseDecimalOrNull,validDateOnly,licenseCoversDate} from "@/lib/operationInput";
+import {parseDecimalOrNull,validDateOnly,licenseCoversDate,validatePlannedArea} from "@/lib/operationInput";
+import {operationTypes} from "@/lib/operations";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
 
@@ -18,12 +19,16 @@ export async function createPlannedOperationTask(formData:FormData){
  const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
  const{data:me}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor"||me?.system_role==="admin")throw new Error("Szaktanácsadói jogosultság szükséges.");
  const farmId=String(formData.get("farm_id")||""),fieldId=String(formData.get("field_id")||""),assignedRaw=String(formData.get("assigned_to")||""),operationType=String(formData.get("operation_type")||""),subtype=String(formData.get("subtype")||"").trim(),dueDate=String(formData.get("due_date")||""),priority=String(formData.get("priority")||"normal"),notes=String(formData.get("notes")||"").trim(),machineId=String(formData.get("machine_id")||""),requestedApproverId=String(formData.get("requested_approver_id")||"");
- if(!farmId||!fieldId||!operationType)throw new Error("Gazdaság, földtábla és művelettípus kötelező.");if(!date(dueDate))throw new Error("Érvénytelen határidő.");
+ if(!farmId||!fieldId||!operationType)throw new Error("Gazdaság, földtábla és művelettípus kötelező.");
+ if(!operationTypes.some(([key])=>key===operationType))throw new Error("Érvénytelen művelettípus.");
+ if(!date(dueDate))throw new Error("Érvénytelen határidő.");
  const[{data:farm},{data:field}]=await Promise.all([supabase.from("farms").select("id,name,owner_id,country_code").eq("id",farmId).maybeSingle(),supabase.from("fields").select("id,name,farm_id,current_crop,area_ha").eq("id",fieldId).maybeSingle()]);if(!farm||!field||field.farm_id!==farmId)throw new Error("A gazdaság vagy földtábla nem található.");
  const assignedTo=assignedRaw||farm.owner_id;if(assignedTo!==farm.owner_id){const{data:m}=await supabase.from("farm_members").select("id").eq("farm_id",farmId).eq("user_id",assignedTo).eq("active",true).maybeSingle();if(!m)throw new Error("A végrehajtó nem aktív tagja a gazdaságnak.")}
- if(machineId){const{data:m}=await supabase.from("machines").select("id,farm_id").eq("id",machineId).maybeSingle();if(!m||m.farm_id!==farmId)throw new Error("A kiválasztott gép nem ehhez a gazdasághoz tartozik.")}
+ if(machineId){const{data:m}=await supabase.from("machines").select("id,farm_id,active").eq("id",machineId).eq("active",true).maybeSingle();if(!m||m.farm_id!==farmId)throw new Error("A kiválasztott gép nem aktív vagy nem ehhez a gazdasághoz tartozik.")}
  const country=farm.country_code==="SK"?"SK":"HU",productId=String(formData.get("product_id")||""),useId=String(formData.get("use_id")||""),manualProduct=String(formData.get("product")||"").trim();let productName=manualProduct,authorizationNumber:string|null=null,crop=String(formData.get("crop")||field.current_crop||"").trim()||null,target=String(formData.get("target")||"").trim()||null,activeIngredient=String(formData.get("active_ingredient")||"").trim()||null,applicationMethod:string|null=null,phiDays:number|null=null,bbchMin:number|null=null,bbchMax:number|null=null,maxApplications:number|null=null,interval:number|null=null,waterMin:number|null=null,waterMax:number|null=null,waterUnit:string|null=null,applicationTiming:string|null=null,restrictions:string|null=null,sourceReference:string|null=null,doseMin:number|null=null,doseMax:number|null=null,doseUnit=String(formData.get("dose_unit")||"").trim()||null,approvalRequired=false,regulatorySnapshot:Record<string,unknown>={},catalogSnapshot:Record<string,unknown>={};
  const plannedDose=num(formData.get("planned_dose")),plannedArea=num(formData.get("planned_area")),plannedQuantity=num(formData.get("planned_quantity")),quantityUnit=String(formData.get("quantity_unit")||"").trim()||null;
+ const areaError=validatePlannedArea(plannedArea,field.area_ha==null?null:Number(field.area_ha));
+ if(areaError)throw new Error(areaError);
  const spraying=operationType==="spraying"||operationType==="plant_protection";
  if(spraying){if(!productId||!useId)throw new Error("Növényvédelmi tervnél hivatalos készítmény és engedélyezett felhasználás kiválasztása kötelező.");const[{data:p},{data:u},{data:ings}]=await Promise.all([supabase.from("plant_protection_products").select("id,country_code,name,authorization_number,regulatory_category,professional_use_only,prescription_required,approval_required,active,regulatory_status,grace_period_until,valid_from,valid_until,source_name,source_url,source_snapshot_at").eq("id",productId).maybeSingle(),supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,bbch_min,bbch_max,max_applications,application_interval_days,water_volume_min,water_volume_max,water_volume_unit,application_timing,restrictions,source_reference,metadata").eq("id",useId).maybeSingle(),supabase.from("plant_protection_ingredients").select("ingredient,concentration,concentration_unit").eq("product_id",productId)]);if(!p||!u||u.product_id!==p.id||p.country_code!==country||!p.active)throw new Error("A kiválasztott hivatalos felhasználás nem érvényes ehhez a gazdasághoz.");
  const permitError=productUseBlockingReason({
