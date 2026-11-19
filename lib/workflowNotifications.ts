@@ -34,7 +34,7 @@ export async function notifyAdvisors(supabase:any,input:NotifyAdvisorInput){
   p_href:input.href||null,
   p_event_key:input.eventKey||null,
  });
- if(error){console.error("Szaktanácsadói értesítés létrehozása sikertelen",error);return [] as string[]}
+ if(error)throw new Error(`Szaktanácsadói értesítés létrehozása sikertelen: ${error.message||"ismeretlen hiba"}`,{cause:error});
  const recipients=(data??[]).map((x:any)=>String(x.recipient_id||"")).filter(Boolean);
  if(input.emailSubject){for(const id of recipients)await sendEmail(supabase,id,input.emailSubject,input.emailMessage||input.message||input.title,input.href||null)}
  return recipients;
