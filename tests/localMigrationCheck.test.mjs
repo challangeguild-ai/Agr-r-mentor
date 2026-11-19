@@ -8,6 +8,7 @@ const names=[
  "20261119093000_authorized_advisor_notifications.sql",
  "20261119110000_verified_task_proof_rpc_guard.sql",
  "20261119123000_field_boundary_proposals.sql",
+ "20261119211340_notification_email_send_quota.sql",
 ];
 
 test("the local migration rehearsal targets only the restored Docker database",()=>{
@@ -20,7 +21,7 @@ test("the local migration rehearsal targets only the restored Docker database",(
  for(const name of names)assert.ok(script.includes(name),name);
 });
 
-test("all four staged migrations are checked in one transaction and rolled back",()=>{
+test("all five staged migrations are checked in one transaction and rolled back",()=>{
  const check=read("../scripts/verify_staged_migrations.sql");
  assert.match(check,/\nBEGIN;\n/);
  assert.match(check,/\nROLLBACK;\n/);
@@ -37,4 +38,6 @@ test("all four staged migrations are checked in one transaction and rolled back"
  assert.match(check,/has_function_privilege\('anon'/);
  assert.match(check,/relrowsecurity/);
  assert.match(check,/has_table_privilege\('authenticated'/);
+ assert.match(check,/SET LOCAL ROLE service_role/);
+ assert.match(check,/FOR v_i IN 1\.\.60 LOOP/);
 });

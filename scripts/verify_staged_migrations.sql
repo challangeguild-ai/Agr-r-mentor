@@ -1,10 +1,11 @@
 \set ON_ERROR_STOP on
-\echo === AgrarMentor: negy fuggoben levo migracio – csak HELYI, ROLLBACK ===
+\echo === AgrarMentor: ot fuggoben levo migracio – csak HELYI, ROLLBACK ===
 BEGIN;
 \i /tmp/agrar_release_migration_check_20261119/20261119080000_general_task_attestation_review.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119093000_authorized_advisor_notifications.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119110000_verified_task_proof_rpc_guard.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119123000_field_boundary_proposals.sql
+\i /tmp/agrar_release_migration_check_20261119/20261119211340_notification_email_send_quota.sql
 
 DO $verify$
 DECLARE
@@ -42,8 +43,53 @@ BEGIN
      OR has_table_privilege('authenticated','public.field_boundary_proposals','DELETE') THEN
     RAISE EXCEPTION 'A táblahatár-javaslat közvetlen írása engedélyezett';
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE oid='public.notification_email_send_quota'::regclass AND relrowsecurity
+  ) THEN
+    RAISE EXCEPTION 'A levelkuldési keret tablajan nincs RLS';
+  END IF;
+  IF has_table_privilege('authenticated','public.notification_email_send_quota','SELECT')
+     OR has_table_privilege('authenticated','public.notification_email_send_quota','INSERT')
+     OR has_table_privilege('anon','public.notification_email_send_quota','SELECT') THEN
+    RAISE EXCEPTION 'A levelkuldési keret normal felhasznalo szamara elerheto';
+  END IF;
+
+  IF to_regprocedure('public.claim_notification_email_send_quota(uuid)') IS NULL
+     OR has_function_privilege('authenticated','public.claim_notification_email_send_quota(uuid)','EXECUTE')
+     OR has_function_privilege('anon','public.claim_notification_email_send_quota(uuid)','EXECUTE')
+     OR NOT has_function_privilege('service_role','public.claim_notification_email_send_quota(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'A levelkuldési kvota RPC jogosultsagai hibasak';
+  END IF;
 END;
 $verify$;
+
+-- Exercise the atomic quota under the actual service_role, still inside the
+-- enclosing transaction: 60 successes, then one denial without extra writes.
+SET LOCAL ROLE service_role;
+DO $quota$
+DECLARE
+  v_sender uuid;
+  v_i integer;
+BEGIN
+  SELECT id INTO v_sender FROM public.profiles LIMIT 1;
+  IF v_sender IS NULL THEN RAISE EXCEPTION 'Hianyzik a helyi visszaallitott profil'; END IF;
+  FOR v_i IN 1..60 LOOP
+    IF public.claim_notification_email_send_quota(v_sender) IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'A levelkuldes indokolatlanul letiltva: %', v_i;
+    END IF;
+  END LOOP;
+  IF public.claim_notification_email_send_quota(v_sender) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'A 61. levelkuldesnek mar tiltva kell lennie';
+  END IF;
+  IF (SELECT send_count FROM public.notification_email_send_quota
+      WHERE sender_id=v_sender AND bucket_type='hour')<>60 THEN
+    RAISE EXCEPTION 'A korlatot tulfuto keres megvaltoztatta a szamlalot';
+  END IF;
+END;
+$quota$;
+RESET ROLE;
 
 \echo === Minden ellenorzes sikeres; a tranzakcio visszavonasa kovetkezik ===
 ROLLBACK;

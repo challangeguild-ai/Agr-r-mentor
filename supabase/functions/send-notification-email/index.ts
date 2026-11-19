@@ -58,6 +58,11 @@ Deno.serve(async(req:Request)=>{
   if(destination.origin!==appUrl)return json({error:"Érvénytelen értesítési hivatkozás."},400);
   const link=destination.href;
   const from=Deno.env.get("NOTIFICATION_EMAIL_FROM")||"Agrár Mentor <noreply@uniqerastudio.hu>";
+  // An authenticated client may invoke Edge Functions directly. A database
+  // claim is atomic across Edge instances and prevents unlimited Resend sends.
+  const {data:quotaAllowed,error:quotaError}=await admin.rpc("claim_notification_email_send_quota",{p_sender_id:user.id});
+  if(quotaError){console.error("Notification quota unavailable",quotaError);return json({error:"Az értesítési védelem nem elérhető. Próbáld később."},503)}
+  if(quotaAllowed!==true)return json({error:"Az e-mailes értesítések óránkénti vagy napi korlátját elérted."},429);
   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${resend}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#24372d"><h2 style="color:#174a32">Agrár Mentor</h2><h3>${esc(subject)}</h3><p style="line-height:1.6">${esc(message).replace(/\n/g,"<br>")}</p><p><a href="${esc(link)}" style="display:inline-block;background:#174a32;color:white;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">Megnyitás az Agrár Mentorban</a></p><p style="font-size:12px;color:#6f7c74">Ez egy automatikus értesítés az Agrár Mentor rendszerből.</p></div>`})});
   const result=await response.json().catch(()=>({}));
   if(!response.ok){console.error("Resend error",response.status,result);return json({error:"Az e-mail küldése sikertelen."},502)}

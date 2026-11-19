@@ -1,6 +1,6 @@
 ﻿#requires -version 5.1
 <#
-  Runs the four pending AgrarMentor migrations against the already-restored
+  Runs the five pending AgrarMentor migrations against the already-restored
   *local Docker* database in ONE transaction, which is always rolled back.
   No live Supabase connection, credentials, database dump, or GitHub upload.
 #>
@@ -15,7 +15,8 @@ $migrationNames = @(
     '20261119080000_general_task_attestation_review.sql',
     '20261119093000_authorized_advisor_notifications.sql',
     '20261119110000_verified_task_proof_rpc_guard.sql',
-    '20261119123000_field_boundary_proposals.sql'
+    '20261119123000_field_boundary_proposals.sql',
+    '20261119211340_notification_email_send_quota.sql'
 )
 $checkFile = Join-Path $PSScriptRoot 'verify_staged_migrations.sql'
 
@@ -40,7 +41,7 @@ if ($LASTEXITCODE -ne 0 -or $inspection.Trim() -ne "/$containerName|true") {
 }
 
 Write-Host 'Ellenőrzés: kizárólag a visszaállított HELYI Docker-adatbázis.'
-Write-Host 'A négy migráció egyetlen tranzakcióban fut, a végén ROLLBACK történik.'
+Write-Host 'Az ot migracio egyetlen tranzakcioban fut, a vegen ROLLBACK tortenik.'
 
 & docker exec $containerName mkdir -p $remoteDir
 if ($LASTEXITCODE -ne 0) { throw 'A helyi ellenőrző könyvtár nem hozható létre.' }
