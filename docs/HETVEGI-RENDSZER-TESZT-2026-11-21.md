@@ -55,6 +55,9 @@
 ## 4. Munkakiosztás, végrehajtás, gépek (P0)
 
 - [ ] Új feladat helyes gazdaság–földtábla–munkatárs–gép összerendeléssel.
+- [ ] Szaktanácsadói egyszerű teendő: másik gazdaságra váltás törli a korábbi táblát/végrehajtót; a tulajdonos az alapértelmezett; teljes gazdaságra tábla nélkül is létrehozható.
+- [ ] Egyszerű teendő mentése: téves naptári nap elutasítása, egyszeri sikervisszajelzés, értesítési/e-mail-hiba esetén a már létrejött feladatot nem küldjük be újra.
+- [ ] Végrehajtás visszaigazolása vagy javításra küldése után egy hibás értesítés nem jelenti a szakmai döntés sikertelenségét; a státusz és a műveleti napló legyen az elsődleges igazságforrás.
 - [ ] Helyes státuszok: kiosztva, folyamatban, ellenőrzésre vár, javításra visszaküldve, kész.
 - [ ] Napi munka, teendők, ellenőrzési és jóváhagyási körök.
 - [ ] Munkatárs telefonon GPS-t kér; jogosultság megtagadva, rossz pontosság, határon kívüli hely kezelése.

@@ -1,6 +1,9 @@
 # Agrár Mentor 2.1 – wizard és UX javítások: ellenőrzési terv
 
 ## Változások
+- A szaktanácsadói **egyszerű teendő** űrlap farmfüggő földtábla- és munkatársválasztóval, alapértelmezett tulajdonossal, opcionális táblával, dupla kattintás elleni zárral és siker/hibavisszajelzéssel működik. Értesítési hiba esetén a feladat létrejöttét külön jelzi, nem kéri az egész művelet újraküldését.
+- A teendő határidejét a szerver valódi naptári dátumként ellenőrzi (például a február 30. érvénytelen).
+- A végrehajtás szaktanácsadói jóváhagyása/elutasítása után az értesítés hálózati hibája nem dobja vissza a már adatbázisban rögzített szakmai döntést.
 - Opcionális, ingyenes **tömeges földtábla-import** a szaktanácsadói „Táblaimport” menüpontból (GeoJSON, SHP ZIP). Gazdaság választása, legfeljebb 50 kijelölt táblahatár, szerkeszthető név, alakhelyes vázlat, duplikációellenőrzés, közös adatbázis-mentés. Nem hivatalos földhivatali adat; nem igényel HRSZ-t.
 - A tömeges import kiválasztott táblája **műholdas/utcatérképes, valós földrajzi előnézeten** látszik mentés előtt (MultiPolygon és lyukak is). Az eseti koordinátasorrend-hibára térségi figyelmeztetés hívja fel a figyelmet, hálózati térképhiba esetén marad az alakvázlat.
 - A tömeges import **ismételt beküldése** pontos név+geometria-egyezés esetén nem készít új rekordot, akkor sem, ha a poligongyűrű más töréspontnál kezdődik vagy fordítva járja körül a határt. A szerver csak a hiányzó sorokat hozza létre egy közös INSERT-ben; eltérő nevű vagy határú ütközések tiltottak. Párhuzamos, egymásnak ellentmondó importok ellen adatbázis-szintű egyediség még nem garantált.

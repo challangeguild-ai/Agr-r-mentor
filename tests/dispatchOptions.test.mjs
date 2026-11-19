@@ -28,3 +28,14 @@ test("changing farms does not carry old worker or machine selections",()=>{
  assert.deepEqual(selected.fields.map(x=>x.id),["fb"]);
  assert.deepEqual(selected.machines.map(x=>x.id),["mb"]);
 });
+
+test("advisor simple task choices support a whole-farm task without crossing farm boundaries",()=>{
+ const a=selectDispatchOptions("a",farms,fields,members,[]);
+ assert.equal(a.farm?.owner_id,"owner-a");
+ assert.deepEqual(a.fields.map(x=>x.farm_id),["a"]);
+ assert.ok(a.assigneeIds.includes("owner-a"));
+ assert.ok(!a.assigneeIds.includes("worker-b"));
+ assert.equal(a.machines.length,0);
+ const b=selectDispatchOptions("b",farms,fields,members,[]);
+ assert.deepEqual(b.assigneeIds,["owner-b","worker-b"]);
+});
