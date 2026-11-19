@@ -26,9 +26,9 @@ function parseProblemMarkers(raw:FormDataEntryValue|null):ProblemMarker[]{
  }catch{return []}
 }
 
-async function emailNotify(supabase:any,targetUserId:string,subject:string,message:string,href:string){
+async function emailNotify(supabase:any,targetUserId:string,subject:string,message:string,href:string,eventKey:string){
  try{
-  const{error}=await supabase.functions.invoke("send-notification-email",{body:{target_user_id:targetUserId,subject,message,href}});
+  const{error}=await supabase.functions.invoke("send-notification-email",{body:{target_user_id:targetUserId,subject,message,href,event_key:eventKey}});
   if(error){console.error("Szemle e-mail értesítés sikertelen",error);return false}
   return true;
  }catch(error){console.error("Szemle e-mail értesítés sikertelen",error);return false}
@@ -137,7 +137,8 @@ export async function createInspection(formData:FormData):Promise<{id:string;war
   const title=previous?"Szaktanácsadói visszaellenőrzés":"Szaktanácsadói táblaszemle";
   try{
    const{error}=await supabase.from("notifications").insert({
-    user_id:farm.owner_id,kind:"inspection",title,message:`${field.name}: ${farmerMessage}`,href
+    user_id:farm.owner_id,kind:"inspection",title,message:`${field.name}: ${farmerMessage}`,href,
+    event_key:`inspection:${inspection.id}:farmer`
    });
    if(error)warnings.push("A gazdálkodói alkalmazásértesítés nem jött létre.");
   }catch(error){console.error("Szemle értesítési hiba",error);warnings.push("A gazdálkodói értesítés mentése nem ellenőrizhető.")}
@@ -149,7 +150,7 @@ export async function createInspection(formData:FormData):Promise<{id:string;war
    nextCheck?`Következő javasolt ellenőrzés: ${nextCheck}`:"",
    shouldCreateTask&&taskTitle?`Kapcsolódó teendő: ${taskTitle}${taskDue?` – határidő: ${taskDue}`:""}`:""
   ].filter(Boolean).join("\n");
-  if(!await emailNotify(supabase,farm.owner_id,title,mail,href))
+  if(!await emailNotify(supabase,farm.owner_id,title,mail,href,`inspection:${inspection.id}:farmer`))
    warnings.push("A szemléről szóló e-mail küldése nem igazolható.");
  }
 

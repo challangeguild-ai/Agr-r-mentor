@@ -62,6 +62,12 @@ BEGIN
      OR NOT has_function_privilege('service_role','public.claim_notification_email_send_quota(uuid)','EXECUTE') THEN
     RAISE EXCEPTION 'A levelkuldési kvota RPC jogosultsagai hibasak';
   END IF;
+  IF to_regprocedure('public.claim_invitation_email_send_quota(uuid)') IS NULL
+     OR has_function_privilege('authenticated','public.claim_invitation_email_send_quota(uuid)','EXECUTE')
+     OR has_function_privilege('anon','public.claim_invitation_email_send_quota(uuid)','EXECUTE')
+     OR NOT has_function_privilege('service_role','public.claim_invitation_email_send_quota(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'A meghivasi kvota RPC jogosultsagai hibasak';
+  END IF;
 END;
 $verify$;
 
@@ -86,6 +92,18 @@ BEGIN
   IF (SELECT send_count FROM public.notification_email_send_quota
       WHERE sender_id=v_sender AND bucket_type='hour')<>60 THEN
     RAISE EXCEPTION 'A korlatot tulfuto keres megvaltoztatta a szamlalot';
+  END IF;
+  FOR v_i IN 1..10 LOOP
+    IF public.claim_invitation_email_send_quota(v_sender) IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'A meghivas indokolatlanul letiltva: %', v_i;
+    END IF;
+  END LOOP;
+  IF public.claim_invitation_email_send_quota(v_sender) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'A 11. meghivast mar le kell tiltani';
+  END IF;
+  IF (SELECT send_count FROM public.notification_email_send_quota
+      WHERE sender_id=v_sender AND bucket_type='invite_hour')<>10 THEN
+    RAISE EXCEPTION 'A meghivasi keret elutasitasa modosította a szamlalot';
   END IF;
 END;
 $quota$;

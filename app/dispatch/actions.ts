@@ -51,7 +51,7 @@ export async function dispatchTask(formData:FormData){
  try{
   const{error:notificationError}=await supabase.from("notifications").insert({
    user_id:assignedTo,kind:"task",title:"Új munka kiosztva",
-   message:`${title} · ${field.name}`,href
+   message:`${title} · ${field.name}`,href,event_key:`task:${taskId}:dispatch`
   });
   if(notificationError)warnings.push("Az alkalmazáson belüli értesítés nem jött létre.");
  }catch(error){
@@ -62,6 +62,7 @@ export async function dispatchTask(formData:FormData){
   const{error:emailError}=await supabase.functions.invoke("send-notification-email",{
    body:{
     target_user_id:assignedTo,
+    event_key:`task:${taskId}:dispatch`,
     subject:safePriority==="urgent"?"Sürgős munka kiosztva":"Új munka kiosztva",
     message:`${title}\n${farm.name} · ${field.name}${dueDate?`\nHatáridő: ${dueDate}`:""}${description?`\n${description}`:""}`,
     href

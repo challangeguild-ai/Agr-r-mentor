@@ -21,11 +21,11 @@ export async function createAssignedTask(formData:FormData){
  const warnings:string[]=[];
  const href=target===farm.owner_id?(fieldId?`/fields/${fieldId}`:"/tasks"):"/work";
  try{
-  const{error:ne}=await supabase.from("notifications").insert({user_id:target,kind:"task",title:"Új munka a szaktanácsadótól",message:title,href});
+  const{error:ne}=await supabase.from("notifications").insert({user_id:target,kind:"task",title:"Új munka a szaktanácsadótól",message:title,href,event_key:`task:${taskId}:advisor`});
   if(ne){console.error("Feladatértesítési hiba",ne);warnings.push("Az alkalmazáson belüli értesítés nem sikerült.")}
  }catch(e){console.error("Feladatértesítési hálózati hiba",e);warnings.push("Az alkalmazáson belüli értesítés nem ellenőrizhető.")}
  try{
-  const{error:emailError}=await supabase.functions.invoke("send-notification-email",{body:{target_user_id:target,subject:safePriority==="urgent"?"Sürgős munka a szaktanácsadótól":"Új munka a szaktanácsadótól",message:`${title}${dueDate?`\nHatáridő: ${dueDate}`:""}${description?`\n${description}`:""}`,href}});
+  const{error:emailError}=await supabase.functions.invoke("send-notification-email",{body:{target_user_id:target,event_key:`task:${taskId}:advisor`,subject:safePriority==="urgent"?"Sürgős munka a szaktanácsadótól":"Új munka a szaktanácsadótól",message:`${title}${dueDate?`\nHatáridő: ${dueDate}`:""}${description?`\n${description}`:""}`,href}});
   if(emailError){console.error("Feladat e-mail-hiba",emailError);warnings.push("Az e-mail-értesítés nem sikerült.")}
  }catch(e){console.error("Feladat e-mail-hálózati hiba",e);warnings.push("Az e-mail-értesítés küldése nem ellenőrizhető.")}
  try{

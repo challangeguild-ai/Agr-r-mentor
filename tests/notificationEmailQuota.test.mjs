@@ -20,6 +20,11 @@ test("only the server service role may atomically reserve notification email quo
  assert.match(migration,/exception when sqlstate 'P0001' then\s+return false/);
  assert.match(migration,/revoke all on function public\.claim_notification_email_send_quota\(uuid\) from public,anon,authenticated/);
  assert.match(migration,/grant execute on function public\.claim_notification_email_send_quota\(uuid\) to service_role/);
+ assert.match(migration,/bucket_type in \('hour','day','invite_hour','invite_day'\)/);
+ assert.match(migration,/create function public\.claim_invitation_email_send_quota\(p_sender_id uuid\)/);
+ assert.match(migration,/send_count<10/);
+ assert.match(migration,/send_count<30/);
+ assert.match(migration,/grant execute on function public\.claim_invitation_email_send_quota\(uuid\) to service_role/);
 });
 
 test("the Edge function claims quota before contacting Resend, failing closed",()=>{
@@ -38,4 +43,17 @@ test("the rollback-only local exercise verifies denied writes and the 61st email
  assert.match(rehearsal,/bucket_type='hour'\)<>60/);
  assert.match(rehearsal,/has_function_privilege\('authenticated','public\.claim_notification_email_send_quota\(uuid\)','EXECUTE'\)/);
  assert.ok(rehearsal.trimEnd().endsWith('=== ROLLBACK megtortent: az eredeti helyi adatbazis valtozatlan ==='));
+ assert.match(rehearsal,/FOR v_i IN 1\.\.10 LOOP/);
+ assert.match(rehearsal,/claim_invitation_email_send_quota\(v_sender\) IS DISTINCT FROM false/);
+});
+
+test("both invitation Edge Functions claim a dedicated quota after authorization",()=>{
+ for(const path of ["../supabase/functions/invite-farmer/index.ts","../supabase/functions/invite-advisor/index.ts"]){
+  const source=readFileSync(new URL(path,import.meta.url),"utf8");
+  const claim=source.indexOf('rpc("claim_invitation_email_send_quota"');
+  const invite=source.indexOf("inviteUserByEmail(");
+  assert.ok(claim>0&&invite>claim,path);
+  assert.match(source,/quotaAllowed!==true/);
+  assert.match(source,/429/);
+ }
 });

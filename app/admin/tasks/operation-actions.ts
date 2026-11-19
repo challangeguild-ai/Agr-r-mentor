@@ -103,13 +103,14 @@ export async function createPlannedOperationTask(formData:FormData){
  try{
   const{error:notificationError}=await supabase.from("notifications").insert({
    user_id:assignedTo,kind:"operation_plan",title:"Új műveleti terv",
-   message:`${field.name} · ${title}${dueDate?` · határidő: ${dueDate}`:""}`,href
+   message:`${field.name} · ${title}${dueDate?` · határidő: ${dueDate}`:""}`,href,
+   event_key:`task:${taskId}:operation-plan`
   });
   if(notificationError)warnings.push("A belső értesítés nem sikerült.");
  }catch(e){console.error("Műveleti terv belső értesítési hiba",e);warnings.push("A belső értesítés nem igazolt.")}
  try{
   const{error:emailError}=await supabase.functions.invoke("send-notification-email",{body:{
-   target_user_id:assignedTo,subject:safePriority==="urgent"?"Sürgős műveleti terv":"Új műveleti terv",
+   target_user_id:assignedTo,event_key:`task:${taskId}:operation-plan`,subject:safePriority==="urgent"?"Sürgős műveleti terv":"Új műveleti terv",
    message:`${field.name}\n${title}${plannedDose!=null?`\nTervezett dózis: ${plannedDose} ${doseUnit||""}`:""}${dueDate?`\nHatáridő: ${dueDate}`:""}`,
    href
   }});

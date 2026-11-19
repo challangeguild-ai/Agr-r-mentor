@@ -7,8 +7,16 @@ import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 
 async function requireAdvisor(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();if(profile?.role!=="advisor")redirect("/dashboard");return{supabase,user}}
-async function notify(s:any,user_id:string,kind:string,title:string,message:string|null,href:string|null){const{error}=await s.from("notifications").insert({user_id,kind,title,message,href});if(error)console.error("Értesítés sikertelen",error)}
-async function emailNotify(s:any,target_user_id:string,subject:string,message:string,href:string){try{const{error}=await s.functions.invoke("send-notification-email",{body:{target_user_id,subject,message,href}});if(error)console.error("E-mail értesítés sikertelen",error)}catch(e){console.error(e)}}
+async function notify(s:any,user_id:string,kind:string,title:string,message:string|null,href:string|null,eventKey:string){
+ const{error}=await s.from("notifications").insert({user_id,kind,title,message,href,event_key:eventKey});
+ if(error)console.error("Értesítés sikertelen",error);
+}
+async function emailNotify(s:any,target_user_id:string,subject:string,message:string,href:string,eventKey:string){
+ try{
+  const{data,error}=await s.functions.invoke("send-notification-email",{body:{target_user_id,subject,message,href,event_key:eventKey}});
+  if(error||data?.error)console.error("E-mail értesítés sikertelen",error||data.error);
+ }catch(e){console.error("E-mail értesítés sikertelen",e)}
+}
 
 function validDate(v:string){return !v||validDateOnly(v)}
 function refreshAdmin(ownerId?:string,farmId?:string,fieldId?:string){revalidatePath("/admin");revalidatePath("/admin/clients");revalidatePath("/admin/workday");revalidatePath("/admin/priorities");if(ownerId)revalidatePath(`/admin/clients/${ownerId}`);if(ownerId&&farmId)revalidatePath(`/admin/clients/${ownerId}/farms/${farmId}`);if(fieldId)revalidatePath(`/fields/${fieldId}`)}
@@ -19,9 +27,65 @@ export async function createFarm(formData:FormData){const{supabase}=await requir
 
 export async function createField(formData:FormData){const{supabase}=await requireAdvisor();const farm_id=String(formData.get("farm_id")||""),name=String(formData.get("name")||"").trim(),current_crop=String(formData.get("current_crop")||"").trim(),raw=String(formData.get("area_ha")||"").replace(",",".").trim(),area_ha=raw?Number(raw):null,settlement=String(formData.get("settlement")||"").trim(),parcel_number=String(formData.get("parcel_number")||"").trim();if(!farm_id||!name)throw new Error("Gazdaság és táblanév megadása kötelező.");if(name.length>120||current_crop.length>120)throw new Error("A megadott név túl hosszú.");if(parcel_number&&!settlement)throw new Error("A helyrajzi szám mellé települést is adj meg.");if(settlement.length>120||parcel_number.length>80)throw new Error("A település vagy a helyrajzi szám túl hosszú.");if(area_ha!==null&&(!Number.isFinite(area_ha)||area_ha<=0||area_ha>100000))throw new Error("Érvényes, pozitív hektárértéket adj meg.");const{data:farm}=await supabase.from("farms").select("id,owner_id").eq("id",farm_id).maybeSingle();if(!farm)throw new Error("A kiválasztott gazdaság nem található.");const{data:duplicate}=await supabase.from("fields").select("id").eq("farm_id",farm_id).ilike("name",name).limit(1).maybeSingle();if(duplicate)throw new Error("Ilyen nevű földtábla már létezik ebben a gazdaságban.");const{data:field,error}=await supabase.from("fields").insert({farm_id,name,current_crop:current_crop||null,area_ha,settlement:settlement||null,parcel_number:parcel_number||null,crop_year:new Date().getFullYear()}).select("id").single();if(error||!field)throw new Error(error?.message||"A földtábla létrehozása sikertelen.");refreshAdmin(farm.owner_id,farm_id,field.id);revalidatePath("/admin/map");redirect(`/admin/map?field=${field.id}`)}
 
-export async function createTask(formData:FormData){const{supabase,user}=await requireAdvisor();const farm_id=String(formData.get("farm_id")||""),field_id=String(formData.get("field_id")||""),title=String(formData.get("title")||"").trim(),description=String(formData.get("description")||"").trim(),due_date=String(formData.get("due_date")||""),priority=String(formData.get("priority")||"normal");if(!farm_id||!title)throw new Error("Gazdaság és teendő neve kötelező.");if(title.length>180||description.length>3000)throw new Error("A teendő szövege túl hosszú.");if(!validDate(due_date))throw new Error("Érvénytelen határidő.");const{data:farm}=await supabase.from("farms").select("owner_id").eq("id",farm_id).maybeSingle();if(!farm)throw new Error("A gazdaság nem található.");if(field_id){const{data:field}=await supabase.from("fields").select("id,farm_id").eq("id",field_id).maybeSingle();if(!field||field.farm_id!==farm_id)throw new Error("A kiválasztott földtábla nem ehhez a gazdasághoz tartozik.")}const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";const{error}=await supabase.from("tasks").insert({farm_id,field_id:field_id||null,title,description:description||null,due_date:due_date||null,priority:safePriority,status:"open",assigned_to:farm.owner_id,created_by:user.id});if(error)throw new Error(error.message);const href=field_id?`/fields/${field_id}`:"/dashboard";await notify(supabase,farm.owner_id,"task","Új teendő",title,href);await emailNotify(supabase,farm.owner_id,safePriority==="urgent"?"Sürgős új teendő":"Új teendő",`${title}${due_date?`\nHatáridő: ${due_date}`:""}${description?`\n${description}`:""}`,href);revalidatePath("/dashboard");revalidatePath("/tasks");revalidatePath("/admin/tasks");refreshAdmin(farm.owner_id,farm_id,field_id||undefined)}
+export async function createTask(formData:FormData){
+ const{supabase,user}=await requireAdvisor();
+ const farm_id=String(formData.get("farm_id")||""),field_id=String(formData.get("field_id")||""),title=String(formData.get("title")||"").trim(),description=String(formData.get("description")||"").trim(),due_date=String(formData.get("due_date")||""),priority=String(formData.get("priority")||"normal");
+ if(!farm_id||!title)throw new Error("Gazdaság és teendő neve kötelező.");
+ if(title.length>180||description.length>3000)throw new Error("A teendő szövege túl hosszú.");
+ if(!validDate(due_date))throw new Error("Érvénytelen határidő.");
+ const{data:farm}=await supabase.from("farms").select("owner_id").eq("id",farm_id).maybeSingle();
+ if(!farm)throw new Error("A gazdaság nem található.");
+ if(field_id){
+  const{data:field}=await supabase.from("fields").select("id,farm_id").eq("id",field_id).maybeSingle();
+  if(!field||field.farm_id!==farm_id)throw new Error("A kiválasztott földtábla nem ehhez a gazdasághoz tartozik.");
+ }
+ const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";
+ const{data:task,error}=await supabase.from("tasks").insert({
+  farm_id,field_id:field_id||null,title,description:description||null,due_date:due_date||null,
+  priority:safePriority,status:"open",assigned_to:farm.owner_id,created_by:user.id
+ }).select("id").single();
+ if(error||!task)throw new Error(error?.message||"A teendő létrehozása sikertelen.");
+ const href=field_id?`/fields/${field_id}`:"/dashboard",eventKey=`task:${task.id}:advisor`;
+ await notify(supabase,farm.owner_id,"task","Új teendő",title,href,eventKey);
+ await emailNotify(supabase,farm.owner_id,safePriority==="urgent"?"Sürgős új teendő":"Új teendő",`${title}${due_date?`\nHatáridő: ${due_date}`:""}${description?`\n${description}`:""}`,href,eventKey);
+ revalidatePath("/dashboard");revalidatePath("/tasks");revalidatePath("/admin/tasks");
+ refreshAdmin(farm.owner_id,farm_id,field_id||undefined);
+}
 
-export async function createInspection(formData:FormData):Promise<string>{const{supabase,user}=await requireAdvisor();const field_id=String(formData.get("field_id")||""),inspected_at=String(formData.get("inspected_at")||""),condition=String(formData.get("condition")||""),notes=String(formData.get("notes")||"").trim(),recommendation=String(formData.get("recommendation")||"").trim(),shouldCreateTask=String(formData.get("create_task")||"")==="yes",taskTitle=String(formData.get("task_title")||"").trim(),taskDue=String(formData.get("task_due_date")||""),taskPriority=String(formData.get("task_priority")||"normal");if(!field_id||!condition)throw new Error("Földtábla és állapot megadása kötelező.");if(!["good","attention","critical"].includes(condition))throw new Error("Érvénytelen szemleállapot.");if(!validDate(inspected_at)||!validDate(taskDue))throw new Error("Érvénytelen dátum.");if(notes.length>5000||recommendation.length>5000||taskTitle.length>180)throw new Error("Az egyik megadott szöveg túl hosszú.");if(shouldCreateTask&&!taskTitle)throw new Error("A teendő neve kötelező.");const{data:field}=await supabase.from("fields").select("farm_id").eq("id",field_id).maybeSingle();if(!field)throw new Error("A földtábla nem található.");const{data:farm}=await supabase.from("farms").select("owner_id").eq("id",field.farm_id).maybeSingle();if(!farm)throw new Error("A gazdaság nem található.");const date=inspected_at?new Date(`${inspected_at}T12:00:00`).toISOString():new Date().toISOString();const{data:i,error}=await supabase.from("inspections").insert({field_id,advisor_id:user.id,inspected_at:date,condition,notes:notes||null,recommendation:recommendation||null}).select("id").single();if(error||!i)throw new Error(error?.message||"A szemle mentése sikertelen.");const{error:timelineError}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id,event_type:"inspection",title:"Táblaszemle",description:[notes,recommendation?`Javaslat: ${recommendation}`:""].filter(Boolean).join(" · ")||null,event_at:date,created_by:user.id,source_id:i.id});if(timelineError)throw new Error(timelineError.message);const href=`/fields/${field_id}`;await notify(supabase,farm.owner_id,"inspection","Új táblaszemle",recommendation||notes||"Új szemle került rögzítésre.",href);await emailNotify(supabase,farm.owner_id,"Új táblaszemle és szaktanácsadói javaslat",recommendation||notes||"Új szemle került rögzítésre.",href);if(shouldCreateTask){const priority=["normal","high","urgent"].includes(taskPriority)?taskPriority:"normal";const{data:task,error:taskError}=await supabase.from("tasks").insert({farm_id:field.farm_id,field_id,title:taskTitle,description:recommendation||notes||"A táblaszemle alapján kiadott teendő.",due_date:taskDue||null,priority,status:"open",assigned_to:farm.owner_id,created_by:user.id}).select("id").single();if(taskError||!task)throw new Error(taskError?.message||"A teendő létrehozása sikertelen.");const{error:te}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id,event_type:"task",title:`Teendő kiadva: ${taskTitle}`,description:recommendation||null,event_at:new Date().toISOString(),created_by:user.id,source_id:task.id});if(te)throw new Error(te.message);await notify(supabase,farm.owner_id,"task","Új teendő a szemléből",taskTitle,href);await emailNotify(supabase,farm.owner_id,priority==="urgent"?"Sürgős teendő a táblaszemle alapján":"Új teendő a táblaszemle alapján",`${taskTitle}${taskDue?`\nHatáridő: ${taskDue}`:""}${recommendation?`\n${recommendation}`:""}`,href)}revalidatePath("/dashboard");revalidatePath("/admin/inspections");refreshAdmin(farm.owner_id,field.farm_id,field_id);return i.id}
+export async function createInspection(formData:FormData):Promise<string>{
+ const{supabase,user}=await requireAdvisor();
+ const field_id=String(formData.get("field_id")||""),inspected_at=String(formData.get("inspected_at")||""),condition=String(formData.get("condition")||""),notes=String(formData.get("notes")||"").trim(),recommendation=String(formData.get("recommendation")||"").trim(),shouldCreateTask=String(formData.get("create_task")||"")==="yes",taskTitle=String(formData.get("task_title")||"").trim(),taskDue=String(formData.get("task_due_date")||""),taskPriority=String(formData.get("task_priority")||"normal");
+ if(!field_id||!condition)throw new Error("Földtábla és állapot megadása kötelező.");
+ if(!["good","attention","critical"].includes(condition))throw new Error("Érvénytelen szemleállapot.");
+ if(!validDate(inspected_at)||!validDate(taskDue))throw new Error("Érvénytelen dátum.");
+ if(notes.length>5000||recommendation.length>5000||taskTitle.length>180)throw new Error("Az egyik megadott szöveg túl hosszú.");
+ if(shouldCreateTask&&!taskTitle)throw new Error("A teendő neve kötelező.");
+ const{data:field}=await supabase.from("fields").select("farm_id").eq("id",field_id).maybeSingle();
+ if(!field)throw new Error("A földtábla nem található.");
+ const{data:farm}=await supabase.from("farms").select("owner_id").eq("id",field.farm_id).maybeSingle();
+ if(!farm)throw new Error("A gazdaság nem található.");
+ const date=inspected_at?new Date(`${inspected_at}T12:00:00`).toISOString():new Date().toISOString();
+ const{data:i,error}=await supabase.from("inspections").insert({field_id,advisor_id:user.id,inspected_at:date,condition,notes:notes||null,recommendation:recommendation||null}).select("id").single();
+ if(error||!i)throw new Error(error?.message||"A szemle mentése sikertelen.");
+ const{error:timelineError}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id,event_type:"inspection",title:"Táblaszemle",description:[notes,recommendation?`Javaslat: ${recommendation}`:""].filter(Boolean).join(" · ")||null,event_at:date,created_by:user.id,source_id:i.id});
+ if(timelineError)throw new Error(timelineError.message);
+ const href=`/fields/${field_id}`,eventKey=`inspection:${i.id}:farmer`;
+ await notify(supabase,farm.owner_id,"inspection","Új táblaszemle",recommendation||notes||"Új szemle került rögzítésre.",href,eventKey);
+ await emailNotify(supabase,farm.owner_id,"Új táblaszemle és szaktanácsadói javaslat",recommendation||notes||"Új szemle került rögzítésre.",href,eventKey);
+ if(shouldCreateTask){
+  const priority=["normal","high","urgent"].includes(taskPriority)?taskPriority:"normal";
+  const{data:task,error:taskError}=await supabase.from("tasks").insert({farm_id:field.farm_id,field_id,title:taskTitle,description:recommendation||notes||"A táblaszemle alapján kiadott teendő.",due_date:taskDue||null,priority,status:"open",assigned_to:farm.owner_id,created_by:user.id}).select("id").single();
+  if(taskError||!task)throw new Error(taskError?.message||"A teendő létrehozása sikertelen.");
+  const{error:te}=await supabase.from("timeline_events").insert({farm_id:field.farm_id,field_id,event_type:"task",title:`Teendő kiadva: ${taskTitle}`,description:recommendation||null,event_at:new Date().toISOString(),created_by:user.id,source_id:task.id});
+  if(te)throw new Error(te.message);
+  const taskEventKey=`task:${task.id}:advisor`;
+  await notify(supabase,farm.owner_id,"task","Új teendő a szemléből",taskTitle,href,taskEventKey);
+  await emailNotify(supabase,farm.owner_id,priority==="urgent"?"Sürgős teendő a táblaszemle alapján":"Új teendő a táblaszemle alapján",`${taskTitle}${taskDue?`\nHatáridő: ${taskDue}`:""}${recommendation?`\n${recommendation}`:""}`,href,taskEventKey);
+ }
+ revalidatePath("/dashboard");revalidatePath("/admin/inspections");
+ refreshAdmin(farm.owner_id,field.farm_id,field_id);
+ return i.id;
+}
 
 export type ReportHandlingResult={
  status:"saved"|"already_saved";
@@ -100,10 +164,10 @@ export async function handleReport(formData:FormData):Promise<ReportHandlingResu
    warnings.push("Az idővonal frissítését nem sikerült igazolni.");
   }
  }
- async function sendNotices(kind:string,title:string,message:string,subject:string,emailBody:string){
+ async function sendNotices(kind:string,title:string,message:string,subject:string,emailBody:string,eventKey:string){
   try{
    const{error}=await supabase.from("notifications").insert({
-    user_id:farmerId,kind,title,message,href
+    user_id:farmerId,kind,title,message,href,event_key:eventKey
    });
    if(error)throw error;
   }catch(error){
@@ -112,7 +176,7 @@ export async function handleReport(formData:FormData):Promise<ReportHandlingResu
   }
   try{
    const{data,error}=await supabase.functions.invoke("send-notification-email",{
-    body:{target_user_id:farmerId,subject,message:emailBody,href}
+    body:{target_user_id:farmerId,subject,message:emailBody,href,event_key:eventKey}
    });
    if(error||data?.error)throw error||new Error(String(data.error));
   }catch(error){
@@ -123,11 +187,11 @@ export async function handleReport(formData:FormData):Promise<ReportHandlingResu
  if(action==="close"){
   await addTimeline("report_closed","Bejelentés lezárva",report.title);
   await sendNotices("report_closed","Bejelentés lezárva",report.title,
-   "Bejelentés lezárva",`A(z) „${report.title}” bejelentés lezárásra került.`);
+   "Bejelentés lezárva",`A(z) „${report.title}” bejelentés lezárásra került.`,`report:${reportId}:closed`);
  }else{
   await addTimeline("advisor_reply","Szaktanácsadói válasz",reply);
   await sendNotices("advisor_reply","Szaktanácsadói válasz érkezett",report.title,
-   "Szaktanácsadói válasz érkezett",`${report.title}\n\n${reply}`);
+   "Szaktanácsadói válasz érkezett",`${report.title}\n\n${reply}`,`report:${reportId}:reply`);
  }
 
  let taskId:string|undefined;
@@ -143,7 +207,7 @@ export async function handleReport(formData:FormData):Promise<ReportHandlingResu
    taskId=task.id;
    await sendNotices("task","Új teendő a válaszhoz",taskTitle,
     priority==="urgent"?"Sürgős új teendő":"Új teendő a szaktanácsadói válaszhoz",
-    `${taskTitle}${taskDue?`\nHatáridő: ${taskDue}`:""}\n${reply}`);
+    `${taskTitle}${taskDue?`\nHatáridő: ${taskDue}`:""}\n${reply}`,`task:${task.id}:report`);
   }catch(error){
    console.error("Bejelentés mentve, teendő mentése nem igazolt",error);
    warnings.push("A válasz elmentve, de a teendő mentése nem igazolt. Ellenőrizd a teendőlistát, mielőtt új feladatot hoznál létre.");

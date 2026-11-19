@@ -24,8 +24,12 @@ Deno.serve(async(req:Request)=>{
     ||destination.protocol!=="https:"||destination.origin!==configured.origin||destination.username||destination.password
     ||destination.pathname!=="/invite"||destination.search||destination.hash)
     return json({error:"Érvénytelen visszatérési cím."},400);
-  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});const{data,error}=await admin.auth.admin.inviteUserByEmail(email,{data:{full_name:fullName||email,role:"advisor"},redirectTo:destination.toString()});if(error)return json({error:error.message},error.status||400);
+  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
+  const{data:quotaAllowed,error:quotaError}=await admin.rpc("claim_invitation_email_send_quota",{p_sender_id:u.user.id});
+  if(quotaError){console.error("invite-advisor quota unavailable",quotaError);return json({error:"A meghívási védelem nem elérhető. Próbáld később."},503)}
+  if(quotaAllowed!==true)return json({error:"Túl sok meghívás történt. Később újra próbálhatod."},429);
+  const{data,error}=await admin.auth.admin.inviteUserByEmail(email,{data:{full_name:fullName||email,role:"advisor"},redirectTo:destination.toString()});if(error)return json({error:error.message},error.status||400);
   if(data.user?.id){const{error:e}=await admin.from("profiles").upsert({id:data.user.id,full_name:fullName||email,role:"advisor",system_role:"user"},{onConflict:"id"});if(e)return json({error:`A meghívás létrejött, de a profil mentése sikertelen: ${e.message}`},500)}
-  console.log("invite-advisor success",{email,userId:data.user?.id||null,actor:u.user.id});return json({id:data.user?.id,email:data.user?.email,invited:true,role:"advisor"});
- }catch(e){return json({error:e instanceof Error?e.message:"Ismeretlen hiba."},500)}
+  console.log("invite-advisor success",{userId:data.user?.id||null,actor:u.user.id});return json({id:data.user?.id,email:data.user?.email,invited:true,role:"advisor"});
+ }catch(e){console.error("invite-advisor unhandled",e);return json({error:"A meghívó szolgáltatás átmenetileg nem elérhető."},503)}
 });
