@@ -1,6 +1,8 @@
 # Agrár Mentor 2.1 – wizard és UX javítások: ellenőrzési terv
 
 ## Változások
+- Opcionális, ingyenes **tömeges földtábla-import** a szaktanácsadói „Táblaimport” menüpontból (GeoJSON, SHP ZIP). Gazdaság választása, legfeljebb 50 kijelölt táblahatár, szerkeszthető név, alakhelyes vázlat, duplikációellenőrzés, közös adatbázis-mentés. Nem hivatalos földhivatali adat; nem igényel HRSZ-t.
+- A Leaflet összesített térkép HTML-ablakai immár escape-elik a feltöltésből érkező tábla- és farmneveket. A hétvégi kézi rendszerpróba itt még nem történt meg.
 - A meghívók URL-je nem a korábbi Vercel-címet használja, hanem az ellenőrzött `APP_PUBLIC_ORIGIN` változót.
 - A `invite-farmer` Edge Function csak az adott origin pontos `/invite` útvonalát engedi át.
 - A gazdálkodói műveleti wizard lépésenként ellenőrzi a földtáblát, dátumot, készítményt, kultúrát, felhasználást, dózist, jogosultságot, területet és gépadatot.

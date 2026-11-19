@@ -31,6 +31,8 @@
 - [ ] Kézi szabálytalan poligon: rajzolás, csúcspont szerkesztése, törlése és újranyitás.
 - [ ] OSM-határjavaslat megtalálása és ellenőrzése; hibás vagy hiányzó javaslat esetén visszalépés.
 - [ ] GeoJSON és SHP ZIP import; több poligon közül a helyes kiválasztása; szerkesztett határ visszamentése.
+- [ ] **Tömeges táblaimport:** szaktanácsadó → Táblaimport; tesztgazdaság és több poligont tartalmazó GeoJSON/SHP ZIP; fájl-előnézet, tábla neve, pipálás, mentés, majd ellenőrzés az összesített térképen.
+- [ ] **Tömeges import védelmei:** már meglévő táblanév, fájlon belüli névütközés, duplikált geometria, érvénytelen vetület, több mint 50 kijelölés és megszakadt kapcsolat. Gazdálkodói szerepkörrel nem írható.
 - [ ] Térképfotó/PDF: zárt határ kiválasztása, három illesztési pont a dokumentumon és a térképen, poligon előnézet.
 - [ ] Ferde fotó négy illesztési ponttal; gyenge fotó, nyitott határ és több PDF-oldal kezelése.
 - [ ] **Valóságellenőrzés:** poligon élei és sarkai a műholdképhez képest; a művelt tábla és a jogi földrészlet esetleges különbsége.
