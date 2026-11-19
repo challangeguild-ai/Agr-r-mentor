@@ -43,7 +43,7 @@ export async function createHotspot(formData:FormData){
   if(taskError||!task)throw new Error(taskError?.message||"A teendő létrehozása sikertelen.");
   await notifyUser(supabase,{userId:farm.owner_id,kind:"hotspot",title:severity==="critical"?"Kritikus probléma a táblán":"Új probléma a táblán",message:`${field.name}: ${title}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${event.id}:advisor-task`});
  }else if(profile?.role!=="advisor"){
-  await notifyAdvisors(supabase,{kind:"hotspot",title:"Gazdálkodói problémagóc",message:`${farm.name} · ${field.name}: ${title}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${event.id}:created`});
+  await notifyAdvisors(supabase,{kind:"hotspot",title:"Gazdálkodói problémagóc",message:`${farm.name} · ${field.name}: ${title}`,href:"/admin/map",eventKey:`hotspot:${event.id}:created`});
  }
  revalidatePath(`/fields/${field.id}`);revalidatePath(`/fields/${field.id}/hotspots`);revalidatePath("/admin/map");revalidatePath("/map");revalidatePath("/admin/priorities");
 }
@@ -59,6 +59,6 @@ export async function resolveHotspot(formData:FormData){
  const label=hotspotTypes.find(([k])=>k===data.type)?.[1]||"Probléma";
  const{error}=await supabase.from("timeline_events").update({description:encodeHotspot(data),title:`Lezárt problémagóc: ${label}`,created_by:user.id}).eq("id",eventId).eq("field_id",fieldId);if(error)throw new Error(error.message);
  if(profile?.role==="advisor")await notifyUser(supabase,{userId:farm.owner_id,kind:"hotspot_resolved",title:"Problémagóc lezárva",message:`${field.name} · ${label}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${eventId}:resolved`});
- else await notifyAdvisors(supabase,{kind:"hotspot_resolved",title:"Gazdálkodó lezárt egy problémagócot",message:`${farm.name} · ${field.name} · ${label}`,href:`/fields/${field.id}/hotspots`,eventKey:`hotspot:${eventId}:resolved`});
+ else await notifyAdvisors(supabase,{kind:"hotspot_resolved",title:"Gazdálkodó lezárt egy problémagócot",message:`${farm.name} · ${field.name} · ${label}`,href:"/admin/map",eventKey:`hotspot:${eventId}:resolved`});
  revalidatePath(`/fields/${fieldId}`);revalidatePath(`/fields/${fieldId}/hotspots`);revalidatePath("/admin/map");revalidatePath("/map");revalidatePath("/admin/priorities");
 }

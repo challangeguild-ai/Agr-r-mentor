@@ -76,6 +76,9 @@
 - [ ] Időjárás: utolsó frissítés, hét- és harmincnapos csapadék, hiányzó mérés megkülönböztetése a nullától.
 - [ ] Térképes áttekintés, GPS-problémagócok, események és idővonal.
 - [ ] Üzenetek, értesítések, kapcsolatok, csapat és meghívók.
+- [ ] **Gazdálkodói bejelentés:** új bejelentés után a szaktanácsadó ténylegesen kapjon értesítést, az értesítés a megfelelő bejelentési nézetre vezessen.
+- [ ] **Problémagóc létrehozása és lezárása:** a gazda eseménye után csak az arra jogosult szaktanácsadó kapjon értesítést; a hivatkozás az adminisztrátori térképre vezessen.
+- [ ] **Értesítési jogosultság:** idegen bejelentés/teendő azonosítójával, vagy kitalált eseményazonosítóval ne lehessen értesítést küldeni a szaktanácsadóknak.
 - [ ] Dokumentumok, számlák, jelentések, látogatások, ellenőrzések.
 - [ ] Rendszeradmin: felhasználók, biztonság, időjárás és mentés (csak jogosult fiókkal, kockázatos írás nélkül).
 - [ ] Bevezető túra, súgó, olvashatóság és képernyőolvasó/billentyűzet alapműködése.
@@ -119,3 +122,5 @@ Képernyőkép vagy videó:
 **Ez a lista előkészület a hétvégi közös teszthez, nem tesztjegyzőkönyv és nem sikerigazolás.**
 
 **Adatbázis-feltétel:** a gazdaságszintű teendők új beküldéséhez a `20261119080000_general_task_attestation_review.sql` migráció telepítése szükséges. A migráció jelenleg kizárólag a Draft PR része; a kapcsolt Supabase adatbázisra még nincs alkalmazva. A hétvégi próbán ezt előfeltételként külön ellenőrizni kell.
+
+**Értesítési jogosultság:** a bejelentések és problémagócok értesítési javítása a `20261119093000_authorized_advisor_notifications.sql` migrációban vár telepítésre. Alkalmazása nélkül az új értesítési eseteket nem lehet késznek tekinteni.
