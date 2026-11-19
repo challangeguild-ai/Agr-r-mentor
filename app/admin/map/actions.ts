@@ -15,7 +15,8 @@ export async function saveParcelIdentity(formData:FormData){
  if(!fieldId)throw new Error("Hiányzó földtábla.");
  if(parcelNumber&&!settlement)throw new Error("Helyrajzi szám mellé települést is meg kell adni.");
  if(settlement.length>120||parcelNumber.length>80||meparBlock.length>80||externalId.length>160)throw new Error("Az egyik földrészlet-azonosító túl hosszú.");
- const{error}=await supabase.from("fields").update({settlement:settlement||null,parcel_number:parcelNumber||null,mepar_block_id:meparBlock||null,external_parcel_id:externalId||null}).eq("id",fieldId);
+ const{data:saved,error}=await supabase.from("fields").update({settlement:settlement||null,parcel_number:parcelNumber||null,mepar_block_id:meparBlock||null,external_parcel_id:externalId||null}).eq("id",fieldId).select("id").maybeSingle();
  if(error)throw new Error(error.message);
+ if(!saved)throw new Error("A földrészlet-azonosítók mentése nem sikerült vagy nincs hozzá jogosultság.");
  revalidatePath("/admin/map");revalidatePath(`/fields/${fieldId}`);revalidatePath("/map");
 }
