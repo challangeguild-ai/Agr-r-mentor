@@ -133,7 +133,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
         {osmCandidates.length>0&&<div role="group" aria-label="Választható OSM-határjavaslatok" style={{display:"grid",gap:6}}>
           {osmCandidates.map(candidate=><button key={candidate.id} type="button" className="ghost-btn" style={{justifyContent:"space-between",textAlign:"left",whiteSpace:"normal"}} onClick={()=>{try{previewGeometry(candidate.geometry,"external",`OpenStreetMap ${candidate.id}`)}catch(error){setImportError(error instanceof Error?error.message:"A javasolt geometria nem használható.")}}}>{candidate.label} · kb. {candidate.approximateHa.toFixed(2)} ha · {candidate.vertices} pont – Előnézet</button>)}
         </div>}
-        <small style={{color:"#526253"}}>Az OSM-határ lehet hiányos vagy több táblát összefogó alakzat. Nem hivatalos pontossági garancia; csak ellenőrzés után mentsd. A keresés sikertelensége nem akadályozza a táblafelvételt. Adatok: © OpenStreetMap közreműködői (ODbL).</small>
+        <small style={{color:"#526253"}}>Az OSM-határ lehet hiányos vagy több táblát összefogó alakzat. Nem hivatalos pontossági garancia; csak ellenőrzés után mentsd. A keresés sikertelensége nem akadályozza a táblafelvételt. Adatok: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap közreműködői (ODbL)</a>.</small>
       </div>
       <div style={{padding:12,border:"1px solid #d7e2d6",borderRadius:10,background:"#f6faf5",display:"grid",gap:7}}>
         <strong>Határvonal importálása fájlból (GeoJSON)</strong>
