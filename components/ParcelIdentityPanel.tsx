@@ -6,7 +6,7 @@ export function ParcelIdentityPanel(p:Props){
  const officialReady=!!(p.settlement&&p.parcelNumber);
  return <section className="panel" style={{marginTop:14}}>
   <div className="panel-heading"><div><span className="eyebrow">VÁLASZTHATÓ FÖLDRÉSZLET-AZONOSÍTÁS</span><h2>Helyrajzi szám / MePAR / külső térképi forrás</h2></div><span className="user-pill">{officialReady?"HRSZ azonosító rögzítve":"Azonosításra vár"}</span></div>
-  <p style={{color:"#6f7c74",lineHeight:1.6}}>Ezek az adatok nem kötelezők a térképi megjelenítéshez. A település és a helyrajzi szám egyelőre azonosító adat: elmentésük önmagában nem tölti le a hivatalos határt. A határt az alábbi térképnél OSM-javaslatból, saját GeoJSON-fájlból vagy kézi rajzzal adhatod meg; ezek mind választható lehetőségek, a helypont is menthető. A hivatalos HRSZ-lekéréshez adatszolgáltatói kapcsolat szükséges.</p>
+  <p style={{color:"#6f7c74",lineHeight:1.6}}>Ezek az adatok nem kötelezők a térképi megjelenítéshez. A település és a helyrajzi szám egyelőre azonosító adat: elmentésük önmagában nem tölti le a hivatalos határt. A határt az alábbi térképnél OSM-javaslatból, saját GeoJSON- vagy SHP ZIP-fájlból, illetve kézi rajzzal adhatod meg; ezek mind választható lehetőségek, a helypont is menthető. A hivatalos HRSZ-lekéréshez adatszolgáltatói kapcsolat szükséges.</p>
   <form action={saveParcelIdentity} className="admin-form" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
    <input type="hidden" name="field_id" value={p.fieldId}/>
    <label>Település<input name="settlement" defaultValue={p.settlement||""} placeholder="pl. Nagykáta"/></label>
