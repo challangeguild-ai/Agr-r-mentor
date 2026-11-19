@@ -65,7 +65,8 @@
 - [ ] **Földtábla adatlapjáról indított munka:** „Igazolás beküldése” a megfelelő teendőhöz visz; nem lehet közvetlenül „Kész” állapotba tenni a szaktanácsadói jóváhagyás előtt.
 - [ ] **Egyszerű, leírás nélküli táblafeladat:** a GPS- és fényképes űrlap akkor is elérhető, ha a feladatnak nincs részletes leírása vagy műveleti terve.
 - [ ] **Ellenőrzésre váró / lezárt / törölt teendő:** a térképi adatlap és a teendőlista sem kínál új végrehajtás-beküldést; az ellenőrzésre váró állapot egyértelmű.
-- [ ] **Csak gazdasághoz, tábla nélkül kiosztott általános teendő:** ellenőrizni a lezárási lehetőséget; a GPS-es beküldés jelenleg földtáblához kötött, ezért ez még külön tisztázandó munkafolyamat.
+- [ ] **Csak gazdasághoz, tábla nélkül kiosztott általános teendő:** a végrehajtó rövid beszámolóval küldi ellenőrzésre, GPS és fotó nélkül; a jóváhagyás véglegesen lezárja, a visszaküldés új beküldést enged.
+- [ ] **Gazdaságszintű beküldés védelmei:** üres / túl rövid megjegyzés tiltása, idegen gazdaság és más munkatárs feladatának elutasítása, dupla kattintás és hálózati megszakítás esetén legfeljebb egy ellenőrzésre váró teljesítés.
 - [ ] Ismételt vagy részben sikeres beküldés nem tüntet el bizonyító fotót és nem hoz létre dupla lezárást.
 - [ ] Gépnyilvántartás és tényleges géphasználat a kapcsolt feladaton.
 
@@ -116,3 +117,5 @@ Képernyőkép vagy videó:
 - [ ] A teljes rendszerpróbát követően külön döntünk a #59 → #58 merge-ről. Production élesítéshez további explicit jóváhagyás kell.
 
 **Ez a lista előkészület a hétvégi közös teszthez, nem tesztjegyzőkönyv és nem sikerigazolás.**
+
+**Adatbázis-feltétel:** a gazdaságszintű teendők új beküldéséhez a `20261119080000_general_task_attestation_review.sql` migráció telepítése szükséges. A migráció jelenleg kizárólag a Draft PR része; a kapcsolt Supabase adatbázisra még nincs alkalmazva. A hétvégi próbán ezt előfeltételként külön ellenőrizni kell.
