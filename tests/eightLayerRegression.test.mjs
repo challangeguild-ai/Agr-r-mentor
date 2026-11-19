@@ -54,6 +54,8 @@ test("step-up challenges are limited to verified system admins before checking T
 test("notification email links use configured origin and escape untrusted href attributes",()=>{
  const src=readFileSync(new URL("../supabase/functions/send-notification-email/index.ts",import.meta.url),"utf8");
  assert.match(src,/Deno\.env\.get\("APP_PUBLIC_ORIGIN"\)/);
+ assert.match(src,/if\(!configuredOrigin\)return json\(\{error:.*APP_PUBLIC_ORIGIN.*\},503\)/);
+ assert.doesNotMatch(src,/agr-r-mentor\.vercel\.app/);
  assert.match(src,/const destination=new URL\(href\|\|"\/",appUrl\)/);
  assert.match(src,/destination\.origin!==appUrl/);
  assert.match(src,/href="\$\{esc\(link\)\}"/);

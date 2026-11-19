@@ -34,7 +34,7 @@ A `.env.local` fájlban kizárólag a saját környezethez tartozó értékek sz
 - `SECURITY_STEPUP_SECRET`, `CRON_SECRET` (csak szerver)
 - `APP_PUBLIC_ORIGIN` – a jelenlegi frontend pontos HTTPS eredetcíme (meghívóhoz)
 
-A meghívásokhoz azonos `APP_PUBLIC_ORIGIN` érték szükséges a Next.js környezetben és az `invite-farmer` Supabase Edge Functionban; a pontos `/invite` URL-t az Auth Redirect URLs listához is hozzá kell adni. A régi Vercel URL nem helyettesítő alapérték.
+A meghívásokhoz és az e-mailes értesítésekhez azonos `APP_PUBLIC_ORIGIN` érték szükséges a Next.js környezetben, valamint az `invite-farmer`, `invite-advisor` és `send-notification-email` Supabase Edge Functionokban; a pontos `/invite` URL-t az Auth Redirect URLs listához is hozzá kell adni. Hiányzó beállításnál az e-mailes értesítés nem küldhető ki, nehogy régi oldalra mutasson. A régi Vercel URL nem helyettesítő alapérték.
 
 ## Ellenőrzés
 

@@ -44,8 +44,9 @@ Deno.serve(async(req:Request)=>{
   const {data:target,error:targetError}=await admin.auth.admin.getUserById(targetUserId);
   const email=target?.user?.email;
   if(targetError||!email)return json({error:"A címzett e-mail címe nem található."},404);
-  // Use the currently configured application origin, not a hard-coded preview or old production URL.
-  const configuredOrigin=Deno.env.get("APP_PUBLIC_ORIGIN")||"https://agr-r-mentor.vercel.app";
+  // Never send an email linking to an obsolete deployment if the current origin is missing.
+  const configuredOrigin=Deno.env.get("APP_PUBLIC_ORIGIN")?.trim();
+  if(!configuredOrigin)return json({error:"Az APP_PUBLIC_ORIGIN nincs beállítva az értesítési szolgáltatásban."},503);
   let appUrl:string;
   try{
     const origin=new URL(configuredOrigin);
