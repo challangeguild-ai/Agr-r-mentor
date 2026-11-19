@@ -4,13 +4,32 @@ import {createClient} from "@/lib/supabase/client";
 import {completeVerifiedTask} from "@/app/work/completeAction";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
-import {confirmedSafeToDeleteProof,gpsFixFreshEnough} from "@/lib/taskProof";
+import {confirmedSafeToDeleteProof,gpsFixFreshEnough,submittedProofOutcome,type SubmittedProofOutcome} from "@/lib/taskProof";
 
 type Plan={operationType?:string|null;productName?:string|null;plannedDose?:number|null;doseMin?:number|null;doseMax?:number|null;doseUnit?:string|null;plannedArea?:number|null;plannedQuantity?:number|null;quantityUnit?:string|null};
 export function TaskProofCompleteForm({taskId,hasMachine=false,plan=null}:{taskId:string;hasMachine?:boolean;plan?:Plan|null}){
  const[busy,setBusy]=useState(false),[error,setError]=useState(""),[position,setPosition]=useState<{lat:number;lng:number;accuracy:number;capturedAt:number}|null>(null),[photo,setPhoto]=useState<File|null>(null),[hours,setHours]=useState(""),[hectares,setHectares]=useState(""),[actualDose,setActualDose]=useState(plan?.plannedDose==null?"":String(plan.plannedDose).replace(".",",")),[actualArea,setActualArea]=useState(plan?.plannedArea==null?"":String(plan.plannedArea).replace(".",",")),[actualQuantity,setActualQuantity]=useState(plan?.plannedQuantity==null?"":String(plan.plannedQuantity).replace(".",",")),[weather,setWeather]=useState(""),[notes,setNotes]=useState("");
  const submitting=useRef(false);
+ const pendingUpload=useRef<{file:File;path:string}|null>(null);
  const supabase=createClient(),spraying=plan?.operationType==="spraying"||plan?.operationType==="plant_protection";
+ async function persistedSubmission(path:string):Promise<SubmittedProofOutcome>{
+  try{
+   const[{data:task,error:taskError},{data:report,error:reportError}]=await Promise.all([
+    supabase.from("tasks").select("status").eq("id",taskId).maybeSingle(),
+    supabase.from("task_execution_reports").select("proof").eq("task_id",taskId).maybeSingle(),
+   ]);
+   if(taskError||reportError)return "unconfirmed";
+   return submittedProofOutcome(task?.status,report?.proof,path);
+  }catch(e){console.error("A beküldött igazolás állapotellenőrzése sikertelen",e);return "unconfirmed"}
+ }
+ async function removeUnusedUpload(path:string):Promise<boolean>{
+  try{
+   const{error:removeError}=await supabase.storage.from("farmer-report-media").remove([path]);
+   if(removeError)throw removeError;
+   if(pendingUpload.current?.path===path)pendingUpload.current=null;
+   return true;
+  }catch(e){console.error("A nem használt fotó eltávolítása sikertelen",e);return false}
+ }
  function locate(){
   setError("");
   if(!navigator.geolocation){setError("A készülék nem támogatja a helymeghatározást.");return}
@@ -25,16 +44,94 @@ export function TaskProofCompleteForm({taskId,hasMachine=false,plan=null}:{taskI
    setBusy(false);
   },e=>{setError(e.message||"A GPS-pozíció lekérése sikertelen.");setBusy(false)},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
  }
- async function submit(){if(submitting.current)return;submitting.current=true;let uploadedPath:string|null=null,deleteConfirmed=false;setBusy(true);setError("");try{if(!position)throw new Error("Előbb kérd le a GPS-pozíciódat.");if(!gpsFixFreshEnough(position.capturedAt,Date.now())){setPosition(null);throw new Error("A GPS-mérés már 15 percnél régebbi. Kérj új pozíciót a beküldéshez.");}if(position.accuracy>200)throw new Error(`A GPS pontossága jelenleg kb. ${Math.round(position.accuracy)} m. Kérj új pozíciót szabad ég alatt.`);if(!photo)throw new Error("Készíts vagy válassz helyszíni fotót.");if(!photo.type.startsWith("image/"))throw new Error("A bizonyíték csak fénykép lehet.");if(photo.size>15*1024*1024)throw new Error("A fotó maximum 15 MB lehet.");if(spraying&&!actualDose.trim())throw new Error("Növényvédelmi munkánál add meg a tényleges dózist.");const{data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("A munkamenet lejárt.");const safe=photo.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=`${user.id}/task-proofs/${taskId}/${crypto.randomUUID()}-${safe}`;const{error:uploadError}=await supabase.storage.from("farmer-report-media").upload(path,photo,{contentType:photo.type});if(uploadError)throw new Error(uploadError.message);uploadedPath=path;const fd=new FormData();fd.set("task_id",taskId);fd.set("lat",String(position.lat));fd.set("lng",String(position.lng));fd.set("accuracy",String(position.accuracy));fd.set("gps_captured_at",String(position.capturedAt));fd.set("photo_path",path);fd.set("photo_name",photo.name);fd.set("operation_date",budapestCalendarDate());if(hours.trim())fd.set("finished_hours",hours.trim());if(hectares.trim())fd.set("worked_hectares",hectares.trim());if(actualDose.trim())fd.set("actual_dose",actualDose.trim());if(plan?.doseUnit)fd.set("dose_unit",plan.doseUnit);if(actualArea.trim())fd.set("actual_area",actualArea.trim());if(actualQuantity.trim())fd.set("actual_quantity",actualQuantity.trim());if(plan?.quantityUnit)fd.set("quantity_unit",plan.quantityUnit);if(weather.trim())fd.set("weather",weather.trim());if(notes.trim())fd.set("execution_notes",notes.trim());const result=await completeVerifiedTask(fd);
-  if(!result.ok){deleteConfirmed=confirmedSafeToDeleteProof(result);throw new Error(result.error||"A munka beküldése sikertelen.");}
-  if(!result.submitted&&uploadedPath){
-   try{await supabase.storage.from("farmer-report-media").remove([uploadedPath])}catch(cleanupError){console.error("Duplikált fotó eltávolítása sikertelen",cleanupError)}
+ async function submit(){
+  if(submitting.current)return;
+  submitting.current=true;
+  let uploadedPath:string|null=null,deleteConfirmed=false;
+  setBusy(true);setError("");
+  try{
+   if(!position)throw new Error("Előbb kérd le a GPS-pozíciódat.");
+   if(!gpsFixFreshEnough(position.capturedAt,Date.now())){
+    setPosition(null);
+    throw new Error("A GPS-mérés már 15 percnél régebbi. Kérj új pozíciót a beküldéshez.");
+   }
+   if(position.accuracy>200)throw new Error(`A GPS pontossága jelenleg kb. ${Math.round(position.accuracy)} m. Kérj új pozíciót szabad ég alatt.`);
+   if(!photo)throw new Error("Készíts vagy válassz helyszíni fotót.");
+   if(!photo.type.startsWith("image/"))throw new Error("A bizonyíték csak fénykép lehet.");
+   if(photo.size>15*1024*1024)throw new Error("A fotó maximum 15 MB lehet.");
+   if(spraying&&!actualDose.trim())throw new Error("Növényvédelmi munkánál add meg a tényleges dózist.");
+   const{data:{user}}=await supabase.auth.getUser();
+   if(!user)throw new Error("A munkamenet lejárt.");
+
+   if(pendingUpload.current&&pendingUpload.current.file!==photo){
+    setPhoto(pendingUpload.current.file);
+    throw new Error("Egy korábbi fotó beküldése még nem igazolható. Az eredeti fotóval próbáld újra, vagy ellenőrizd a feladat állapotát.");
+   }
+   if(pendingUpload.current){
+    uploadedPath=pendingUpload.current.path;
+   }else{
+    const safe=photo.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=`${user.id}/task-proofs/${taskId}/${crypto.randomUUID()}-${safe}`;
+    const{error:uploadError}=await supabase.storage.from("farmer-report-media").upload(path,photo,{contentType:photo.type});
+    if(uploadError)throw new Error(uploadError.message);
+    uploadedPath=path;
+    pendingUpload.current={file:photo,path};
+   }
+
+   const fd=new FormData();
+   fd.set("task_id",taskId);
+   fd.set("lat",String(position.lat));fd.set("lng",String(position.lng));
+   fd.set("accuracy",String(position.accuracy));fd.set("gps_captured_at",String(position.capturedAt));
+   fd.set("photo_path",uploadedPath);fd.set("photo_name",photo.name);
+   fd.set("operation_date",budapestCalendarDate());
+   if(hours.trim())fd.set("finished_hours",hours.trim());
+   if(hectares.trim())fd.set("worked_hectares",hectares.trim());
+   if(actualDose.trim())fd.set("actual_dose",actualDose.trim());
+   if(plan?.doseUnit)fd.set("dose_unit",plan.doseUnit);
+   if(actualArea.trim())fd.set("actual_area",actualArea.trim());
+   if(actualQuantity.trim())fd.set("actual_quantity",actualQuantity.trim());
+   if(plan?.quantityUnit)fd.set("quantity_unit",plan.quantityUnit);
+   if(weather.trim())fd.set("weather",weather.trim());
+   if(notes.trim())fd.set("execution_notes",notes.trim());
+
+   const result=await completeVerifiedTask(fd);
+   if(!result.ok){
+    deleteConfirmed=confirmedSafeToDeleteProof(result);
+    throw new Error(result.error||"A munka beküldése sikertelen.");
+   }
+   if(!result.submitted){
+    const outcome=await persistedSubmission(uploadedPath);
+    if(outcome==="stored_other_photo"&&!await removeUnusedUpload(uploadedPath)){
+     setError("A nem használt fotó eltávolítása nem sikerült. Próbáld újra a beküldést.");
+     setBusy(false);submitting.current=false;
+     return;
+    }
+    if(outcome==="unconfirmed")throw new Error("A feladat már beküldöttnek látszik, de a bizonyító fotó kapcsolata még nem igazolható.");
+   }
+   pendingUpload.current=null;
+   window.location.reload();
+  }catch(e){
+   if(uploadedPath&&!deleteConfirmed){
+    const outcome=await persistedSubmission(uploadedPath);
+    if(outcome==="stored_this_photo"||outcome==="stored_other_photo"){
+     if(outcome==="stored_other_photo"&&!await removeUnusedUpload(uploadedPath)){
+      setError("A már beküldött feladathoz tartozó plusz fotót nem sikerült eltávolítani. Próbáld újra.");
+      setBusy(false);submitting.current=false;
+      return;
+     }
+     pendingUpload.current=null;
+     window.location.reload();
+     return;
+    }
+   }
+   const cleaned=uploadedPath&&deleteConfirmed?await removeUnusedUpload(uploadedPath):false;
+   const message=e instanceof Error?e.message:"A munka beküldése sikertelen.";
+   const uncertain=uploadedPath&&!deleteConfirmed;
+   setError(uncertain?`${message} A mentés állapota nem igazolható. A fotót megőriztük; az ismétlésnél nem töltjük fel újra. Ellenőrizd a feladatlistát.`:
+    uploadedPath&&deleteConfirmed&&!cleaned?`${message} A feltöltött fotó eltávolítását nem sikerült igazolni.`:message);
+   setBusy(false);submitting.current=false;
   }
-  window.location.reload()}catch(e){
-  if(uploadedPath&&deleteConfirmed){try{await supabase.storage.from("farmer-report-media").remove([uploadedPath])}catch(cleanupError){console.error("Elutasított fotó eltávolítása sikertelen",cleanupError)}}
-  const message=e instanceof Error?e.message:"A munka beküldése sikertelen.";
-  setError(uploadedPath&&!deleteConfirmed?`${message} A mentés állapota nem igazolható. Frissítsd a feladatlistát, és ellenőrizd a beküldést, mielőtt újra próbálnád.`:message);
-  setBusy(false);submitting.current=false}}
+ }
  return <div data-help-block="verified-task" style={{display:"grid",gap:9,minWidth:220}}><div style={{display:"flex",justifyContent:"flex-end"}}><BlockHelpButton label="Az igazolt munkabeküldés magyarázata" content={{title:"Munka beküldése ellenőrzésre",body:"A végrehajtás GPS-helyzettel, helyszíni fényképpel és a tényleges műveleti adatokkal kerül a szaktanácsadóhoz. Növényvédelmi munkánál a beküldés pillanatában a rendszer újra ellenőrzi a készítmény aktív státuszát, az engedély időbeli hatályát, a hivatalos felhasználási kapcsolatot, a dózist és a mértékegységet.",important:"Ha az aktuális hivatalos adat már nem támasztja alá a végrehajtást, a rendszer nem engedi ellenőrzésre beküldeni a műveletet. A feladat csak szaktanácsadói visszaigazolás után lesz végleg Elvégzett.",example:"A terv 2,0 l/ha volt, de ténylegesen 1,8 l/ha került kijuttatásra. A lezárásnál 1,8 l/ha-t rögzítesz; a rendszer ezt az aktuális hivatalos dózistartományhoz is ellenőrzi.",steps:["Rögzítsd a GPS-pozíciót.","Készíts helyszíni fényképet.","Add meg a tényleges dózist, területet és mennyiséget.","Írd le az időjárást és az eltéréseket.","Gépes munkánál add meg a záró üzemórát.","Küldd be ellenőrzésre; növényvédelemnél ekkor fut le a végrehajtási megfelelőségi kapu."]}}/></div>{plan&&<div style={{padding:10,border:"1px solid #dbe6dc",borderRadius:10,background:"#f7faf7",fontSize:12}}><b>Tervezett végrehajtás</b>{plan.productName&&<div>{plan.productName}</div>}{plan.plannedDose!=null&&<div>Dózis: {plan.plannedDose} {plan.doseUnit||""}{plan.doseMin!=null||plan.doseMax!=null?` · hivatalos ${plan.doseMin??"—"}–${plan.doseMax??"—"}`:""}</div>}{plan.plannedArea!=null&&<div>Terület: {plan.plannedArea} ha</div>}</div>}<button type="button" className="ghost-btn" onClick={locate} disabled={busy}>{position?`✓ GPS · ±${Math.round(position.accuracy)} m`:"1. GPS pozíció rögzítése"}</button><label className="ghost-btn" style={{cursor:"pointer",textAlign:"center"}}>2. Helyszíni fotó<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>setPhoto(e.target.files?.[0]||null)}/></label>{photo&&<small style={{color:"#39752f",fontWeight:700}}>✓ {photo.name}</small>}
  {plan&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}><label style={{fontSize:11,fontWeight:800}}>Tényleges dózis<input value={actualDose} onChange={e=>setActualDose(e.target.value)} inputMode="decimal" placeholder="pl. 1,8" style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label><label style={{fontSize:11,fontWeight:800}}>Egység<input value={plan.doseUnit||"—"} readOnly style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8,background:"#f5f7f5"}}/></label><label style={{fontSize:11,fontWeight:800}}>Tényleges terület (ha)<input value={actualArea} onChange={e=>setActualArea(e.target.value)} inputMode="decimal" style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label><label style={{fontSize:11,fontWeight:800}}>Tényleges mennyiség<input value={actualQuantity} onChange={e=>setActualQuantity(e.target.value)} inputMode="decimal" style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label><label style={{fontSize:11,fontWeight:800,gridColumn:"1/-1"}}>Időjárás / körülmények<input value={weather} onChange={e=>setWeather(e.target.value)} style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label><label style={{fontSize:11,fontWeight:800,gridColumn:"1/-1"}}>Végrehajtási megjegyzés<textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label></div>}
  {hasMachine&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}><label style={{fontSize:11,fontWeight:800}}>Záró üzemóra<input value={hours} onChange={e=>setHours(e.target.value)} inputMode="decimal" placeholder="pl. 1842,6" style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label><label style={{fontSize:11,fontWeight:800}}>Megművelt ha<input value={hectares} onChange={e=>setHectares(e.target.value)} inputMode="decimal" placeholder="pl. 14,7" style={{width:"100%",marginTop:4,padding:9,border:"1px solid #dfe5df",borderRadius:8}}/></label></div>}<button type="button" className="btn btn-primary" onClick={submit} disabled={busy||!position||!photo}>{busy?"Beküldés…":"3. Beküldés szaktanácsadói ellenőrzésre"}</button>{error&&<small style={{color:"#b3342b",maxWidth:320}}>{error}</small>}</div>

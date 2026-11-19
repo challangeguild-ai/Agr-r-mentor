@@ -70,6 +70,8 @@
 - [ ] **Csak gazdasághoz, tábla nélkül kiosztott általános teendő:** a végrehajtó rövid beszámolóval küldi ellenőrzésre, GPS és fotó nélkül; a jóváhagyás véglegesen lezárja, a visszaküldés új beküldést enged.
 - [ ] **Gazdaságszintű beküldés védelmei:** üres / túl rövid megjegyzés tiltása, idegen gazdaság és más munkatárs feladatának elutasítása, dupla kattintás és hálózati megszakítás esetén legfeljebb egy ellenőrzésre váró teljesítés.
 - [ ] Ismételt vagy részben sikeres beküldés nem tüntet el bizonyító fotót és nem hoz létre dupla lezárást.
+- [ ] **Megszakadt válasz az első beküldés után:** ha a szerver már eltárolta a GPS-es igazolást, de a telefon hibát lát, az ismétlés nem törölheti az eredetileg hivatkozott fotót. Az igazolás és a feladat állapota egyezzen meg.
+- [ ] **Ismételt fotófeltöltés:** bizonytalan hálózati eredmény után ugyanabban az űrlapban a korábban feltöltött fájlt használja újra; csak megerősített, nem felhasznált másolatot távolítson el. Sikertelen Storage-törlés ne maradjon néma.
 - [ ] Gépnyilvántartás és tényleges géphasználat a kapcsolt feladaton.
 
 ## 5. További felületek (P1)

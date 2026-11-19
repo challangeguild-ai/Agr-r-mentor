@@ -31,6 +31,16 @@ export function decodeTaskProof(value:string|null|undefined):TaskProof|null{
  try{const x=JSON.parse(value.slice(10));if(!x||typeof x!=="object")return null;return x as TaskProof}catch{return null}
 }
 
+export type SubmittedProofOutcome="stored_this_photo"|"stored_other_photo"|"unconfirmed";
+
+/** Only a persisted task report can prove an uploaded photo is redundant. */
+export function submittedProofOutcome(status:string|null|undefined,proofText:string|null|undefined,uploadedPath:string):SubmittedProofOutcome{
+ if(status!=="submitted"&&status!=="done")return "unconfirmed";
+ const storedPath=decodeTaskProof(proofText)?.photoPath;
+ if(typeof storedPath!=="string"||!storedPath||!uploadedPath)return "unconfirmed";
+ return storedPath===uploadedPath?"stored_this_photo":"stored_other_photo";
+}
+
 function toRad(v:number){return v*Math.PI/180}
 export function distanceMeters(aLat:number,aLng:number,bLat:number,bLng:number){
  const r=6371000,dLat=toRad(bLat-aLat),dLng=toRad(bLng-aLng),x=Math.sin(dLat/2)**2+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*Math.sin(dLng/2)**2;
