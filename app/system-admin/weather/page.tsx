@@ -7,7 +7,7 @@ function fmt(v:string|null|undefined){return v?new Date(v).toLocaleString("hu-HU
 
 export default async function SystemAdminWeatherPage(){
  const supabase=createAdminClient();
- const[{data:runs},{data:weather},{data:fields}]=await Promise.all([
+ const[{data:runs,error:runsError},{data:weather,error:weatherError},{data:fields}]=await Promise.all([
   supabase.from("weather_sync_runs").select("id,started_at,finished_at,status,fields_total,fields_synced,fields_skipped,stations_requested,stations_failed,observations_upserted,timeline_inserted,error_summary").order("started_at",{ascending:false}).limit(8),
   supabase.from("field_weather_daily").select("field_id,weather_date,fetched_at,provider,station_name,distance_km").order("weather_date",{ascending:false}).limit(500),
   supabase.from("fields").select("id,center_lat,center_lng,boundary_geojson")
@@ -16,6 +16,8 @@ export default async function SystemAdminWeatherPage(){
  const mappable=(fields??[]).filter(f=>(f.center_lat!=null&&f.center_lng!=null)||!!f.boundary_geojson).length;
  const latest=(weather??[])[0];
  const cronConfigured=Boolean(process.env.CRON_SECRET);
+ const lastRun=(runs??[])[0]??null;
+ const lastRunOld=lastRun?.started_at?Date.now()-new Date(lastRun.started_at).getTime()>48*60*60*1000:false;
  return <main className={styles.page}>
   <header className={styles.header}>
    <div><span>HUNGAROMET · HIVATALOS ODP</span><h1>Időjárási adatkapcsolat</h1><p>Napi automatikus állomási adatok, táblaszintű hozzárendeléssel és egyértelmű forrásmegjelöléssel.</p></div>
@@ -23,11 +25,16 @@ export default async function SystemAdminWeatherPage(){
   </header>
 
   <section className={styles.summary}>
-   <article><small>Cron állapot</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Konfigurálva":"CRON_SECRET hiányzik"}</strong><span>Vercel napi szinkron</span></article>
+   <article><small>Cron hozzáférési kulcs</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Beállítva":"CRON_SECRET hiányzik"}</strong><span>A kulcs önmagában nem bizonyít futást</span></article>
    <article><small>Mérhető táblák</small><strong>{mappable}</strong><span>Koordinátával / geometriával</span></article>
    <article><small>Időjárási adattal</small><strong>{fieldIds.size}</strong><span>Legalább egy HungaroMet sor</span></article>
    <article><small>Legfrissebb adat</small><strong className={styles.date}>{latest?.weather_date||"—"}</strong><span>{latest?fmt(latest.fetched_at):"Még nincs szinkron"}</span></article>
   </section>
+
+  {(runsError||weatherError||!lastRun||lastRunOld||lastRun.status==="failed")&&<section role="status" style={{margin:"12px 0",padding:"14px 16px",border:"1px solid #ead09b",background:"#fff8e8",borderRadius:10,color:"#79490e",fontSize:12,lineHeight:1.5}}>
+   <strong>Figyelem: az automatikus csapadéknapló működése nincs teljesen igazolva.</strong>
+   {runsError||weatherError?<p>Nem sikerült kiolvasni a szinkron ellenőrző adatait. {runsError?.message||weatherError?.message}</p>:!lastRun?<p>Még egyetlen szinkronfutás sincs naplózva. A Vercel időzített feladata kizárólag az éles környezetben indul automatikusan; a fejlesztői előnézetben nem. Ellenőrizni kell az éles telepítést és az ottani CRON_SECRET beállítást.</p>:lastRun.status==="failed"?<p>Az utolsó szinkron hibával végződött. A részletek lent, a futásnaplóban láthatók.</p>:<p>Az utolsó szinkron több mint 48 órája indult. Ellenőrizni kell az éles időzítést és a hivatalos adatforrás elérhetőségét.</p>}
+  </section>}
 
   <section className={styles.panel}>
    <div className={styles.panelHead}><div><span>KÉZI VISSZAELLENŐRZÉS</span><h2>Szinkron futtatása most</h2><p>A kézi futtatás ugyanazt a fail-safe szinkronmotort használja, mint a napi Vercel Cron.</p></div>
@@ -36,7 +43,8 @@ export default async function SystemAdminWeatherPage(){
    <div className={styles.notes}>
     <p><b>Forrás:</b> HungaroMet Meteorológiai Adattár – automata állomások napi adatai.</p>
     <p><b>Jelentés:</b> a <strong>MÉRT</strong> adat a kiválasztott hivatalos mérőállomás mérése; nem állítjuk, hogy a tábla területén fizikailag mért érték.</p>
-    <p><b>Napi csapadék:</b> a HungaroMet dokumentáció szerint 06 UTC–következő nap 06 UTC időszakra vonatkozik.</p>
+    <p><b>Napi csapadék:</b> a HungaroMet dokumentáció szerint 06 UTC–következő nap 06 UTC időszakra vonatkozik. A 0 mm mért, csapadékmentes nap; hiányzó adat esetén nem jelenítünk meg kitalált 0 mm-t.</p>
+    <p><b>Fontos:</b> a kézi szinkron valódi mérési sorokat és idővonaleseményeket írhat az adatbázisba. A hétvégi közös teszt előtt nem szükséges elindítani.</p>
     <a href="https://odp.met.hu/climate/observations_hungary/daily/recent/Leiras_automata_napi-HABP_1D_akt-hu.pdf" target="_blank" rel="noreferrer">Hivatalos adatsor-leírás ↗</a>
    </div>
   </section>

@@ -43,12 +43,13 @@ export async function syncOfficialFieldWeather(){
  const startedAt=new Date().toISOString();
  let runId:string|null=null;
  try{
-  const{data:run}=await supabase.from("weather_sync_runs").insert({
+  const{data:run,error:runError}=await supabase.from("weather_sync_runs").insert({
    started_at:startedAt,
    status:"running",
    metadata:{provider:"HungaroMet",lookback_days:LOOKBACK_DAYS,max_station_distance_km:MAX_STATION_DISTANCE_KM}
   }).select("id").maybeSingle();
-  runId=run?.id??null;
+  if(runError||!run?.id)throw new Error(`Időjárási szinkronnapló nem írható: ${runError?.message||"nem érkezett futásazonosító"}`);
+  runId=run.id;
 
   const{data:fields,error:fieldError}=await supabase.from("fields").select("id,farm_id,name,center_lat,center_lng,boundary_geojson");
   if(fieldError)throw new Error(fieldError.message);
@@ -57,7 +58,8 @@ export async function syncOfficialFieldWeather(){
   const mappable=(fields??[]).map(field=>({field,point:fieldPoint(field)})).filter((x):x is typeof x&{point:{lat:number;lng:number}}=>!!x.point);
   if(!mappable.length){
    const result={ok:true,status:"success",fields:0,totalFields,stations:0,stationFailures:0,observations:0,timelineInserted:0,skippedFields:totalFields,source:"HungaroMet official daily automatic-station observations"};
-   if(runId)await supabase.from("weather_sync_runs").update({finished_at:new Date().toISOString(),status:"success",fields_total:totalFields,fields_synced:0,fields_skipped:totalFields,stations_requested:0,stations_failed:0,observations_upserted:0,timeline_inserted:0}).eq("id",runId);
+   const{error:finishError}=await supabase.from("weather_sync_runs").update({finished_at:new Date().toISOString(),status:"success",fields_total:totalFields,fields_synced:0,fields_skipped:totalFields,stations_requested:0,stations_failed:0,observations_upserted:0,timeline_inserted:0}).eq("id",runId);
+   if(finishError)throw new Error(`Időjárási szinkronnapló frissítési hiba: ${finishError.message}`);
    return result;
   }
 
@@ -124,7 +126,8 @@ export async function syncOfficialFieldWeather(){
 
    for(const weather of stored??[]){
     if(Number(weather.precipitation_mm)<=0)continue;
-    const{data:existing}=await supabase.from("timeline_events").select("id").eq("source_id",weather.id).eq("event_type","weather_observation").maybeSingle();
+    const{data:existing,error:lookupError}=await supabase.from("timeline_events").select("id").eq("source_id",weather.id).eq("event_type","weather_observation").maybeSingle();
+    if(lookupError)throw new Error(`Weather timeline ellenőrzési hiba: ${lookupError.message}`);
     if(existing)continue;
     const rain=Number(weather.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:2});
     const distance=Number(weather.distance_km).toLocaleString("hu-HU",{maximumFractionDigits:1});
@@ -169,7 +172,7 @@ export async function syncOfficialFieldWeather(){
    source:"HungaroMet official daily automatic-station observations",
    officialDescriptionUrl:HUNGAROMET_DAILY_DESCRIPTION_URL
   };
-  if(runId)await supabase.from("weather_sync_runs").update({
+  const{error:finishError}=await supabase.from("weather_sync_runs").update({
    finished_at:new Date().toISOString(),
    status,
    fields_total:totalFields,
@@ -182,10 +185,14 @@ export async function syncOfficialFieldWeather(){
    error_summary:stationErrors,
    metadata:{provider:"HungaroMet",lookback_days:LOOKBACK_DAYS,max_station_distance_km:MAX_STATION_DISTANCE_KM,official_description_url:HUNGAROMET_DAILY_DESCRIPTION_URL}
   }).eq("id",runId);
+  if(finishError)throw new Error(`Időjárási szinkronnapló frissítési hiba: ${finishError.message}`);
   return result;
  }catch(error){
   const message=error instanceof Error?error.message:String(error);
-  if(runId)await supabase.from("weather_sync_runs").update({finished_at:new Date().toISOString(),status:"failed",error_summary:[{error:message}]}).eq("id",runId);
+  if(runId){
+   const{error:logError}=await supabase.from("weather_sync_runs").update({finished_at:new Date().toISOString(),status:"failed",error_summary:[{error:message}]}).eq("id",runId);
+   if(logError)console.error("Weather sync run status could not be persisted",logError.message);
+  }
   throw error;
  }
 }

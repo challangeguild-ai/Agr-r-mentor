@@ -88,6 +88,9 @@
 
 - [ ] Dashboard és munkaközpont: státusz, hiányzó adatok, folytatási javaslatok és valódi számok.
 - [ ] Időjárás: utolsó frissítés, hét- és harmincnapos csapadék, hiányzó mérés megkülönböztetése a nullától.
+- [ ] **Csapadéknapló (valódi méréssel):** 7/30 nap mm-összeg, esős napok száma és ténylegesen mért napok száma helyes; 0 mm-es mérés külön megjelenik, a hiányzó nap nem számít száraz napnak.
+- [ ] **Napi tételek:** az elmúlt 30 nap mérési napjai csökkenő sorrendben, egy nap csak egyszer, megfelelő állomással és mérési forrással; 06–06 UTC mérési időszak értelmezhető.
+- [ ] **Adatkapcsolat:** rendszeradminisztrátori időjárási oldalon látszik az utolsó sikeres/részleges/hibás futás, az adatfrissítés és a problémás vagy elmaradt szinkron. Kézi szinkront csak előre jóváhagyott tesztadatokon futtassunk.
 - [ ] Térképes áttekintés, GPS-problémagócok, események és idővonal.
 - [ ] Üzenetek, értesítések, kapcsolatok, csapat és meghívók.
 - [ ] **Gazdálkodói bejelentés:** új bejelentés után a szaktanácsadó ténylegesen kapjon értesítést, az értesítés a megfelelő bejelentési nézetre vezessen.
@@ -138,6 +141,8 @@ Képernyőkép vagy videó:
 **Adatbázis-feltétel:** a gazdaságszintű teendők új beküldéséhez a `20261119080000_general_task_attestation_review.sql` migráció telepítése szükséges. A migráció jelenleg kizárólag a Draft PR része; a kapcsolt Supabase adatbázisra még nincs alkalmazva. A hétvégi próbán ezt előfeltételként külön ellenőrizni kell.
 
 **Értesítési jogosultság:** a bejelentések és problémagócok értesítési javítása a `20261119093000_authorized_advisor_notifications.sql` migrációban vár telepítésre. Alkalmazása nélkül az új értesítési eseteket nem lehet késznek tekinteni.
+
+**Csapadék előfeltétel (2026-11-19):** a kapcsolt Supabase adatbázisban 7 tábla található, de a `field_weather_daily` és a `weather_sync_runs` egyaránt üres. A HungaroMet-szinkron működése ezért még nincs éles vagy Preview-adattal igazolva. A Vercel Cron csak Production telepítésen időzített; a Preview ellenőrzéshez egy külön, jogosult és előre egyeztetett kézi futás szükséges. Nem szabad a hiányzó adatot 0 mm-es csapadékként értelmezni.
 
 **GPS-es RPC biztonsági előfeltétel:** a `20261119110000_verified_task_proof_rpc_guard.sql` migráció a közvetlen adatbázis-hívásnál ellenőrzi a GPS-t, a ténylegesen feltöltött fényképet, a táblahatárt és az aktuális növényvédelmi kapcsolatok alapvető érvényességét. Ez a migráció is **csak előkészítve**, az éles Supabase adatbázison nincs alkalmazva. A konkrét SQL-működés kézi/integrációs kipróbálása a hétvégi teszt része.
 

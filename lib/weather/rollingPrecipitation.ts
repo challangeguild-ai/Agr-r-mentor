@@ -8,6 +8,7 @@ function validDateOnly(value:string):boolean{
 type RainObservation={
  weather_date:string;
  precipitation_mm:number|string|null;
+ source_type?:string|null;
  fetched_at?:string|null;
  distance_km?:number|null;
 };
@@ -24,7 +25,8 @@ export function summarizeStationPrecipitation<T extends RainObservation>(rows:re
  const today=budapestCalendarDate(now);
  const todayTime=Date.parse(`${today}T12:00:00Z`);
  const seenDays=new Set<string>();
- let rain7=0,rain30=0,days7=0,days30=0;
+ let rain7=0,rain30=0,days7=0,days30=0,rainyDays7=0,rainyDays30=0;
+ const recentMeasurements:T[]=[];
  // A table may have multiple station records on one date. Prefer the newest
  // imported observation rather than accidentally counting that day twice.
  const sorted=[...rows].sort((a,b)=>
@@ -32,14 +34,24 @@ export function summarizeStationPrecipitation<T extends RainObservation>(rows:re
   ||Number(a.distance_km??99999)-Number(b.distance_km??99999));
  for(const row of sorted){
   if(!validDateOnly(row.weather_date)||seenDays.has(row.weather_date))continue;
-  if(row.precipitation_mm==null||row.precipitation_mm==="")continue;
+  if(row.source_type&&row.source_type!=="measured")continue;
+  if(row.precipitation_mm==null||(typeof row.precipitation_mm==="string"&&!row.precipitation_mm.trim()))continue;
   const value=Number(row.precipitation_mm);
   if(!Number.isFinite(value)||value<0)continue;
   const age=Math.round((todayTime-Date.parse(`${row.weather_date}T12:00:00Z`))/86400000);
   if(age<0||age>=30)continue;
   seenDays.add(row.weather_date);
+  recentMeasurements.push(row);
   rain30+=value;days30++;
-  if(age<7){rain7+=value;days7++}
+  if(value>0)rainyDays30++;
+  if(age<7){rain7+=value;days7++;if(value>0)rainyDays7++}
  }
- return {rain7,rain30,days7,days30,today};
+ recentMeasurements.sort((a,b)=>b.weather_date.localeCompare(a.weather_date));
+ return {
+  rain7,rain30,days7,days30,rainyDays7,rainyDays30,today,
+  // Only valid measurements are included. Zero millimetres is a dry day;
+  // a missing date is not silently treated as a dry day.
+  recentMeasurements,
+  latestObservedDate:recentMeasurements[0]?.weather_date??null
+ };
 }
