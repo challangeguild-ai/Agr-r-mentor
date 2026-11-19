@@ -5,15 +5,15 @@ import styles from "./weather.module.css";
 
 function fmt(v:string|null|undefined){return v?new Date(v).toLocaleString("hu-HU"):"—"}
 
-export default async function SystemAdminWeatherPage(){
+export default async function SystemAdminWeatherPage({searchParams}:{searchParams:Promise<{sync?:string}>}){
+ const{sync}=await searchParams;
  const supabase=createAdminClient();
- const[{data:runs,error:runsError},{data:weather,error:weatherError},{data:fields}]=await Promise.all([
+ const[{data:runs,error:runsError},{data:weather,error:weatherError},{count:weatherCount},{count:fieldsCount}]=await Promise.all([
   supabase.from("weather_sync_runs").select("id,started_at,finished_at,status,fields_total,fields_synced,fields_skipped,stations_requested,stations_failed,observations_upserted,timeline_inserted,error_summary").order("started_at",{ascending:false}).limit(8),
-  supabase.from("field_weather_daily").select("field_id,weather_date,fetched_at,provider,station_name,distance_km").order("weather_date",{ascending:false}).limit(500),
-  supabase.from("fields").select("id,center_lat,center_lng,boundary_geojson")
+  supabase.from("field_weather_daily").select("field_id,weather_date,fetched_at,provider,station_name,distance_km").eq("source_type","measured").eq("provider","HungaroMet").order("weather_date",{ascending:false}).limit(1),
+  supabase.from("field_weather_daily").select("id",{count:"exact",head:true}).eq("source_type","measured").eq("provider","HungaroMet"),
+  supabase.from("fields").select("id",{count:"exact",head:true})
  ]);
- const fieldIds=new Set((weather??[]).map(x=>x.field_id));
- const mappable=(fields??[]).filter(f=>(f.center_lat!=null&&f.center_lng!=null)||!!f.boundary_geojson).length;
  const latest=(weather??[])[0];
  const cronConfigured=Boolean(process.env.CRON_SECRET);
  const lastRun=(runs??[])[0]??null;
@@ -26,14 +26,18 @@ export default async function SystemAdminWeatherPage(){
 
   <section className={styles.summary}>
    <article><small>Cron hozzáférési kulcs</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Beállítva":"CRON_SECRET hiányzik"}</strong><span>A kulcs önmagában nem bizonyít futást</span></article>
-   <article><small>Mérhető táblák</small><strong>{mappable}</strong><span>Koordinátával / geometriával</span></article>
-   <article><small>Időjárási adattal</small><strong>{fieldIds.size}</strong><span>Legalább egy HungaroMet sor</span></article>
+   <article><small>Földtáblák</small><strong>{fieldsCount??"—"}</strong><span>Összes nyilvántartott tábla</span></article>
+   <article><small>Mérési adatsorok</small><strong>{weatherCount??"—"}</strong><span>Összes rögzített napi mérés</span></article>
    <article><small>Legfrissebb adat</small><strong className={styles.date}>{latest?.weather_date||"—"}</strong><span>{latest?fmt(latest.fetched_at):"Még nincs szinkron"}</span></article>
   </section>
 
-  {(runsError||weatherError||!lastRun||lastRunOld||lastRun.status==="failed")&&<section role="status" style={{margin:"12px 0",padding:"14px 16px",border:"1px solid #ead09b",background:"#fff8e8",borderRadius:10,color:"#79490e",fontSize:12,lineHeight:1.5}}>
+  {(sync==="success"||sync==="partial"||sync==="failed")&&<section role="status" style={{margin:"12px 0",padding:"12px 16px",borderRadius:10,background:sync==="success"?"#edf8ed":"#fff8e8",color:sync==="success"?"#255d31":"#79490e",fontSize:12}}>
+   {sync==="success"?"A kézi HungaroMet-szinkron lefutott. Az eredmények lent ellenőrizhetők.":sync==="partial"?"A kézi szinkron részlegesen sikerült. Néhány tábla vagy állomás adata hiányzik; az okok a futásnaplóban láthatók.":"A kézi HungaroMet-szinkron sikertelen volt. Ellenőrizd a futásnaplót és a szervernaplót."}
+  </section>}
+
+  {(runsError||weatherError||!lastRun||lastRunOld||lastRun.status==="failed"||lastRun.status==="partial")&&<section role="status" style={{margin:"12px 0",padding:"14px 16px",border:"1px solid #ead09b",background:"#fff8e8",borderRadius:10,color:"#79490e",fontSize:12,lineHeight:1.5}}>
    <strong>Figyelem: az automatikus csapadéknapló működése nincs teljesen igazolva.</strong>
-   {runsError||weatherError?<p>Nem sikerült kiolvasni a szinkron ellenőrző adatait. {runsError?.message||weatherError?.message}</p>:!lastRun?<p>Még egyetlen szinkronfutás sincs naplózva. A Vercel időzített feladata kizárólag az éles környezetben indul automatikusan; a fejlesztői előnézetben nem. Ellenőrizni kell az éles telepítést és az ottani CRON_SECRET beállítást.</p>:lastRun.status==="failed"?<p>Az utolsó szinkron hibával végződött. A részletek lent, a futásnaplóban láthatók.</p>:<p>Az utolsó szinkron több mint 48 órája indult. Ellenőrizni kell az éles időzítést és a hivatalos adatforrás elérhetőségét.</p>}
+   {runsError||weatherError?<p>Nem sikerült kiolvasni a szinkron ellenőrző adatait. {runsError?.message||weatherError?.message}</p>:!lastRun?<p>Még egyetlen szinkronfutás sincs naplózva. A Vercel időzített feladata kizárólag az éles környezetben indul automatikusan; a fejlesztői előnézetben nem. Ellenőrizni kell az éles telepítést és az ottani CRON_SECRET beállítást.</p>:lastRun.status==="failed"?<p>Az utolsó szinkron hibával végződött. A részletek lent, a futásnaplóban láthatók.</p>:lastRun.status==="partial"?<p>Az utolsó szinkron csak részben sikerült. A kihagyott táblák és állomások okai a futásnaplóban láthatók.</p>:<p>Az utolsó szinkron több mint 48 órája indult. Ellenőrizni kell az éles időzítést és a hivatalos adatforrás elérhetőségét.</p>}
   </section>}
 
   <section className={styles.panel}>
