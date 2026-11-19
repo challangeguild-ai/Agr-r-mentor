@@ -4,6 +4,7 @@ import {readFileSync} from "node:fs";
 
 const migration=readFileSync(new URL("../supabase/migrations/20261119093000_authorized_advisor_notifications.sql",import.meta.url),"utf8");
 const hotspotActions=readFileSync(new URL("../app/fields/[id]/hotspot-actions.ts",import.meta.url),"utf8");
+const hotspotForm=readFileSync(new URL("../components/HotspotForm.tsx",import.meta.url),"utf8");
 const reports=readFileSync(new URL("../app/fields/[id]/report-actions.ts",import.meta.url),"utf8");
 
 test("farmer report and hotspot notifications are allowed only for the owning farmer's persisted event",()=>{
@@ -35,4 +36,21 @@ test("hotspot links target an authorized advisor page and exposed profile RPC lo
  assert.match(migration,/grant execute on function public\.notify_advisors\(text,text,text,text,text\) to authenticated/);
  assert.match(migration,/to_regprocedure\('public\.update_own_profile\(text,text,text\)'\)/);
  assert.match(migration,/revoke execute on function public\.update_own_profile\(text,text,text\) from public, anon/);
+});
+
+test("hotspot save reports partial success and prevents retry duplicates",()=>{
+ assert.match(hotspotActions,/if\(!latInput\|\|!lngInput\|\|!Number\.isFinite\(lat\)/);
+ assert.match(hotspotActions,/dueDate&&!validDateOnly\(dueDate\)/);
+ assert.ok(hotspotActions.indexOf("dueDate&&!validDateOnly(dueDate)")<hotspotActions.indexOf('from("timeline_events").insert'),"date validation must happen before the first write");
+ assert.match(hotspotActions,/if\(taskError\|\|!task\)[^\n]*warning=/);
+ assert.match(hotspotActions,/return\{ok:true,warning\}/);
+ assert.match(hotspotForm,/if\(submittingRef\.current\)return/);
+ assert.match(hotspotForm,/setMessage\(result\.warning\|\|"A problémagóc rögzítve\."\)/);
+ assert.match(hotspotForm,/router\.refresh\(\)/);
+ assert.doesNotMatch(hotspotForm,/window\.location\.reload\(/);
+});
+
+test("closing an already resolved hotspot preserves the original creator and does not repeat notifications",()=>{
+ assert.match(hotspotActions,/if\(data\.resolved\)return/);
+ assert.doesNotMatch(hotspotActions,/update\(\{description:encodeHotspot\(data\),title:[^\n]*created_by/);
 });

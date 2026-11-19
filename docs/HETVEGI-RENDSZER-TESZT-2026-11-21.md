@@ -101,6 +101,8 @@
 - [ ] Üzenetek, értesítések, kapcsolatok, csapat és meghívók.
 - [ ] **Gazdálkodói bejelentés:** új bejelentés után a szaktanácsadó ténylegesen kapjon értesítést, az értesítés a megfelelő bejelentési nézetre vezessen.
 - [ ] **Problémagóc létrehozása és lezárása:** a gazda eseménye után csak az arra jogosult szaktanácsadó kapjon értesítést; a hivatkozás az adminisztrátori térképre vezessen.
+- [ ] **Problémagóc részleges mentése:** szaktanácsadói automatikus teendő létrehozásának hibájánál a térképi jelölés megmarad; a felület jelzi, ha a teendő mentése bizonytalan, és a teendőlista ellenőrzését kéri, nem a jelölés újbóli létrehozását. Ismételt kattintás, üres GPS-pont és érvénytelen teendő-határidő ellenőrzése.
+- [ ] **Problémagóc lezárásának ismétlése:** a lezárt jelölést nem zárja le újra, nem ismétli a küldést, és az eredeti rögzítő személye megmarad; értesítési hiba nem jelzi tévesen sikertelennek a már elvégzett lezárást.
 - [ ] **Értesítési jogosultság:** idegen bejelentés/teendő azonosítójával, vagy kitalált eseményazonosítóval ne lehessen értesítést küldeni a szaktanácsadóknak.
 - [ ] Dokumentumok, számlák, jelentések, látogatások, ellenőrzések.
 - [ ] Rendszeradmin: felhasználók, biztonság, időjárás és mentés (csak jogosult fiókkal, kockázatos írás nélkül).
@@ -155,6 +157,8 @@ Képernyőkép vagy videó:
 **Kiemelt jogosultsági figyelmeztetés (2026-11-19):** a kapcsolt Supabase adatbázis jelenleg telepített `submit_verified_task_execution` függvénye a csak olvasható ellenőrzés szerint még nem tartalmaz külön aktív gazdasági tagság- és tényleges Storage-fotóellenőrzést. A Draft PR-ban előkészített szigorított migráció most már mindkettőt megköveteli, valamint a demónév alapján adott GPS-felmentést is megszünteti. **A módosított migráció telepítése és jogosultsági ellenőrzése nélkül ezt a P0 biztonsági pontot nem szabad lezártnak tekinteni.** Jelen körben nem történt éles adatbázis-módosítás.
 
 **Stabilitási kódellenőrzés:** a GPS-es beküldés szerveroldali tagságellenőrzése és a két táblahatár-javaslati `SECURITY DEFINER` függvény szűkített `search_path` beállítása is elkészült. **154/154 automatizált teszt és teljes helyi production build sikeres**; az SQL-migrációk éles végrehajtása nem történt meg.
+
+**Térképi problémagóc stabilitása (2026-11-19):** a pont és az opcionális teendő külön mentése esetén a már rögzített pontot nem mutatjuk sikertelennek, ha a teendő vagy az értesítés hibás. Bizonytalan teendőállapotnál először a teendőlista ellenőrzését kérjük. Üres koordináta és hibás határidő az első írás előtt elutasítva; a kliens meggátolja a gyors dupla beküldést, a lezárt pont megőrzi az eredeti rögzítőjét. **156/156 automatizált teszt és teljes helyi Next.js build sikeres.** Mindez kódszintű ellenőrzés; kézi rendszerpróba továbbra sem történt, Supabase-migráció nem futott.
 
 **Gazdálkodói táblahatár-javaslatok előfeltétele:** a `20261119123000_field_boundary_proposals.sql` migráció létrehozza a függő javaslatokat, a koordinátor jogosultsági ellenőrzését és az atomikus szaktanácsadói jóváhagyást. Ez is **csak a Draft PR része**, nem került az éles adatbázisba. Telepítés nélkül a gazda adatlapján a beküldés nem érhető el; a hétvégi teszt előtt az alkalmazást és a DB-migrációkat össze kell hangolni a tesztkörnyezettel.
 
