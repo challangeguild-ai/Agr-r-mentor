@@ -6,6 +6,7 @@ const migration=readFileSync(new URL("../supabase/migrations/20261119093000_auth
 const hotspotActions=readFileSync(new URL("../app/fields/[id]/hotspot-actions.ts",import.meta.url),"utf8");
 const hotspotForm=readFileSync(new URL("../components/HotspotForm.tsx",import.meta.url),"utf8");
 const reports=readFileSync(new URL("../app/fields/[id]/report-actions.ts",import.meta.url),"utf8");
+const farmerReportForm=readFileSync(new URL("../components/FarmerReportForm.tsx",import.meta.url),"utf8");
 
 test("farmer report and hotspot notifications are allowed only for the owning farmer's persisted event",()=>{
  assert.match(migration,/p_kind = 'farmer_report'/);
@@ -53,4 +54,19 @@ test("hotspot save reports partial success and prevents retry duplicates",()=>{
 test("closing an already resolved hotspot preserves the original creator and does not repeat notifications",()=>{
  assert.match(hotspotActions,/if\(data\.resolved\)return/);
  assert.doesNotMatch(hotspotActions,/update\(\{description:encodeHotspot\(data\),title:[^\n]*created_by/);
+});
+
+test("farmer report attachments survive wizard navigation and interrupted uploads cannot duplicate the report",()=>{
+ assert.match(farmerReportForm,/display:step===2\?"block":"none"/);
+ assert.match(farmerReportForm,/<input name="media" type="file"/);
+ assert.match(farmerReportForm,/formData\.getAll\("media"\)/);
+ assert.match(farmerReportForm,/if\(!reportIdRef\.current\)\{/);
+ assert.match(farmerReportForm,/reportIdRef\.current=report\.id/);
+ assert.match(farmerReportForm,/selectedFilesRef\.current=files/);
+ assert.match(farmerReportForm,/if\(linkedFilesRef\.current\.has\(index\)\)continue/);
+ assert.match(farmerReportForm,/uploadedPathsRef\.current\.get\(index\)/);
+ assert.match(farmerReportForm,/\.eq\("report_id",reportId\)\.eq\("storage_path",path\)\.maybeSingle\(\)/);
+ assert.match(farmerReportForm,/disabled=\{busy\|\|reportSaved\}/);
+ assert.match(farmerReportForm,/Hiányzó csatolmányok újrapróbálása/);
+ assert.match(reports,/return\{id:report\.id,warning\}/);
 });
