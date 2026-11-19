@@ -24,7 +24,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
   const[boundarySource,setBoundarySource]=useState(geometrySource||"manual");
   const[importMessage,setImportMessage]=useState("");
   const[importError,setImportError]=useState("");
-  const[pointChosen,setPointChosen]=useState(lat!=null&&lng!=null);
+  const[pointChosen,setPointChosen]=useState((lat!=null&&lng!=null)||!!boundary);
   const[osmLoading,setOsmLoading]=useState(false);
   const[osmCandidates,setOsmCandidates]=useState<OsmFieldSuggestion[]>([]);
   const[osmMessage,setOsmMessage]=useState("");
@@ -42,7 +42,7 @@ export function FieldMapEditor({fieldId,lat,lng,boundary,editable,geometrySource
       const L=window.L;const map=L.map(mapRef.current).setView([centerLat,centerLng],lat&&lng?15:7);mapInstance.current=map;
       const satellite=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"});const street=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});satellite.addTo(map);L.control.layers({"Műhold":satellite,"Utcatérkép":street},undefined,{position:"topright",collapsed:false}).addTo(map);
       const group=new L.FeatureGroup().addTo(map);drawnLayer.current=group;
-      if(boundary){const layer=L.geoJSON(boundary,{style:{color:"#2f7430",weight:3,fillColor:"#5c9a46",fillOpacity:.18}});layer.eachLayer((part:any)=>group.addLayer(part));try{map.fitBounds(group.getBounds(),{padding:[25,25]})}catch{}}
+      if(boundary){const layer=L.geoJSON(boundary,{style:{color:"#2f7430",weight:3,fillColor:"#5c9a46",fillOpacity:.18}});layer.eachLayer((part:any)=>group.addLayer(part));try{map.fitBounds(group.getBounds(),{padding:[25,25]});if(lat==null||lng==null){const c=group.getBounds().getCenter();setCenterLat(c.lat);setCenterLng(c.lng)}}catch{}}
       if(lat!=null&&lng!=null){markerRef.current=L.marker([lat,lng]).addTo(map)}
       hotspots.forEach(h=>{if(!Number.isFinite(h.lat)||!Number.isFinite(h.lng))return;const color=h.severity==="critical"?"#c93832":h.severity==="attention"?"#d89d24":"#3f8a48";const m=L.circleMarker([h.lat,h.lng],{radius:10,color:"#fff",weight:3,fillColor:color,fillOpacity:1}).addTo(map);m.bindPopup(`<strong>${h.title}</strong>${h.description?`<br><small>${h.description}</small>`:""}<br><small>GPS: ${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}</small>`)});
       if(editable){
