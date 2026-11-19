@@ -7,6 +7,8 @@ import {parseDecimalOrNull,validDateOnly,licenseCoversDate,validatePlannedArea} 
 import {operationTypes} from "@/lib/operations";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 import {budapestCalendarDate} from "@/lib/weather/rollingPrecipitation";
+import {createTaskOnce} from "@/lib/taskCreateIdempotency";
+import {ensureOperationPlanOnce,ensureOperationMachineOnce} from "@/lib/operationPlanPersistence";
 
 function num(v:FormDataEntryValue|null){const n=parseDecimalOrNull(String(v??""));if(n!==null&&n<0)throw new Error("A mennyiségi érték nem lehet negatív.");return n}
 function date(v:string){return !v||validDateOnly(v)}
@@ -52,33 +54,48 @@ export async function createPlannedOperationTask(formData:FormData){
  }
  regulatorySnapshot={country_code:country,authorization_number:p.authorization_number,regulatory_category:p.regulatory_category,regulatory_status:p.regulatory_status,grace_period_until:p.grace_period_until,valid_from:p.valid_from,valid_until:p.valid_until,approval_required:approvalRequired,source_name:p.source_name,source_url:p.source_url,source_snapshot_at:p.source_snapshot_at};catalogSnapshot={product:p,use:u,ingredients:ings??[]};}
  const label=operationType==="spraying"||operationType==="plant_protection"?"Növényvédelmi kezelés":operationType==="fertilizing"?"Tápanyag-kijuttatás":operationType==="soil_work"?"Talajmunka":operationType==="sowing"?"Vetés":operationType==="harvest"?"Betakarítás":operationType==="irrigation"?"Öntözés":operationType==="mowing"?"Kaszálás":"Munkaművelet";const title=String(formData.get("title")||"").trim()||`${label}${productName?` – ${productName}`:""}`;if(title.length>180||notes.length>3000)throw new Error("A terv szövege túl hosszú.");
- const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";const{data:task,error}=await supabase.from("tasks").insert({farm_id:farmId,field_id:fieldId,title,description:notes||null,due_date:dueDate||null,priority:safePriority,status:"open",assigned_to:assignedTo,created_by:user.id,task_kind:"operation",review_status:"not_required"}).select("id").single();if(error||!task)throw new Error(error?.message||"A műveleti terv mentése sikertelen.");
- const{error:pe}=await supabase.from("task_operation_plans").insert({task_id:task.id,country_code:country,operation_type:operationType,subtype:subtype||null,product_id:productId||null,plant_protection_use_id:useId||null,product_name:productName||null,authorization_number:authorizationNumber,crop,target,active_ingredient:activeIngredient,planned_dose:plannedDose,dose_min:doseMin,dose_max:doseMax,dose_unit:doseUnit,planned_area:plannedArea,planned_quantity:plannedQuantity,quantity_unit:quantityUnit,application_method:applicationMethod,phi_days:phiDays,bbch_min:bbchMin,bbch_max:bbchMax,max_applications:maxApplications,application_interval_days:interval,water_volume_min:waterMin,water_volume_max:waterMax,water_volume_unit:waterUnit,application_timing:applicationTiming,restrictions,source_reference:sourceReference,approval_required:approvalRequired,requested_approver_id:requestedApproverId||null,regulatory_snapshot:regulatorySnapshot,catalog_snapshot:catalogSnapshot});if(pe){
-  let rolledBack=false;
-  try{
-   const{data:removed,error:rollbackError}=await supabase.from("tasks")
-    .delete().eq("id",task.id).eq("created_by",user.id).select("id").maybeSingle();
-   rolledBack=!!removed&&!rollbackError;
-  }catch(e){console.error("A hiányos műveleti terv visszavonása sikertelen",e)}
-  if(!rolledBack)throw new Error(`A feladat létrejött (${task.id}), de a műveleti terv mentése hibás. A visszavonás nem igazolt. Ellenőrizd a feladatlistát újraküldés előtt: ${pe.message}`);
-  throw new Error(`A műveleti terv mentése sikertelen, a részleges feladatot visszavontuk: ${pe.message}`);
- }
+ const safePriority=["normal","high","urgent"].includes(priority)?priority:"normal";
+ const{id:taskId}=await createTaskOnce(supabase,{
+  farm_id:farmId,field_id:fieldId,title,description:notes||null,
+  due_date:dueDate||null,priority:safePriority,status:"open",
+  assigned_to:assignedTo,created_by:user.id,task_kind:"operation",review_status:"not_required"
+ },String(formData.get("request_id")||""));
+ const{alreadyExists:planAlreadyExists}=await ensureOperationPlanOnce(supabase,{
+  task_id:taskId,country_code:country,operation_type:operationType,subtype:subtype||null,
+  product_id:productId||null,plant_protection_use_id:useId||null,
+  product_name:productName||null,authorization_number:authorizationNumber,crop,target,
+  active_ingredient:activeIngredient,planned_dose:plannedDose,dose_min:doseMin,
+  dose_max:doseMax,dose_unit:doseUnit,planned_area:plannedArea,
+  planned_quantity:plannedQuantity,quantity_unit:quantityUnit,
+  application_method:applicationMethod,phi_days:phiDays,bbch_min:bbchMin,
+  bbch_max:bbchMax,max_applications:maxApplications,
+  application_interval_days:interval,water_volume_min:waterMin,
+  water_volume_max:waterMax,water_volume_unit:waterUnit,
+  application_timing:applicationTiming,restrictions,source_reference:sourceReference,
+  approval_required:approvalRequired,requested_approver_id:requestedApproverId||null,
+  regulatory_snapshot:regulatorySnapshot,catalog_snapshot:catalogSnapshot
+ });
  const warnings:string[]=[];
- // The task and its operation plan already exist. Failure to notify must not
- // claim that the primary creation failed: repeating the action duplicates it.
+ // Even after the plan is saved, a previously failed machine assignment can be
+ // safely completed on a retry without creating another task or notification.
  if(machineId){
   try{
-   const{error:ma}=await supabase.from("task_machine_assignments")
-    .insert({task_id:task.id,machine_id:machineId,assigned_by:user.id});
-   if(ma)warnings.push("A gép hozzárendelése nem sikerült.");
+   const machineStatus=await ensureOperationMachineOnce(supabase,taskId,machineId,user.id);
+   if(machineStatus==="missing")warnings.push("A gép hozzárendelése nem igazolt; ellenőrizd a munkalistában.");
+   if(machineStatus==="conflict")warnings.push("A feladathoz másik gép tartozik; ellenőrizd a gépkiosztást a munkalistában.");
   }catch(e){console.error("Műveleti terv gépkiosztási hiba",e);warnings.push("A gép hozzárendelését nem sikerült igazolni.")}
  }
+ if(planAlreadyExists){
+  warnings.unshift("A műveleti terv már korábban létrejött; nem küldtünk újabb értesítést. Ellenőrizd a munkalistában.");
+  return{ok:true,id:taskId,warnings};
+ }
+ // The plan was just inserted. Notification failures cannot make it unsaved.
  try{
   const{error:timelineError}=await supabase.from("timeline_events").insert({
    farm_id:farmId,field_id:fieldId,event_type:"operation_plan_created",
    title:`Műveleti terv: ${title}`,
    description:[productName,crop,target,plannedDose!=null?`${plannedDose} ${doseUnit||""}`:""].filter(Boolean).join(" · "),
-   event_at:new Date().toISOString(),created_by:user.id,source_id:task.id
+   event_at:new Date().toISOString(),created_by:user.id,source_id:taskId
   });
   if(timelineError)warnings.push("Az idővonal nem frissült.");
  }catch(e){console.error("Műveleti terv idővonalhíba",e);warnings.push("Az idővonal frissítését nem sikerült igazolni.")}
@@ -101,7 +118,7 @@ export async function createPlannedOperationTask(formData:FormData){
 
  try{revalidatePath("/admin/tasks");revalidatePath("/admin/workday");revalidatePath("/tasks");revalidatePath("/work");revalidatePath(`/fields/${fieldId}`)}
  catch(error){console.error("Műveleti terv nézetfrissítési hiba",error);warnings.push("A műveleti terv létrejött, de a listák frissülése késhet.")}
- return{ok:true,id:task.id,warnings};
+ return{ok:true,id:taskId,warnings};
 }
 
 export async function reviewTaskExecution(formData:FormData){const taskId=String(formData.get("task_id")||""),decision=String(formData.get("decision")||""),note=String(formData.get("review_note")||"").trim();if(!taskId||!["approve","reject"].includes(decision))throw new Error("Érvénytelen ellenőrzési döntés.");const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const{data:me}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();if(me?.role!=="advisor"||me?.system_role==="admin")throw new Error("Szaktanácsadói jogosultság szükséges.");if(decision==="reject"&&!note)throw new Error("Visszaküldésnél add meg, mit kell javítani.");const{data:task}=await supabase.from("tasks").select("id,title,assigned_to,field_id,farm_id").eq("id",taskId).maybeSingle();if(!task)throw new Error("A teendő nem található.");const{error}=await supabase.rpc("review_task_execution",{p_task_id:taskId,p_approve:decision==="approve",p_note:note||null});if(error)throw new Error(error.message);if(task.assigned_to){try{const{error:notificationError}=await supabase.from("notifications").insert({user_id:task.assigned_to,kind:decision==="approve"?"task_verified":"task_revision",title:decision==="approve"?"Munka visszaigazolva":"Munka javításra visszaküldve",message:decision==="approve"?`${task.title} – a szaktanácsadó visszaigazolta.`:`${task.title} – ${note}`,href:"/tasks"});if(notificationError)console.error("Végrehajtás-ellenőrzés értesítési hiba",notificationError)}catch(error){console.error("Végrehajtás-ellenőrzés értesítésének hálózati hibája",error)}}revalidatePath("/admin/tasks");revalidatePath("/admin/operations");revalidatePath("/tasks");revalidatePath("/work");if(task.field_id)revalidatePath(`/fields/${task.field_id}`);}

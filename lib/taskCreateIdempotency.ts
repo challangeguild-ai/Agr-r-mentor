@@ -10,11 +10,13 @@ export type NewTaskPayload={
  status:"open";
  assigned_to:string;
  created_by:string;
+ task_kind?:"general"|"operation";
+ review_status?:"not_required";
 };
 
 type SavedTask=Pick<NewTaskPayload,
  "farm_id"|"field_id"|"title"|"description"|"due_date"|"priority"|"assigned_to"|"created_by"
->&{id:string};
+>&{id:string;task_kind?:string;review_status?:string};
 export type TaskCreateResult={id:string;alreadyExists:boolean};
 
 const UUID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -31,14 +33,16 @@ export function taskRequestId(value:string):string{
 
 async function findTask(supabase:any,id:string):Promise<SavedTask|null>{
  const{data,error}=await supabase.from("tasks")
-  .select("id,farm_id,field_id,title,description,due_date,priority,assigned_to,created_by")
+  .select("id,farm_id,field_id,title,description,due_date,priority,assigned_to,created_by,task_kind,review_status")
   .eq("id",id).maybeSingle();
  if(error)throw new Error(`A korábbi teendő ellenőrzése sikertelen: ${error.message}`);
  return data||null;
 }
 
 function checkedExisting(task:SavedTask,payload:NewTaskPayload):TaskCreateResult{
- if(TASK_FIELDS.some(key=>task[key]!==payload[key]))
+ // Review status can legitimately change after dispatch; task kind cannot.
+ if(TASK_FIELDS.some(key=>task[key]!==payload[key])||
+   (payload.task_kind!==undefined&&task.task_kind!==payload.task_kind))
   throw new Error("Ez a mentési azonosító már egy másik feladathoz tartozik. Ellenőrizd a teendőlistát, majd frissítsd az oldalt.");
  return{id:task.id,alreadyExists:true};
 }

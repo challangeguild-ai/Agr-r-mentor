@@ -75,6 +75,16 @@ test("same request UUID cannot be reused for another task or assignee",async()=>
  assert.equal(calls.filter(([action])=>action==="insert").length,1);
 });
 
+test("same request UUID cannot switch an ordinary task into an operation plan",async()=>{
+ const{supabase,calls}=mockTasks();
+ await createTaskOnce(supabase,{...payload,task_kind:"general",review_status:"not_required"},requestId);
+ await assert.rejects(
+  ()=>createTaskOnce(supabase,{...payload,task_kind:"operation",review_status:"not_required"},requestId),
+  /másik feladathoz/
+ );
+ assert.equal(calls.filter(([action])=>action==="insert").length,1);
+});
+
 test("two independent UUIDs allow two intentional tasks",async()=>{
  const{supabase,rows}=mockTasks();
  await createTaskOnce(supabase,payload,requestId);

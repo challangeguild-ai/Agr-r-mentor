@@ -18,5 +18,5 @@ test("a cache refresh cannot turn a successful work dispatch into a retryable sa
 test("a planned operation remains a confirmed saved task after refresh errors",()=>{
  assert.match(operationPlan,/catch\(error\)\{console\.error\("Műveleti terv nézetfrissítési hiba"/);
  assert.match(operationPlan,/warnings\.push\("A műveleti terv létrejött, de a listák frissülése késhet\."\)/);
- assert.match(operationPlan,/return\{ok:true,id:task\.id,warnings\}/);
+ assert.match(operationPlan,/return\{ok:true,id:taskId,warnings\}/);
 });

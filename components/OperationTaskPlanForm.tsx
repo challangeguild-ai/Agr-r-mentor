@@ -22,6 +22,7 @@ const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing",
 
 export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];people:Person[];machines:Machine[]}){
  const submitting=useRef(false),saved=useRef(false);
+ const requestIdRef=useRef<string|null>(null);
  const[savedWarning,setSavedWarning]=useState("");
  const[fieldId,setFieldId]=useState(""),[type,setType]=useState("spraying"),[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[crop,setCrop]=useState(""),[productName,setProductName]=useState(""),[customProduct,setCustomProduct]=useState(""),[dose,setDose]=useState(""),[machineId,setMachineId]=useState(""),[dueDate,setDueDate]=useState("");
@@ -46,14 +47,17 @@ export function OperationTaskPlanForm({fields,people,machines}:{fields:Field[];p
   try{
    const areaError=validatePlannedArea(parseDecimalOrNull(String(fd.get("planned_area")??"")),field?.areaHa??null);
    if(areaError){setError(areaError);setBusy(false);return}
+   if(!requestIdRef.current)requestIdRef.current=crypto.randomUUID();
+   fd.set("request_id",requestIdRef.current);
    const result=await createPlannedOperationTask(fd);
    saved.current=true;
+   requestIdRef.current=null;
    if(result.warnings.length){
     setSavedWarning(result.warnings.join(" "));
     setBusy(false);
    }else window.location.reload();
   }catch(e){
-   setError(e instanceof Error?e.message:"A műveleti terv mentése sikertelen.");
+   setError(`${e instanceof Error?e.message:"A műveleti terv mentése nem igazolt."} Ha a kapcsolat megszakadt, az űrlap újraküldése ugyanazt a mentési azonosítót használja; a már rögzített adatokat nem töröljük.`);
    setBusy(false);
   }finally{submitting.current=false}
  }
