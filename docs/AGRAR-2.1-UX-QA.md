@@ -147,3 +147,17 @@ Az éles app, Supabase adatbázis és production domain nem módosult.
 - A kapcsolt „Agrár mentor” Supabase projekt 2026.11.19-én **INACTIVE** állapotú volt; nem indítottuk el. Ezért az aktív adatbázisra irányuló lekérdezést, RLS/MFA-integrációt és többfelhasználós E2E-t külön kell igazolni.
 
 **A #59-es PR továbbra is Draft; nem történt production merge, domain-változtatás vagy adatbázis-írás.**
+
+
+## 2026-11-19 – nyolcadik kör: végrehajtási igazolások és hibás beküldés utáni fotómegőrzés
+
+- **Kritikus fotómegőrzési kockázat:** a telefonos felület korábban minden szerveroldali hibára törölte az újonnan feltöltött bizonyító fényképet. Ha az adatbázis-függvény közben mégis eltárolta a végrehajtást, a napló bejegyzése törölt fájlra mutathatott.
+- Az írási kísérletet a szerver explicit jelzi. A kliens csak igazoltan a DB-művelet előtti elutasítás esetén távolítja el a feltöltést. Hálózati bizonytalanságnál megőrzi a fotót és a feladatlista ellenőrzését kéri, mielőtt újraküldés történne.
+- Már beküldött vagy lezárt feladat ismételt beküldési kísérlete nem hoz létre második végrehajtási riportot; az új, feleslegesnek bizonyult feltöltést a kliens eltávolítani próbálja.
+- Sikeres DB-beküldést követő értesítési vagy oldalfrissítési hiba nem változtathatja a mentést általános hibává. A munkalépés idővonal-bejegyzése után hibázó tanácsadói értesítés sem ösztönöz újrakattintásra.
+- A munkavégzés tényleges dátuma most valós naptári nap, helyi Budapest-dátummal; jövőbeli dátum nem fogadható el. A numerikus bevitel ugyanazt a szigorú tizedes-ellenőrzést használja, mint a műveleti rögzítés.
+- Növényvédelemnél a tényleges végrehajtási adat beküldése a közös HU/SK engedélyezési státusz és türelmi idő ellenőrzését is használja. A megadott dózisegységnek meg kell egyeznie a hivatalos egységgel; hiányzó egység nem kerülheti meg a validációt.
+- Új regressziós esetek: a fotó csak bizonyított, írás előtti hiba esetén törölhető; sikeres vagy bizonytalan eredménynél megmarad. Helyi Node.js 24: **2/2 PASS**. A projekt összesen **39 Node tesztesetet** tartalmaz.
+- **Határ:** a hálózati bizonytalanság nem egyenlő teljes szerveroldali idempotenciával. Az adatbázis-függvény, RLS, GPS/fotó-hozzáférés és többfelhasználós E2E valós Supabase-környezettel továbbra is ellenőrizendő.
+
+**A #59-es PR Draft marad; sem éles merge, sem adatbázis-migráció nem történt.**
