@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parseDecimalOrNull,validDateOnly,licenseCoversDate} from "../lib/operationInput.ts";
+import {parseDecimalOrNull,validDateOnly,licenseCoversDate,validatePlannedArea} from "../lib/operationInput.ts";
 
 test("accepts real calendar dates including leap day",()=>{
  assert.equal(validDateOnly("2028-02-29"),true);
@@ -22,6 +22,16 @@ test("missing or malformed license dates never pass authorization",()=>{
  assert.equal(licenseCoversDate(null,"2026-12-01","2026-11-19"),false);
  assert.equal(licenseCoversDate("2026-02-30","2026-12-01","2026-11-19"),false);
  assert.equal(licenseCoversDate("2026-12-01","2026-13-01","2026-11-19"),false);
+});
+
+test("planned area must be positive and within the selected field",()=>{
+ assert.equal(validatePlannedArea(null,5),null);
+ assert.equal(validatePlannedArea(5,5),null);
+ assert.equal(validatePlannedArea(1.5,null),null);
+ assert.match(validatePlannedArea(0,5),/pozitív/);
+ assert.match(validatePlannedArea(-1,5),/pozitív/);
+ assert.match(validatePlannedArea(Number.NaN,5),/pozitív/);
+ assert.match(validatePlannedArea(5.01,5),/földtábla/);
 });
 
 test("accepts comma and dot decimals while preserving negative values for range checks",()=>{
