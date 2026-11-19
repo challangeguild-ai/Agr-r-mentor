@@ -5,6 +5,13 @@ export function validDateOnly(value:string):boolean{
  return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;
 }
 
+/** The authorization must remain valid today and on the scheduled date. */
+export function licenseCoversDate(validUntil:string|null|undefined,scheduledDate:string,today:string):boolean{
+ if(!validUntil||!validDateOnly(validUntil)||!validDateOnly(today))return false;
+ if(scheduledDate&&!validDateOnly(scheduledDate))return false;
+ return validUntil>=(scheduledDate>today?scheduledDate:today);
+}
+
 /** Blank values are optional; malformed numeric values are never silently discarded. */
 export function parseDecimalOrNull(input:string):number|null{
  const normalized=input.trim().replace(",",".");
