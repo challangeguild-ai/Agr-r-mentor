@@ -180,5 +180,5 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
  }
 }
 
-private fun JSONArray.objects():List<JSONObject>=(0 until length()).map{getJSONObject(it)}
+private fun JSONArray.objects():List<JSONObject> = (0 until length()).map{getJSONObject(it)}
 private fun JSONObject.optional(field:String):String?=if(isNull(field))null else optString(field).ifBlank{null}
