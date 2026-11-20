@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readFileSync,statSync} from "node:fs";
 
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 
@@ -10,6 +10,20 @@ test("accepted reference screens keep all six real farmer routes",()=>{
   assert.ok(sidebar.includes(`"${route}"`),`Missing ${route} from navigation`);
  assert.match(sidebar,/styles\.userFooter/);
  assert.match(sidebar,/styles\.landscape/);
+});
+
+test("original agricultural photo and accessible branding stay consistent across sidebar and field header",()=>{
+ const photo=new URL("../public/images/agrar-fields-sunrise.webp",import.meta.url);
+ const photoBytes=readFileSync(photo);
+ assert.equal(photoBytes.toString("ascii",0,4),"RIFF","Agricultural banner must be a real WebP asset");
+ assert.ok(statSync(photo).size<400_000,"Agricultural banner should stay lightweight on mobile");
+ const sidebar=read("components/FarmerSidebar.module.css");
+ const field=read("app/fields/[id]/field-detail.module.css");
+ const markup=read("components/Sidebar.tsx");
+ assert.match(sidebar,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
+ assert.match(field,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
+ assert.match(markup,/<strong>AGRÁR MENTOR<\/strong>/);
+ assert.match(markup,/aria-hidden="true"\/\>/);
 });
 
 test("field cards and the interactive map/list switch use real field data",()=>{
