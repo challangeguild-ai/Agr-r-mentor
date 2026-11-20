@@ -343,6 +343,12 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/tasks"&&session!=null){
     item{LiveTasksScreen(session,colors)}
+   }else if(role==PortalRole.FARMER&&route=="/daily-work"&&session!=null){
+    item{LiveTasksScreen(session,colors,mode=TaskListMode.DUE)}
+   }else if(role==PortalRole.FARMER&&route=="/work"&&session!=null){
+    item{LiveTasksScreen(session,colors,mode=TaskListMode.MINE)}
+   }else if(role==PortalRole.FARMER&&route=="/dispatch"&&session!=null){
+    item{TaskDispatchScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/operations"&&session!=null){
     item{LiveOperationsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/notifications"&&session!=null){
@@ -420,8 +426,10 @@ private fun operationLabel(type:String):String=when(type){
  else->"Egyéb művelet"
 }
 
+private enum class TaskListMode{ALL,DUE,MINE}
+
 @Composable
-private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
+private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val completion=remember{GeneralTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val scope=rememberCoroutineScope()
@@ -439,18 +447,31 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
   try{tasks=repository.tasks(session)}catch(_:Exception){error=true}
   finally{loading=false}
  }
- val filtered=tasks.filter{task->when(filter){
+ val today=LocalDate.now(java.time.ZoneId.of("Europe/Budapest")).toString()
+ val scoped=tasks.filter{task->when(mode){
+  TaskListMode.ALL->true
+  TaskListMode.MINE->task.assignedTo==session.userId
+  TaskListMode.DUE->task.status in listOf("open","in_progress")&&(
+   (task.dueDate!=null&&task.dueDate.take(10)<=today)||task.priority in listOf("high","urgent"))
+ }}
+ val filtered=scoped.filter{task->when(filter){
   "Nyitott"->task.status!="done"&&task.status!="submitted"&&task.status!="cancelled"
   "Ellenőrzésre vár"->task.status=="submitted"
   "Befejezett"->task.status=="done"
   else->true
  }}
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  Text("A gazdaság teendői. Az általános, saját feladat igazolható; a táblához kötött munkákhoz GPS-ellenőrzés kell.",fontSize=13.sp,color=MutedText)
+  Text(when(mode){
+   TaskListMode.ALL->"A gazdaság teendői. Az általános, saját feladat igazolható; a táblához kötött munkákhoz GPS-ellenőrzés kell."
+   TaskListMode.MINE->"A hozzád rendelt munkák. Általános munkát innen is beküldhetsz ellenőrzésre."
+   TaskListMode.DUE->"A máig esedékes és magas prioritású feladatok."
+  },fontSize=13.sp,color=MutedText)
   if(completionMessage!=null)Text(completionMessage!!,fontSize=13.sp,color=colors.accent)
-  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-   listOf("Nyitott","Ellenőrzésre vár","Befejezett","Mind").forEach{option->
-    FilterChip(selected=filter==option,onClick={filter=option},label={Text(option,fontSize=11.sp)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=colors.tint,selectedLabelColor=colors.accent))
+  if(mode!=TaskListMode.DUE){
+   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
+    listOf("Nyitott","Ellenőrzésre vár","Befejezett","Mind").forEach{option->
+     FilterChip(selected=filter==option,onClick={filter=option},label={Text(option,fontSize=11.sp)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=colors.tint,selectedLabelColor=colors.accent))
+    }
    }
   }
   if(loading)CircularProgressIndicator(color=colors.accent)
