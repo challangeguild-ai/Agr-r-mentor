@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient} from "@/lib/supabase/server";
+import {effectivePlantCatalogStatus,plantProtectionCoverage} from "@/lib/plantProtectionCoverage";
 
 const countries=new Set(["HU","SK"]);
 const operationTypes=new Set(["spraying","plant_protection","fertilizing","sowing","soil_work","harvest","irrigation","mowing","other"]);
@@ -33,11 +34,16 @@ export async function GET(request:NextRequest){
   let approvers:any[]=[];
   if(farmId){const today=new Date().toISOString().slice(0,10);const{data:authorizations,error:authError}=await supabase.from("farm_plant_protection_approvers").select("user_id,authorization_level,permit_number,valid_until,active").eq("farm_id",farmId).eq("active",true).or(`valid_until.is.null,valid_until.gte.${today}`);if(authError)return noStore({error:authError.message},500);const ids=(authorizations??[]).map(x=>x.user_id);if(ids.length){const{data:profiles,error:profileError}=await supabase.from("profiles").select("id,full_name,role").in("id",ids);if(profileError)return noStore({error:profileError.message},500);const profileMap=new Map((profiles??[]).map(p=>[p.id,p]));approvers=(authorizations??[]).map(a=>({id:a.user_id,full_name:profileMap.get(a.user_id)?.full_name||"Gazdasági jogosult",role:profileMap.get(a.user_id)?.role||null,authorization_level:a.authorization_level,permit_number:a.permit_number,valid_until:a.valid_until})).filter(a=>a.role!=="advisor")}}
   if(type!=="spraying"&&type!=="plant_protection")return noStore({country,type,catalog:effectiveCatalog,products:[],uses:[],approvers,source});
+  const{data:policyVersion,error:policyError}=country==="HU"
+   ?await supabase.rpc("hu_manual_spraying_policy_version")
+   :{data:null,error:null};
+  const manualPolicyReady=country==="HU"&&!policyError&&policyVersion===2;
   const products:any[]=[];
   for(let from=0;;from+=PAGE){const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,source_url,source_snapshot_at,regulatory_category,regulatory_status,withdrawal_effective_at,grace_period_until,status_note,professional_use_only,prescription_required,approval_required,active").eq("country_code",country).eq("active",true).order("name").range(from,from+PAGE-1);if(error)return noStore({error:error.message},500);products.push(...(data??[]));if((data??[]).length<PAGE)break}
-  const productIds=products.map(p=>p.id);if(!productIds.length)return noStore({country,type,catalog:effectiveCatalog,products:[],uses:[],ingredients:[],approvers,source});
+  const productIds=products.map(p=>p.id);if(!productIds.length){const coverage=plantProtectionCoverage([],[]);return noStore({country,type,catalog:effectiveCatalog,products:[],uses:[],ingredients:[],approvers,source:source?{...source,status:effectivePlantCatalogStatus(source.status,coverage)}:null,coverage,manualPolicyReady})}
   const uses:any[]=[],ingredients:any[]=[];
   for(const ids of chunks(productIds,ID_CHUNK)){for(let from=0;;from+=PAGE){const{data,error}=await supabase.from("plant_protection_uses").select("id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,phi_days,notes,bbch_min,bbch_max,max_applications,application_interval_days,water_volume_min,water_volume_max,water_volume_unit,application_timing,restrictions,source_reference").in("product_id",ids).order("crop").range(from,from+PAGE-1);if(error)return noStore({error:error.message},500);uses.push(...(data??[]));if((data??[]).length<PAGE)break}for(let from=0;;from+=PAGE){const{data,error}=await supabase.from("plant_protection_ingredients").select("product_id,ingredient,concentration,concentration_unit").in("product_id",ids).order("ingredient").range(from,from+PAGE-1);if(error)return noStore({error:error.message},500);ingredients.push(...(data??[]));if((data??[]).length<PAGE)break}}
   const quality={products:products.length,uses:uses.length,with_target:uses.filter(u=>u.target).length,with_dose:uses.filter(u=>u.dose_min!=null||u.dose_max!=null).length,with_bbch:uses.filter(u=>u.bbch_min!=null||u.bbch_max!=null).length};
-  return noStore({country,type,catalog:effectiveCatalog,products:products.map(p=>regulatoryDisplay(p,country)),uses,ingredients,approvers,source,quality});
+  const coverage=plantProtectionCoverage(products,uses);
+  return noStore({country,type,catalog:effectiveCatalog,products:products.map(p=>regulatoryDisplay(p,country)),uses,ingredients,approvers,source:source?{...source,status:effectivePlantCatalogStatus(source.status,coverage)}:null,quality,coverage,manualPolicyReady});
 }
