@@ -40,7 +40,7 @@ internal fun workdayUnscheduledTasks(items:List<AdvisorWorkdayItem>)=items.filte
 internal fun workdayHungarianDay(value:String?):String?{
  if(value.isNullOrBlank())return null
  return runCatching{OffsetDateTime.parse(value).atZoneSameInstant(ZoneId.of("Europe/Budapest")).toLocalDate().toString()}
-  .getOrElse{value.take(10).takeIf{it.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))}}
+  .getOrNull()?:value.take(10).takeIf{it.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))}
 }
 
 internal fun decodePlannedAdvisorVisit(description:String?):PlannedAdvisorVisit?{
