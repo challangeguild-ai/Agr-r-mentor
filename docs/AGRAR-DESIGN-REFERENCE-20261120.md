@@ -25,6 +25,8 @@
 
 **Második, kiegészítő egységesítési kör:** a felső keresősáv a képernyőhöz illő keresőszöveget jeleníti meg, és telefonon is jól használható méretű; a profil és az értesítési központ kártyái, szövegei és gombjai a hat fő mintaképernyő méretarányaihoz igazodnak. A napi munkaközpont mobilos összesítői, valamint a régebbi gazdálkodói űrlapok, statisztikák és fókuszjelzések is azonos ritmust kaptak. A földtábla állapotjelzője szemle nélkül **semleges**, nem zöld „jó” állapotot sugall. Ezek megjelenési finomítások: a működő jogosultságokat, adatokat, műveleteket és szerepkörönként eltérő profilszíneket nem írják át.
 
+**Mobilos záróellenőrzés:** a Műveleti napló CSV-exportja nem tűnhet el a kis kijelzőn, ezért a régi elrejtést felülbíráltuk. A mobil oldalsáv bezáró-, navigációs és súgóelemei nagyobb, legalább 44 pixeles érintési célokat és olvashatóbb feliratokat kaptak.
+
 ## Amit még élő, bejelentkezett vizuális ellenőrzés követ
 
 1. Referenciával összevetett teljes asztali nézet legalább 1280 px tartalmi szélességen: az oldalsáv, a földtábla térkép és minden valódi adatmező.

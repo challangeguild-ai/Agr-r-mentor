@@ -33,3 +33,10 @@
  .status{font-size:11px}
  .formHead h2{font-size:18px}
 }
+
+/* Keep the real CSV export available on phones beside the new-operation action. */
+@media(max-width:767px){
+ .titleActions{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}
+ .titleActions>:first-child{display:inline-flex;align-items:center;justify-content:center;min-height:43px;font-size:12px}
+ .titleActions>.primary{min-height:43px}
+}

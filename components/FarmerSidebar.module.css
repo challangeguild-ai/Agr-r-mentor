@@ -36,3 +36,16 @@
 .userFooter:focus-visible{outline:3px solid #bbdc83;outline-offset:-3px}
 @media(max-height:780px){.landscape{height:50px;flex-basis:50px}.help{max-height:172px;overflow:auto}}
 @media(max-width:1199px){.landscape{margin-top:12px}.userFooter{margin-bottom:-16px}}
+
+/* Navigation and help remain legible and touch-friendly in the mobile drawer. */
+.nav a:focus-visible,.help a:focus-visible,.help button:focus-visible,.launch:focus-visible,.close:focus-visible{outline:3px solid #bde59b;outline-offset:2px}
+.sectionLabel{font-size:10.5px;line-height:1.4}
+.help strong{font-size:12px}
+.help small{font-size:11.5px;line-height:1.5}
+.help a,.help button{min-height:42px!important;height:auto!important;font-size:11.5px!important;line-height:1.4!important}
+@media(max-width:1199px){
+ .launch{width:44px;height:44px}
+ .close{width:44px;height:44px}
+ .nav a{min-height:44px;font-size:12.5px}
+ .help a,.help button{min-height:44px!important}
+}

@@ -88,3 +88,14 @@ test("unknown field health is neutral and remaining farmer screens stay accessib
  assert.match(profile,/\.grid input,\.grid select\{font-size:16px/);
  assert.match(shared,/\.farmer-app :is\(a,button,input,select,textarea\):focus-visible/);
 });
+
+test("mobile operation export is visible and the navigation drawer is touch-friendly",()=>{
+ const operations=read("app/operations/operations.module.css");
+ const operationPage=read("app/operations/page.tsx");
+ const sidebar=read("components/FarmerSidebar.module.css");
+ assert.match(operationPage,/<OperationExportButton rows=\{exportRows\}\/>/);
+ assert.match(operations,/\.titleActions>:first-child\{display:inline-flex;align-items:center;justify-content:center;min-height:43px/);
+ assert.match(sidebar,/\.close\{width:44px;height:44px\}/);
+ assert.match(sidebar,/\.nav a\{min-height:44px;font-size:12\.5px\}/);
+ assert.match(sidebar,/\.help a,\.help button\{min-height:44px!important\}/);
+});
