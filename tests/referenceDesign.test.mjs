@@ -12,19 +12,34 @@ test("accepted reference screens keep all six real farmer routes",()=>{
  assert.match(sidebar,/styles\.landscape/);
 });
 
-test("original agricultural photo and accessible branding stay consistent across sidebar and field header",()=>{
+test("original agricultural photo and shared accessible artwork stay consistent across all roles and public website",()=>{
  const photo=new URL("../public/images/agrar-fields-sunrise.webp",import.meta.url);
  const photoBytes=readFileSync(photo);
  assert.equal(photoBytes.toString("ascii",0,4),"RIFF","Agricultural banner must be a real WebP asset");
  assert.ok(statSync(photo).size<400_000,"Agricultural banner should stay lightweight on mobile");
+ const logo=new URL("../public/images/agrar-mentor-logo.webp",import.meta.url);
+ const logoBytes=readFileSync(logo);
+ assert.equal(logoBytes.toString("ascii",0,4),"RIFF","Brand artwork must be a real WebP image");
+ assert.equal(logoBytes.toString("ascii",8,12),"WEBP");
+ assert.ok(statSync(logo).size<200_000,"Brand artwork should stay lightweight on mobile");
+ const sharedLogo=read("components/AgrarMentorLogo.tsx");
+ assert.match(sharedLogo,/src="\/images\/agrar-mentor-logo\.webp"/);
+ assert.match(sharedLogo,/alt="AGRÁR MENTOR"/);
  const sidebar=read("components/FarmerSidebar.module.css");
  const field=read("app/fields/[id]/field-detail.module.css");
  const markup=read("components/Sidebar.tsx");
  assert.match(sidebar,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
  assert.match(field,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
- assert.match(markup,/className=\{styles\.wordmark\} aria-label="Agrár Mentor"/);
- assert.match(markup,/<span>AGRÁR<\/span><span>MENTOR<\/span>/);
- assert.match(sidebar,/\.wordmark span:last-child\{font-size:22px/);
+ assert.match(markup,/<AgrarMentorLogo className=\{styles\.brandLogo\}/);
+ for(const role of ["AdvisorSidebar","SystemAdminSidebar"]){
+  const source=read(`components/${role}.tsx`);
+  assert.match(source,/<AgrarMentorLogo className=\{styles\.brandLogo\}/,`${role}: sidebar logo missing`);
+  assert.match(source,/<AgrarMentorLogo className=\{styles\.mobileBrandLogo\}/,`${role}: mobile header logo missing`);
+ }
+ const publicSite=read("app/page.tsx");
+ assert.match(publicSite,/<AgrarMentorLogo className=\{styles\.brandLogo\}/);
+ assert.match(publicSite,/<AgrarMentorLogo className=\{styles\.footerBrandLogo\}/);
+ assert.match(read("components/LandingLoginModal.tsx"),/<AgrarMentorLogo className=\{brandStyles\.modalLogo\}/);
  assert.match(markup,/aria-hidden="true"\/\>/);
 });
 

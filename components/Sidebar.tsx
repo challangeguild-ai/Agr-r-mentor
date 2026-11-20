@@ -4,6 +4,7 @@ import {useState} from "react";
 import {ComprehensiveTour,ComprehensiveTourRestart} from "@/components/ComprehensiveTour";
 import {ProcessGuideButton,ProcessGuideProvider} from "@/components/ProcessGuide";
 import {HelpCenter} from "@/components/HelpCenter";
+import {AgrarMentorLogo} from "@/components/AgrarMentorLogo";
 import styles from "./FarmerSidebar.module.css";
 
 const primary=[
@@ -34,7 +35,7 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
   <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} onClick={()=>setOpen(true)}><span/><span/><span/></button>
   {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
   <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
-   <div className={styles.brand}><span className={styles.leaf} aria-hidden="true"><svg viewBox="0 0 42 54"><path d="M21 51V8"/><path d="M21 17C14 14 10 10 9 5c7 1 11 5 12 12Z"/><path d="M21 25c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 32c-7-3-11-7-12-12 7 1 11 5 12 12Z"/><path d="M21 40c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 47c-7-3-11-7-12-12 7 1 11 5 12 12Z"/></svg></span><div className={styles.brandText}><strong className={styles.wordmark} aria-label="Agrár Mentor"><span>AGRÁR</span><span>MENTOR</span></strong><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
+   <div className={styles.brand}><div className={styles.brandText}><AgrarMentorLogo className={styles.brandLogo} priority/><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
    <nav className={styles.nav}>
     <div className={styles.primaryList}>{primary.map(row)}</div>
     <div className={styles.sectionLabel}>GAZDASÁGOM</div>

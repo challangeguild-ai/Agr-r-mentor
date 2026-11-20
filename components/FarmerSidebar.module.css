@@ -21,12 +21,10 @@
 .leaf svg{width:23px;height:27px;stroke-width:2.6}
 .brand strong{font-size:15px;letter-spacing:.04em;line-height:1.12;text-wrap:nowrap}
 .brand small{margin-top:5px;font-size:9px;letter-spacing:.13em;line-height:1.3}
-/* The brand stays crisp at every density: an original two-level wordmark, not bitmap lettering. */
+/* The original brand artwork is a single responsive image shared across roles. */
 .brandText{flex:1;min-width:0}
-.brand .wordmark{display:grid;gap:1px;line-height:1;letter-spacing:0;text-wrap:nowrap}
-.wordmark span:first-child{font-size:11px;font-weight:800;letter-spacing:.19em;color:#cce6d5}
-.wordmark span:last-child{font-size:22px;font-weight:950;letter-spacing:.018em;color:#fff;text-shadow:0 1px 9px rgba(0,0,0,.12)}
-.brand .brandText small{margin-top:7px;font-size:8.5px;letter-spacing:.085em;color:#c3dbc9}
+.brandLogo{width:100%;max-width:205px}
+.brand .brandText small{margin-top:4px;font-size:8.5px;letter-spacing:.085em;color:#c3dbc9}
 .nav a{font-size:12px;min-height:40px}
 .nav a.active{background:#367f43;box-shadow:inset 3px 0 0 #a6d56a}
 .nav a.active:before{display:none}
@@ -53,10 +51,6 @@
  .close{width:44px;height:44px}
  .nav a{min-height:44px;font-size:12.5px}
  .help a,.help button{min-height:44px!important}
-}
-@media(max-width:760px){
- .brand .wordmark span:first-child{font-size:10.5px}
- .brand .wordmark span:last-child{font-size:21px}
 }
 
 /* The menu belongs to the page header, not over scrolled field cards. */

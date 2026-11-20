@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {LandingLoginModal} from "@/components/LandingLoginModal";
+import {AgrarMentorLogo} from "@/components/AgrarMentorLogo";
 import styles from "./landing.module.css";
 
 function BrandMark({large=false}:{large?:boolean}){
@@ -38,7 +39,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
  return <main className={styles.site}>
   <header className={styles.header}>
    <div className={styles.headerInner}>
-    <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><BrandMark/><span><strong>AGRÁR MENTOR</strong><small>TUDÁS. TERV. EREDMÉNY.</small></span></a>
+    <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><AgrarMentorLogo className={styles.brandLogo} priority/></a>
     <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
     <div className={styles.headerActions}><LandingLoginModal triggerLabel="Belépés" triggerClassName={styles.loginButton} initialOpen={params.login==="1"} next={requestedNext}/><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
    </div>
@@ -91,7 +92,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
     </div>
     <div className={styles.laptop} aria-label="Agrár Mentor digitális ügyfélfelület előnézete">
      <div className={styles.laptopScreen}>
-      <aside className={styles.mockSidebar}><strong>AGRÁR MENTOR</strong><span className={styles.mockActive}>⌂ Áttekintés</span><span>⌑ Táblák</span><span>☑ Teendők</span><span>▧ Műveleti napló</span><span>▣ Dokumentumok</span></aside>
+      <aside className={styles.mockSidebar}><AgrarMentorLogo className={styles.mockBrandLogo}/><span className={styles.mockActive}>⌂ Áttekintés</span><span>⌑ Táblák</span><span>☑ Teendők</span><span>▧ Műveleti napló</span><span>▣ Dokumentumok</span></aside>
       <div className={styles.mockMain}><div className={styles.mockTop}><span>Keresés táblák, feladatok, dokumentumok között…</span><b>●</b></div><h3>Táblák</h3><div className={styles.mockTabs}><b>Térkép nézet</b><span>Lista nézet</span></div><div className={styles.mockWorkspace}><div className={styles.mockMap}><i/><i/><i/><i/><i/></div><div className={styles.mockFieldInfo}><strong>Déli 12</strong><small>86 ha · Kukorica</small><em>● Jó állapot</em><hr/><b>Áttekintés</b><p>Következő feladatok és szakmai állapot egy helyen.</p><ul><li>Következő feladat</li><li>Legutóbbi bejárás</li><li>Megjegyzés</li></ul></div></div></div>
      </div>
      <div className={styles.laptopBase}/>
@@ -118,7 +119,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
   </section>
 
   <footer className={styles.footer}>
-   <div className={styles.footerInner}><div className={styles.footerBrand}><BrandMark/><span><strong>AGRÁR MENTOR</strong><small>TUDÁS. TERV. EREDMÉNY.</small></span></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
+   <div className={styles.footerInner}><div className={styles.footerBrand}><AgrarMentorLogo className={styles.footerBrandLogo}/></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
   </footer>
  </main>;
 }
