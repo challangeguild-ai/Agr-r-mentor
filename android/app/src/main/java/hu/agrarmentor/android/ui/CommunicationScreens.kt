@@ -2,6 +2,7 @@ package hu.agrarmentor.android.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,7 @@ import hu.agrarmentor.android.data.MobileDocument
 import hu.agrarmentor.android.data.MobileMessage
 import hu.agrarmentor.android.data.MobileNotification
 import hu.agrarmentor.android.data.MobileProfile
+import hu.agrarmentor.android.data.ReportField
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.launch
@@ -93,20 +95,42 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
 internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
  val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var entries by remember(session.userId){mutableStateOf<List<MobileMessage>>(emptyList())}
+ var ownFields by remember(session.userId){mutableStateOf<List<ReportField>>(emptyList())}
  var expanded by remember{mutableStateOf<String?>(null)}
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf(false)}
+ var notice by remember{mutableStateOf<String?>(null)}
+ var composeReport by remember{mutableStateOf(false)}
+ var selectedField by remember{mutableStateOf<String?>(null)}
+ var choosingField by remember{mutableStateOf(false)}
+ var title by remember{mutableStateOf("")}
+ var message by remember{mutableStateOf("")}
+ var category by remember{mutableStateOf("crop_health")}
+ var severity by remember{mutableStateOf("normal")}
+ var sending by remember{mutableStateOf(false)}
+ var sendError by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ val scope=rememberCoroutineScope()
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
-  try{entries=repo.messages(session)}catch(_:Exception){error=true}
+  try{
+   entries=repo.messages(session)
+   ownFields=repo.reportFields(session)
+  }catch(_:Exception){error=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(10.dp)){
   Text("A szaktanácsadónak küldött bejelentések és válaszok",color=GrayText,fontSize=13.sp)
+  if(notice!=null)Text(notice!!,color=colors.accent,fontSize=13.sp)
+  Button(onClick={
+   selectedField=null;title="";message="";category="crop_health";severity="normal";sendError=null;composeReport=true
+  },enabled=!loading&&ownFields.isNotEmpty(),colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
+   Text("Új szakmai bejelentés")
+  }
+  if(!loading&&ownFields.isEmpty())Text("Új bejelentést a saját gazdaságodhoz tartozó földtábláról küldhetsz.",color=GrayText,fontSize=12.sp)
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
-  else if(entries.isEmpty())Text("Nincs beszélgetésed. Új bejelentést a földtábla adatlapjáról indíthatsz.",color=GrayText)
+  else if(entries.isEmpty())Text("Még nincs szakmai bejelentésed.",color=GrayText)
   else entries.forEach{entry->
    Card(colors,onClick={expanded=if(expanded==entry.id)null else entry.id}){
     Row(verticalAlignment=Alignment.CenterVertically){
@@ -126,6 +150,53 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
      }
     }else Text("Koppints a beszélgetés megnyitásához",color=GrayText,fontSize=12.sp)
    }
+  }
+ }
+ if(composeReport){
+  val categories=listOf("crop_health" to "Növényállapot","pest" to "Kártevő","disease" to "Betegség","weed" to "Gyomosodás","water" to "Víz / aszály","weather" to "Időjárási kár","soil" to "Talajprobléma","machine" to "Gép","work" to "Munkafolyamat","other" to "Egyéb")
+  AlertDialog(onDismissRequest={if(!sending)composeReport=false},title={Text("Új szakmai bejelentés")},
+   text={Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("A bejelentés csak a saját földtábládhoz köthető; a szaktanácsadó értesítést kap, ha a szerver engedi.",fontSize=12.sp)
+    Box{
+     OutlinedButton(onClick={choosingField=true}){Text("Földtábla: ${ownFields.find{it.id==selectedField}?.name?:"Válassz táblát"}")}
+     DropdownMenu(expanded=choosingField,onDismissRequest={choosingField=false}){
+      ownFields.forEach{field->DropdownMenuItem(text={Text(field.name)},onClick={selectedField=field.id;choosingField=false})}
+     }
+    }
+    ReportChoice("Kategória",categories,category,{category=it})
+    ReportChoice("Súlyosság",listOf("normal" to "Normál","high" to "Fontos","urgent" to "Sürgős"),severity,{severity=it})
+    OutlinedTextField(title,{title=it.take(200)},label={Text("Tárgy")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+    OutlinedTextField(message,{message=it.take(5000)},label={Text("Részletes leírás")},modifier=Modifier.fillMaxWidth(),minLines=3)
+    Text("Helyszíni kép/videó és külön GPS-pont még a webes bejelentőből csatolható.",fontSize=11.sp,color=GrayText)
+    if(sending)LinearProgressIndicator(Modifier.fillMaxWidth())
+    if(sendError!=null)Text(sendError!!,color=Danger,fontSize=12.sp)
+   }},
+   confirmButton={TextButton(onClick={
+    val fieldId=selectedField?:return@TextButton
+    sending=true;sendError=null
+    scope.launch{
+     try{
+      val result=repo.createReport(session,fieldId,title,message,category,severity)
+      notice=result.warning?:"A bejelentést elmentettük és továbbítottuk a szaktanácsadóknak."
+      composeReport=false;revision++
+     }catch(e:Exception){sendError=e.message?:"A bejelentés nem menthető."}
+     finally{sending=false}
+    }
+   },enabled=!sending&&selectedField!=null&&title.trim().isNotEmpty()){
+    Text(if(sending)"Küldés…"else"Bejelentés elküldése")
+   }},
+   dismissButton={TextButton(onClick={composeReport=false},enabled=!sending){Text("Mégsem")}}
+  )
+ }
+}
+
+@Composable
+private fun ReportChoice(label:String,choices:List<Pair<String,String>>,value:String,onChange:(String)->Unit){
+ var open by remember{mutableStateOf(false)}
+ Box{
+  OutlinedButton(onClick={open=true}){Text("$label: ${choices.find{it.first==value}?.second?:"—"}")}
+  DropdownMenu(expanded=open,onDismissRequest={open=false}){
+   choices.forEach{(key,title)->DropdownMenuItem(text={Text(title)},onClick={onChange(key);open=false})}
   }
  }
 }

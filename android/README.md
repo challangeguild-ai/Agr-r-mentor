@@ -56,6 +56,12 @@ A natív képernyő a saját földtáblás feladathoz friss GPS-mérést kér (l
 
 A meglévő szaktanácsadói munkalista most már az RLS szerint megtekinthető földtáblás teljesítések részletes adatait is betölti: GPS-fix (koordináta, mérési idő, pontosság, táblahatár-validáció), terv, tényleges dózis/terület/mennyiség, időjárás, üzemóra és megjegyzés. A helyszíni fotóhoz a szerver legfeljebb 60 másodperces aláírt hivatkozást ad, amely kizárólag a jogosult felhasználó nevében kérhető. Jóváhagyás csak valóban tárolt, helyes feladathoz/végrehajtóhoz kötött igazolással, a fotó megnyitása és a felhasználó kifejezett ellenőrzési megerősítése után érhető el. Hiányzó/beteg GPS-fotó igazolásnál az app csak javításra visszaküldést tesz lehetővé. A tényleges jóváhagyás a szerver jogosultságellenőrző `review_task_execution` RPC-jén történik, és az elfogadott strukturált műveletet a szerver írja a műveleti naplóba. A végrehajtónak az adatbázis által engedélyezett értesítést próbál küldeni; az értesítés hibája nem állítja vissza a már mentett döntést. Éles szerepkörös ellenőrzés még szükséges.
 
+### Gazdálkodói bejelentés és szaktanácsadói válasz
+
+A gazdálkodó a natív **Üzenetek** felületen saját földtáblát választva kategorizált, fontossággal ellátott szöveges szakmai jelzést küldhet. Csak a felhasználó tulajdonában lévő gazdaság táblái választhatók, és a Supabase RLS újra ellenőrzi ezt mentéskor. A mentés kérésazonosítóval védi az újrapróbálást a duplikált jelzéstől, az értesítés pedig az engedélyezett `notify_advisors` RPC-n fut. Bizonytalan értesítési állapot esetén a bejelentés megmarad, nem jön létre automatikusan még egy.
+
+A szaktanácsadó a natív **Bejelentések** oldalon szűrheti, olvashatja, megválaszolhatja és lezárhatja a hozzáférhető jelzéseket. A válasz az eredeti rekord `updated_at` változatát ellenőrzi, így egy közben módosult ügyet nem ír felül vakon. A döntés után az idővonal és a gazdálkodói belső értesítés a már rögzített döntéstől elkülönülten készül. **Még hiányzik** a bejelentések natív nagy méretű kép/videó csatolása, a mellékletek megtekintése, a válasz mellé automatikusan kiosztott teendő és az e-mailes kézbesítés teljes mobilos funkciópróbája.
+
 ## Fordítás Android Studióban
 
 Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függőségek első letöltéséhez.

@@ -370,7 +370,9 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{NativeMapScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/fields/")&&session!=null){
     item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
-   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/reports","/admin/visits")&&session!=null){
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/reports"&&session!=null){
+    item{LiveAdvisorReportsScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/visits")&&session!=null){
     item{AdvisorExtrasScreen(route,session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/operations"&&session!=null){
     item{LiveOperationsScreen(session,colors)}
