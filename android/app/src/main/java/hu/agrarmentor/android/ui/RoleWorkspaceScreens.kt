@@ -557,7 +557,7 @@ private fun AdminSecurity(data:AdminWorkspace,colors:PortalPalette){
 }
 
 @Composable
-private fun Metric(label:String,value:Int,colors:PortalPalette){
+internal fun Metric(label:String,value:Int,colors:PortalPalette){
  Card(colors){
   Text(label,color=SoftInk,fontSize=12.sp,maxLines=2)
   Text(value.toString(),color=colors.accent,fontSize=24.sp,fontWeight=FontWeight.ExtraBold)

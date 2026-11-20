@@ -387,6 +387,8 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{AdvisorContactsScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/team"&&session!=null){
     item{AdvisorTeamScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/workday"&&session!=null){
+    item{AdvisorWorkdayScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/portfolio","/admin/tasks","/admin/daily-work","/admin/priorities")&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){
