@@ -22,6 +22,9 @@ test("web submission persists the attestation, and only after checking policy v2
  assert.match(catalog,/policyVersion===2/);
  assert.match(action,/permit_check_attested:formData\.get\("manual_permit_checked"\)==="on"/);
  assert.match(action,/validateManualPlantProtection\(/);
+ const detail=read("app/operations/[id]/page.tsx");
+ assert.match(detail,/reg\.permit_check_attested===true/);
+ assert.match(detail,/nincs tárolt engedélyokirat-ellenőrzési nyilatkozat/);
 });
 
 test("native submission persists the attestation, and verifies the recorded value",()=>{

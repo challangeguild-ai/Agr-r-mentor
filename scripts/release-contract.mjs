@@ -32,7 +32,21 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
  const powershell=get("scripts/Test-AgrarMentor-Migrations.ps1");
  const backupScript=get("scripts/Backup-AgrarMentor-Predeploy.ps1");
  const runnerBackup=get(".github/workflows/agrarmentor-encrypted-backup.yml");
+ const androidRelease=get(".github/workflows/agrarmentor-android-release.yml");
+ const androidBuild=get("android/app/build.gradle.kts");
  const rehearsal=get("scripts/verify_staged_migrations.sql");
+ if(!/^on:\s*\n\s+workflow_dispatch:\s*$/m.test(androidRelease)
+   ||/^\s+(push|pull_request|schedule):/m.test(androidRelease)
+   ||!androidRelease.includes("environment: agrarmentor-release")
+   ||!androidRelease.includes("secrets.AGRAR_RELEASE_KEYSTORE_BASE64")
+   ||!androidRelease.includes("vars.AGRAR_SUPABASE_PUBLISHABLE_KEY")
+   ||!androidRelease.includes('apksigner" verify --verbose')
+   ||!androidRelease.includes("assembleRelease")
+   ||!androidRelease.includes("testDebugUnitTest")
+   ||!androidRelease.includes("app/build/outputs/apk/release/app-release.apk")
+   ||!androidBuild.includes('applicationId = "hu.agrarmentor.android"')
+   ||!androidBuild.includes('signingConfigs.getByName("production")'))
+  problems.push("A natív kiadás nem bizonyítottan kézi, aláírt és az egyetlen Agrár Mentor alkalmazásra céloz.");
  if(!backupScript.includes(`$projectRef = '${targets.supabaseProjectId}'`)
    ||!backupScript.includes('"--remote=$projectRef"')
    ||!backupScript.includes("'--data-only', '--use-copy'")

@@ -1,0 +1,101 @@
+name: Agrár Mentor Android – aláírt végleges APK
+
+# Never publish on a source push. This job requires a protected environment,
+# a stable project signing key and the live (publishable, NOT service_role) config.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Kiadási verzió, például 1.0.0"
+        required: true
+        type: string
+      version_code:
+        description: "Monoton növekvő Android verziókód"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    name: Android 36 · teszt és aláírt release
+    runs-on: ubuntu-latest
+    environment: agrarmentor-release
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Android platform és aláírási eszközök
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verzó és kiadási hitelesítés ellenőrzése
+        env:
+          VERSION_NAME: ${{ inputs.version_name }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          AGRAR_SUPABASE_URL: ${{ vars.AGRAR_SUPABASE_URL }}
+          AGRAR_SUPABASE_PUBLISHABLE_KEY: ${{ vars.AGRAR_SUPABASE_PUBLISHABLE_KEY }}
+          KEYSTORE_BASE64: ${{ secrets.AGRAR_RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.AGRAR_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AGRAR_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AGRAR_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Érvénytelen stabil verziónév.'; exit 1; }
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]{0,8}$ ]] || { echo 'Érvénytelen pozitív verziókód.'; exit 1; }
+          [[ "$AGRAR_SUPABASE_URL" =~ ^https://[a-z0-9-]+\.supabase\.co$ ]] || { echo 'Hiányzó vagy érvénytelen Supabase projekt-URL.'; exit 1; }
+          test -n "$AGRAR_SUPABASE_PUBLISHABLE_KEY" || { echo 'Hiányzik a nyilvános Supabase-kulcs.'; exit 1; }
+          test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Hiányzik a tartós Android-kiadási aláírókulcs vagy jelszava.'; exit 1; }
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/agrarmentor-release.jks"
+          test -s "$RUNNER_TEMP/agrarmentor-release.jks"
+
+      - name: Natív tesztek és aláírt APK-fordítás
+        env:
+          ORG_GRADLE_PROJECT_AGRAR_APP_VERSION_NAME: ${{ inputs.version_name }}
+          ORG_GRADLE_PROJECT_AGRAR_APP_VERSION_CODE: ${{ inputs.version_code }}
+          ORG_GRADLE_PROJECT_AGRAR_SUPABASE_URL: ${{ vars.AGRAR_SUPABASE_URL }}
+          ORG_GRADLE_PROJECT_AGRAR_SUPABASE_PUBLISHABLE_KEY: ${{ vars.AGRAR_SUPABASE_PUBLISHABLE_KEY }}
+          ORG_GRADLE_PROJECT_AGRAR_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/agrarmentor-release.jks
+          ORG_GRADLE_PROJECT_AGRAR_RELEASE_STORE_PASSWORD: ${{ secrets.AGRAR_RELEASE_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_AGRAR_RELEASE_KEY_ALIAS: ${{ secrets.AGRAR_RELEASE_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_AGRAR_RELEASE_KEY_PASSWORD: ${{ secrets.AGRAR_RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - name: APK aláírás, csomagazonosító és verzió ellenőrzése
+        env:
+          VERSION_NAME: ${{ inputs.version_name }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          apk='app/build/outputs/apk/release/app-release.apk'
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"
+          metadata="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | head -n 1)"
+          [[ "$metadata" == *"name='hu.agrarmentor.android'"* ]]
+          [[ "$metadata" == *"versionCode='$VERSION_CODE'"* ]]
+          [[ "$metadata" == *"versionName='$VERSION_NAME'"* ]]
+          sha256sum "$apk"
+
+      - name: Csak az ellenőrzött aláírt APK feltöltése
+        uses: actions/upload-artifact@v4
+        with:
+          name: Agrar-Mentor-Android-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

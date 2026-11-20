@@ -100,4 +100,10 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 
 **A helyi környezetben nincs telepített Android SDK vagy Gradle-disztribúció.** A meglévő GitHub Actions fejlesztői ágán automatizált teszt és konfigurálatlan debug APK-fordítás fut. A demó APK nem végleges kiadás; a tényleges kiadáshoz konfigurált build és készülékpróba szükséges.
 
+### Végleges, aláírt Android APK kiadása
+
+A `.github/workflows/agrarmentor-android-release.yml` **kizárólag kézzel indítható** a `agrarmentor-release` GitHub Environment jóváhagyási kapuján keresztül. A munkafolyamat elutasítja a fejlesztői verziónevet, a hiányzó éles Supabase-konfigurációt és az aláírás nélküli APK-t. Sikeres natív teszt és `apksigner verify` után csak az aláírt release APK-t teszi letölthetővé (30 napig). Az alkalmazás csomagazonosítója továbbra is `hu.agrarmentor.android`.
+
+A GitHub Environment beállításai: `AGRAR_SUPABASE_URL` és `AGRAR_SUPABASE_PUBLISHABLE_KEY` **nem titkos változóként**; `AGRAR_RELEASE_KEYSTORE_BASE64`, `AGRAR_RELEASE_STORE_PASSWORD`, `AGRAR_RELEASE_KEY_ALIAS` és `AGRAR_RELEASE_KEY_PASSWORD` **titkos változóként**. Az aláírókulcsnak tartósnak kell maradnia: elvesztése esetén a már telepített alkalmazás ugyanazzal a csomagazonosítóval nem frissíthető ugyanazzal az aláírással. Az aláírókulcsot **soha ne töltsd fel a nyilvános GitHub-tárolóba vagy az APK mellé**. Az Android `version_code` minden kiadáskor növekedjen. Jelenleg nincs kiadási aláírókulcs beállítva, a workflow még nem futott, és nincs ellenőrzött végleges APK.
+
 **Kézi HU naplózás kiadási zár:** a natív és webes kliens a `hu_manual_spraying_policy_version()` **2-es verziójú** szerveroldali jelzőjét ellenőrzi. A `20261120110000_manual_hu_spraying_log_guard.sql` migráció telepítéséig a kézi naplózás letiltva marad, még akkor is, ha a HU engedélyezett felhasználási adatbázis üres. A migráció a gazda engedélyokirat-ellenőrzési megerősítését `permit_check_attested` mezőben és auditpillanatképben rögzíti; ez nem azonos hatósági ellenőrzéssel. Az adatbázis-migráció éles alkalmazása után is kötelező a jogosultságos, teljes folyamatú próba.

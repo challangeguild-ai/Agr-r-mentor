@@ -8,6 +8,14 @@ plugins {
 
 val supabaseUrl = providers.gradleProperty("AGRAR_SUPABASE_URL").orElse("")
 val supabasePublishableKey = providers.gradleProperty("AGRAR_SUPABASE_PUBLISHABLE_KEY").orElse("")
+val appVersionName = providers.gradleProperty("AGRAR_APP_VERSION_NAME").orElse("0.1.0-dev")
+val appVersionCode = providers.gradleProperty("AGRAR_APP_VERSION_CODE").map{it.toInt()}.orElse(1)
+val releaseKeystore = providers.gradleProperty("AGRAR_RELEASE_KEYSTORE_PATH").orElse("")
+val releaseStorePassword = providers.gradleProperty("AGRAR_RELEASE_STORE_PASSWORD").orElse("")
+val releaseKeyAlias = providers.gradleProperty("AGRAR_RELEASE_KEY_ALIAS").orElse("")
+val releaseKeyPassword = providers.gradleProperty("AGRAR_RELEASE_KEY_PASSWORD").orElse("")
+val releaseSigningReady = listOf(releaseKeystore.get(),releaseStorePassword.get(),releaseKeyAlias.get(),releaseKeyPassword.get())
+ .all{it.isNotBlank()}
 fun quoted(value:String)="\"${value.replace("\\","\\\\").replace("\"","\\\"")}\""
 
 android {
@@ -18,16 +26,26 @@ android {
   applicationId = "hu.agrarmentor.android"
   minSdk = 26
   targetSdk = 35
-  versionCode = 1
-  versionName = "0.1.0-dev"
+  versionCode = appVersionCode.get()
+  versionName = appVersionName.get()
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   buildConfigField("String","SUPABASE_URL",quoted(supabaseUrl.get()))
   buildConfigField("String","SUPABASE_PUBLISHABLE_KEY",quoted(supabasePublishableKey.get()))
  }
 
+ signingConfigs {
+  if(releaseSigningReady)create("production") {
+   storeFile = file(releaseKeystore.get())
+   storePassword = releaseStorePassword.get()
+   keyAlias = releaseKeyAlias.get()
+   keyPassword = releaseKeyPassword.get()
+  }
+ }
+
  buildTypes {
   release {
    isMinifyEnabled = false
+   if(releaseSigningReady)signingConfig = signingConfigs.getByName("production")
   }
  }
 

@@ -13,7 +13,7 @@ test("the release contract binds the right GitHub, Vercel and Supabase projects"
  assert.equal(result.targets.vercelProjectId,"prj_DMNfMt71StWzgb7rO839NUnrYEjS");
  assert.equal(result.targets.supabaseProjectId,"qkezhvtwirdsvhzjyvfi");
  assert.equal(result.targets.emailRelease,"2026-11-20-email-v1");
- assert.equal(result.documents.length,16);
+ assert.equal(result.documents.length,18);
  for(const item of result.documents)assert.match(item.sha256,/^[a-f0-9]{64}$/);
  assert.equal(migrationFiles.length,6);
  assert.deepEqual(edgeNames,["invite-farmer","invite-advisor","send-notification-email"]);
@@ -92,4 +92,17 @@ test("the release verifier is read-only and CI runs a compatible Node version",(
  assert.match(ci,/npm run build/);
  const pkg=JSON.parse(read("package.json"));
  assert.match(pkg.scripts.build,/release:check/);
+});
+
+test("the Android release cannot become automatic or unsigned",()=>{
+ const safe=read(".github/workflows/agrarmentor-android-release.yml");
+ assert.match(safe,/^on:\s*\n\s+workflow_dispatch:\s*$/m);
+ assert.match(safe,/environment: agrarmentor-release/);
+ assert.match(safe,/apksigner" verify --verbose/);
+ assert.doesNotMatch(safe,/^\s+(push|pull_request|schedule):/m);
+ const bad=checkReleaseContract(path=>path===".github/workflows/agrarmentor-android-release.yml"
+  ?safe.replace('apksigner" verify --verbose','apksigner" version')
+  :read(path));
+ assert.equal(bad.ok,false);
+ assert.ok(bad.problems.some(p=>p.includes("natív kiadás")));
 });
