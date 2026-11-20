@@ -99,3 +99,20 @@ test("mobile operation export is visible and the navigation drawer is touch-frie
  assert.match(sidebar,/\.nav a\{min-height:44px;font-size:12\.5px\}/);
  assert.match(sidebar,/\.help a,\.help button\{min-height:44px!important\}/);
 });
+
+test("real mobile field screenshots cannot be obscured by fixed farmer help or menu launchers",()=>{
+ const sidebar=read("components/Sidebar.tsx");
+ const sidebarCss=read("components/FarmerSidebar.module.css");
+ const shared=read("app/portal-final.css");
+ const help=read("components/HelpCenter.tsx");
+ const helpCss=read("components/HelpCenter.module.css");
+ assert.match(sidebar,/Súgóközpont<\/button>/);
+ assert.match(sidebar,/dispatchEvent\(new Event\("agrar-help-center-open"\)\)/);
+ assert.match(help,/addEventListener\("agrar-help-center-open",show\)/);
+ assert.match(help,/removeEventListener\("agrar-help-center-open",show\)/);
+ assert.match(help,/aria-label="Súgóközpont megnyitása"/);
+ assert.match(help,/role="dialog" aria-modal="true"/);
+ assert.match(helpCss,/:global\(\.farmer-app\) \.launch\{display:none\}/);
+ assert.match(sidebarCss,/:global\(\.farmer-app\) \.launch\{position:absolute;top:10px;left:12px\}/);
+ assert.match(shared,/\.farmer-app\{position:relative\}/);
+});

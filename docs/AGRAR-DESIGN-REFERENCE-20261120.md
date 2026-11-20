@@ -27,6 +27,10 @@
 
 **Mobilos záróellenőrzés:** a Műveleti napló CSV-exportja nem tűnhet el a kis kijelzőn, ezért a régi elrejtést felülbíráltuk. A mobil oldalsáv bezáró-, navigációs és súgóelemei nagyobb, legalább 44 pixeles érintési célokat és olvashatóbb feliratokat kaptak.
 
+**Valós mobilos képernyőképek – `/fields`, 2026.11.20.:** a tulajdonos Firefox/Android böngészőből a bejelentkezett legfrissebb Previewban ellenőrizte a listanézetet, és két képernyőképet küldött a lista elejéről, illetve a továbbgörgetett kártyákról. A valós adatokkal megjelenő státuszcímkék, tábla-miniatűrök és kártyák rendezettek. Ugyanakkor görgetéskor a **fixen lebegő hamburger menü takarta a kártyák egy részét**, és a saját **zöld `?` súgógombunk is ráúszott a tartalomra**. Javítás: a menüindító a mobil fejléc helyéhez kötődik és kigörgethető, a farmer mobilos súgó pedig a menü „Súgóközpont” gombjából nyílik; az asztali és tanácsadói lebegő súgó megmarad. A személyes adatot is tartalmazó felvételeket nem töltjük fel a nyilvános GitHubra.
+
+**Vercel Toolbar:** a tulajdonos harmadik képernyőképpel igazolta, hogy a jobb oldali fekete kör a Vercel előnézeti fejlesztői eszköztára, és kérte annak kikapcsolását. A Vercel projekt előnézeti eszköztárbeállítását `enablePreviewFeedback=false` értékre állítottuk. Az éles környezet eszköztár-beállítását, a deployment protectiont és a kiadási ágat nem változtattuk.
+
 ## Amit még élő, bejelentkezett vizuális ellenőrzés követ
 
 1. Referenciával összevetett teljes asztali nézet legalább 1280 px tartalmi szélességen: az oldalsáv, a földtábla térkép és minden valódi adatmező.

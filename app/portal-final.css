@@ -155,3 +155,8 @@
  .farmer-app .task-admin-row small,.farmer-app .field-card-link small{font-size:11.5px}
  .farmer-app .admin-form :is(input,select,textarea){font-size:16px}
 }
+
+/* Anchor the mobile drawer trigger to the top of the page during scrolling. */
+@media(max-width:767px){
+ .farmer-app{position:relative}
+}
