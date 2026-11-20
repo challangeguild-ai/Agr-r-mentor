@@ -35,4 +35,16 @@ class AdvisorDossierRulesTest {
    repository.clientDossier(advisor,"11111111-1111-1111-1111-111111111111&role=eq.admin")
   }}
  }
+
+ @Test fun prioritiesPutSubmittedAndUrgentWorkBeforeRoutineWork(){
+  fun task(id:String,status:String,priority:String,date:String?)=AdvisorTask(id,id,"Tábla",status,priority,date)
+  val ordered=priorityAdvisorTasks(listOf(
+   task("normal","open","normal","2026-11-19"),
+   task("done","done","urgent","2026-11-19"),
+   task("urgent","open","urgent","2026-11-21"),
+   task("submitted","submitted","normal","2026-11-22"),
+   task("high","open","high","2026-11-19")
+  )).map{it.id}
+  assertEquals(listOf("submitted","urgent","high","normal"),ordered)
+ }
 }

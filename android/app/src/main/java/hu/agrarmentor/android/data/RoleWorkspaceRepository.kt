@@ -38,6 +38,18 @@ data class AdvisorTask(
  val plan:AdvisorTaskPlan?=null
 )
 
+/** Submitted work needs review; then urgent field work precedes later or routine work. */
+internal fun priorityAdvisorTasks(tasks:List<AdvisorTask>):List<AdvisorTask> = tasks
+ .filter{it.status !in setOf("done","cancelled")}
+ .sortedWith(compareBy<AdvisorTask>{
+  when{
+   it.status=="submitted"->0
+   it.priority=="urgent"->1
+   it.priority=="high"->2
+   else->3
+  }
+ }.thenBy{it.dueDate?:"9999-12-31"}.thenBy{it.title})
+
 data class AdvisorWorkspace(
  val clients:List<AdvisorClient>,
  val tasks:List<AdvisorTask>,

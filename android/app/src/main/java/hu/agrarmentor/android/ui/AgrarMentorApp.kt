@@ -383,7 +383,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveDocumentsScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/timeline","/admin/machines")&&session!=null){
     item{LiveFarmExtrasScreen(if(route=="/admin/timeline")"/timeline" else "/machines",session,colors,onNavigate)}
-   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/tasks","/admin/daily-work")&&session!=null){
+   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/tasks","/admin/daily-work","/admin/priorities")&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){
     item{AdvisorClientDossierScreen(route.removePrefix("/admin/clients/"),session,colors,onNavigate)}

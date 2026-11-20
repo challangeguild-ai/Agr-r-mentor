@@ -33,6 +33,7 @@ import hu.agrarmentor.android.data.AdvisorTask
 import hu.agrarmentor.android.data.AdvisorTaskReview
 import hu.agrarmentor.android.data.AdvisorWorkspace
 import hu.agrarmentor.android.data.RoleWorkspaceRepository
+import hu.agrarmentor.android.data.priorityAdvisorTasks
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -64,6 +65,7 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
    when(route){
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
     "/admin/clients"->AdvisorClients(data,colors,onNavigate)
+    "/admin/priorities"->AdvisorPriorities(data,colors,onNavigate)
     "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onReviewed={revision++})
    }
   }
@@ -99,6 +101,45 @@ private fun AdvisorDashboard(data:AdvisorWorkspace,colors:PortalPalette,onNaviga
   }
  }
  Text("Az összesítők a jelenleg elérhető adatokból készülnek.",fontSize=12.sp,color=SoftInk)
+}
+
+@Composable
+private fun AdvisorPriorities(data:AdvisorWorkspace,colors:PortalPalette,onNavigate:(String)->Unit){
+ Text("Ügyfelek és ellenőrzést igénylő munkák, valódi prioritási sorrendben",fontSize=14.sp,color=SoftInk)
+ val needAttention=data.clients.filter{it.critical>0||it.attention>0}
+ Card(colors){
+  Text("Figyelmet igénylő ügyfelek",color=Ink,fontSize=17.sp,fontWeight=FontWeight.Bold)
+  Text("${needAttention.size} ügyfél",color=colors.accent,fontSize=14.sp)
+ }
+ if(needAttention.isEmpty())Text("Nincs rögzített kritikus vagy figyelmet igénylő szemleállapot.",color=SoftInk,fontSize=13.sp)
+ needAttention.take(20).forEach{client->
+  Card(colors,border=if(client.critical>0)Critical else Attention,onClick={onNavigate("/admin/clients/${client.id}")}){
+   Row(verticalAlignment=Alignment.CenterVertically){
+    Text(client.name,color=Ink,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    Icon(Icons.Default.ChevronRight,"Ügyféldosszié",tint=colors.accent)
+   }
+   Text("${client.critical} kritikus · ${client.attention} figyelmeztetés · ${client.fields} tábla",color=SoftInk,fontSize=12.sp)
+  }
+ }
+ val tasks=priorityAdvisorTasks(data.tasks)
+ Card(colors){
+  Text("Következő szakmai teendők",color=Ink,fontSize=17.sp,fontWeight=FontWeight.Bold)
+  Text("${tasks.size} nyitott vagy ellenőrzésre váró tétel",color=colors.accent,fontSize=14.sp)
+ }
+ if(tasks.isEmpty())Text("Jelenleg nincs soron következő feladat.",color=SoftInk,fontSize=13.sp)
+ tasks.take(20).forEach{task->
+  Card(colors,onClick={onNavigate("/admin/tasks")}){
+   Row(verticalAlignment=Alignment.CenterVertically){
+    Column(Modifier.weight(1f)){
+     Text(task.title,color=Ink,fontSize=15.sp,fontWeight=FontWeight.Bold)
+     Text(task.fieldName,color=SoftInk,fontSize=12.sp)
+    }
+    Text(if(task.status=="submitted")"Ellenőrzés" else if(task.priority=="urgent")"Sürgős" else if(task.priority=="high")"Fontos" else "Teendő",color=if(task.status=="submitted"||task.priority=="urgent")Critical else colors.accent,fontSize=11.sp,fontWeight=FontWeight.Bold)
+   }
+   task.dueDate?.let{Text("Határidő: ${huDate(it)}",color=SoftInk,fontSize=12.sp)}
+  }
+ }
+ Text("Egy teendő kiválasztása a teljes szaktanácsadói munkalistát nyitja meg.",color=SoftInk,fontSize=12.sp)
 }
 
 @Composable
