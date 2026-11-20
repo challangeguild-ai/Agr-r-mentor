@@ -50,7 +50,10 @@ begin
 
     if p_kind in ('task_accepted','task_worker_accepted','task_started','task_worker_started')
       and v_parts[1] = 'task'
-      and v_parts[3] = case when p_kind in ('task_accepted','task_worker_accepted') then 'accepted' else 'started' end then
+      and (
+        (p_kind in ('task_accepted','task_worker_accepted') and v_parts[3] = 'accepted')
+        or (p_kind in ('task_started','task_worker_started') and v_parts[3] = 'started')
+      ) then
       select exists(
         select 1 from public.tasks t
         join public.timeline_events e on e.source_id = t.id
@@ -77,7 +80,10 @@ begin
       ) into v_allowed;
 
     elsif p_kind in ('hotspot','hotspot_resolved') and v_parts[1] = 'hotspot'
-      and v_parts[3] = case when p_kind = 'hotspot' then 'created' else 'resolved' end then
+      and (
+        (p_kind = 'hotspot' and v_parts[3] = 'created')
+        or (p_kind = 'hotspot_resolved' and v_parts[3] = 'resolved')
+      ) then
       select exists(
         select 1 from public.timeline_events e
         join public.fields fi on fi.id = e.field_id

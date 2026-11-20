@@ -29,6 +29,16 @@ test("ordinary task workflow notifications require a task assigned to the curren
  assert.match(migration,/if not coalesce\(v_allowed,false\) then/);
 });
 
+test("PL/pgSQL IF conditions never contain nested CASE THEN terminators",()=>{
+ // Regression: the first local PostgreSQL rehearsal failed while compiling
+ // notify_advisors because CASE ... THEN appeared inside IF ... THEN.
+ assert.doesNotMatch(migration,/and\s+v_parts\[3\]\s*=\s*case\s+when/i);
+ assert.match(migration,/p_kind in \('task_accepted','task_worker_accepted'\) and v_parts\[3\] = 'accepted'/);
+ assert.match(migration,/p_kind in \('task_started','task_worker_started'\) and v_parts\[3\] = 'started'/);
+ assert.match(migration,/p_kind = 'hotspot' and v_parts\[3\] = 'created'/);
+ assert.match(migration,/p_kind = 'hotspot_resolved' and v_parts\[3\] = 'resolved'/);
+});
+
 test("hotspot links target an authorized advisor page and exposed profile RPC loses anonymous execution",()=>{
  assert.match(hotspotActions,/kind:"hotspot"[^\n]*href:"\/admin\/map"/);
  assert.match(hotspotActions,/kind:"hotspot_resolved"[^\n]*href:"\/admin\/map"/);
