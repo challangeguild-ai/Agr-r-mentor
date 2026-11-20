@@ -1,8 +1,13 @@
 "use client";
-import {ReactNode,useState} from "react";
+import {ReactNode,useEffect,useState} from "react";
 import {cancelPersonalFollowup,createPersonalFollowup,markCommunicationSeen} from "@/app/contact-actions";
 
 type CommunicationEntityType="farmer_report"|"inspection"|"task"|"advisor_message";
+
+export function CommunicationOpenMarker({entityType,entityId}:{entityType:CommunicationEntityType;entityId:string}){
+ useEffect(()=>{void markCommunicationSeen(entityType,entityId)},[entityType,entityId]);
+ return null;
+}
 
 export function CommunicationSeenMarker({entityType,entityId}:{entityType:CommunicationEntityType;entityId:string}){
  const[opened,setOpened]=useState(false),[busy,setBusy]=useState(false);

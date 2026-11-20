@@ -24,22 +24,25 @@ export default async function AdvisorDailyWorkPage(){
   supabase.from("farmer_reports").select("id,title,status,field_id,created_at").neq("status","closed").limit(300),
   supabase.from("inspections").select("id,field_id,condition,inspected_at").order("inspected_at",{ascending:false}).limit(100)
  ]);
+ const reportIds=(reports??[]).map(r=>r.id);
+ const{data:receipts}=reportIds.length?await supabase.from("communication_receipts").select("entity_id").eq("entity_type","farmer_report").eq("viewer_id",user.id).in("entity_id",reportIds):{data:[]};
+ const seenReports=new Set((receipts??[]).map(r=>r.entity_id));
  const items:DailyWorkInput[]=[
   ...(tasks??[]).map(t=>({id:t.id,kind:"task" as const,title:t.title,dueAt:t.due_date,createdAt:t.created_at,priority:t.priority,status:t.status,farmId:t.farm_id,fieldId:t.field_id})),
   ...(inspections??[]).map(i=>({id:i.id,kind:"inspection" as const,title:i.condition==="critical"?"Kritikus táblaállapot":"Szemle / visszaellenőrzés",dueAt:i.next_check_at,createdAt:i.inspected_at,condition:i.condition,status:i.issue_status,fieldId:i.field_id})),
-  ...(reports??[]).map(r=>({id:r.id,kind:"report" as const,title:r.title,dueAt:null,createdAt:r.created_at,status:r.status,unread:true,fieldId:r.field_id}))
+  ...(reports??[]).map(r=>({id:r.id,kind:"report" as const,title:r.title,dueAt:null,createdAt:r.created_at,status:r.status,unread:!seenReports.has(r.id),fieldId:r.field_id}))
  ];
  const prioritized=prioritizeDailyWork(items),alerts=buildDailyAlerts(items,dayKey(),"advisor");
  const lifecycleTasks=(tasks??[]).map(t=>({id:t.id,title:t.title,status:t.status,reviewStatus:t.review_status,completedAt:t.completed_at,fieldId:t.field_id,dueDate:t.due_date}));
  const followUps=buildFollowUpSuggestions((recentInspections??[]).map(i=>({id:i.id,source:"inspection" as const,title:"Szemle",completedAt:i.inspected_at,condition:i.condition,fieldId:i.field_id})));
  return <main className="admin-shell">
-  <header className="admin-header"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.0</span><h1>Szaktanácsadói napi vezérlő</h1><p>{me.full_name||"Szaktanácsadó"} · a teljes ügyfélállomány sürgős munkái egységes prioritási motorral.</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}><DailyWorkLegend/><Link className="ghost-btn" href="/admin/workday">Heti munkanap →</Link></div></header>
+  <header className="admin-header"><div><span className="eyebrow">NAPI MUNKAVÉGZÉS 2.1</span><h1>Szaktanácsadói napi vezérlő</h1><p>{me.full_name||"Szaktanácsadó"} · a teljes ügyfélállomány sürgős munkái egységes prioritási motorral.</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}><DailyWorkLegend/><Link className="ghost-btn" href="/admin/workday">Heti munkanap →</Link></div></header>
   <AdminNav active="workday"/>
   <DailyWorkSummary items={prioritized}/>
   <DailyAlertStrip alerts={alerts}/>
   <TaskLifecycleBoard tasks={lifecycleTasks} scope="advisor"/>
   <FollowUpSuggestionBoard items={followUps} scope="advisor"/>
   <DailyPriorityBoard items={items} title="Mai szaktanácsadói prioritások" scope="advisor"/>
-  <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FELELŐSSÉGI HATÁR</span><h2>Döntéstámogatás, nem automatikus döntés</h2></div></div><div style={{padding:14,lineHeight:1.65}}><p>A pontszám a határidőt, prioritást, kritikus állapotot, új gazdálkodói jelzést és szükséges visszaellenőrzést súlyozza.</p><p style={{marginBottom:0}}><strong>A szaktanácsadó szakmai sorrendet állít fel.</strong> A rendszer nem ad gazdasági növényvédelmi jóváhagyási jogot, nem hajt végre műveletet és nem zár le feladatot automatikusan.</p></div></section>
+  <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FELELŐSSÉGI HATÁR</span><h2>Döntéstámogatás, nem automatikus döntés</h2></div></div><div style={{padding:14,lineHeight:1.65}}><p>A pontszám a határidőt, prioritást, kritikus állapotot, még nem megnyitott gazdálkodói jelzést és szükséges visszaellenőrzést súlyozza.</p><p style={{marginBottom:0}}><strong>A szaktanácsadó szakmai sorrendet állít fel.</strong> A rendszer nem ad gazdasági növényvédelmi jóváhagyási jogot, nem hajt végre műveletet és nem zár le feladatot automatikusan.</p></div></section>
  </main>;
 }
