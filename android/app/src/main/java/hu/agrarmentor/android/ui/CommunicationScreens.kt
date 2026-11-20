@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.CommunicationRepository
+import hu.agrarmentor.android.data.DocumentScopes
+import hu.agrarmentor.android.data.DocumentUploadInput
+import hu.agrarmentor.android.data.DocumentUploadRules
 import hu.agrarmentor.android.data.MobileDocument
 import hu.agrarmentor.android.data.MobileMessage
 import hu.agrarmentor.android.data.MobileNotification
@@ -299,13 +302,64 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  var error by remember{mutableStateOf<String?>(null)}
  var opening by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ val canUpload=session.role==PortalRole.FARMER
+ var scopes by remember(session.userId){mutableStateOf(DocumentScopes(emptyList(),emptyList()))}
+ var showUpload by remember{mutableStateOf(false)}
+ var selectedFarm by remember{mutableStateOf<String?>(null)}
+ var selectedField by remember{mutableStateOf<String?>(null)}
+ var farmMenu by remember{mutableStateOf(false)}
+ var fieldMenu by remember{mutableStateOf(false)}
+ var uploadTitle by remember{mutableStateOf("")}
+ var uploadNotes by remember{mutableStateOf("")}
+ var uploadCategory by remember{mutableStateOf(if(onlyInvoices)"szamla"else"egyeb")}
+ var uploadFile by remember{mutableStateOf<DocumentUploadInput?>(null)}
+ var uploadBusy by remember{mutableStateOf(false)}
+ var uploadError by remember{mutableStateOf<String?>(null)}
+ var uploadNotice by remember{mutableStateOf<String?>(null)}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
+  if(uri!=null)try{
+   val resolver=context.contentResolver
+   val mime=resolver.getType(uri)?:error("A fájltípus nem olvasható.")
+   val data=resolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE),null,null,null)?.use{cursor->
+    if(!cursor.moveToFirst())null else{
+     val nameIndex=cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+     val sizeIndex=cursor.getColumnIndex(OpenableColumns.SIZE)
+     (if(nameIndex>=0)cursor.getString(nameIndex)else"dokumentum") to
+      (if(sizeIndex>=0&&!cursor.isNull(sizeIndex))cursor.getLong(sizeIndex)else null)
+    }
+   }
+   val fileName=data?.first?:"dokumentum"
+   check(fileName.length in 1..DocumentUploadRules.MAX_NAME&&DocumentUploadRules.validFile(mime,data?.second)){
+    "PDF, JPG, PNG, WebP, DOC vagy DOCX fájl választható, legfeljebb 20 MB méretben."
+   }
+   uploadFile=DocumentUploadInput(uri,fileName,mime,data?.second)
+   if(uploadTitle.isBlank())uploadTitle=fileName.take(DocumentUploadRules.MAX_TITLE)
+   uploadError=null
+  }catch(e:Exception){uploadError=e.message?:"A dokumentum kiválasztása sikertelen."}
+ }
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=null
-  try{entries=repo.documents(session)}catch(_:Exception){error="A dokumentumokat nem sikerült betölteni."}
+  try{
+   entries=repo.documents(session)
+   if(canUpload)scopes=repo.documentScopes(session)
+  }catch(_:Exception){error="A dokumentumokat nem sikerült betölteni."}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
   Text(if(onlyInvoices)"A dokumentumtár számla kategóriájú iratai" else "A gazdaságod dokumentumtára",color=GrayText,fontSize=13.sp)
+  if(uploadNotice!=null)Text(uploadNotice!!,color=colors.accent,fontSize=13.sp)
+  if(canUpload){
+   Button(onClick={
+    if(!repo.hasPendingDocument()){
+     selectedFarm=null;selectedField=null;uploadTitle="";uploadNotes="";uploadFile=null
+     uploadCategory=if(onlyInvoices)"szamla"else"egyeb";uploadError=null
+    }else uploadError="A megkezdett dokumentumfeltöltést ugyanazzal a fájllal és adatokkal folytathatod."
+    showUpload=true
+   },enabled=!loading&&scopes.farms.isNotEmpty(),colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
+    Text("Dokumentum feltöltése")
+   }
+   if(!loading&&scopes.farms.isEmpty())Text("Feltöltéshez saját gazdaság szükséges.",color=GrayText,fontSize=12.sp)
+  }
   val visible=if(onlyInvoices)entries.filter{it.category=="szamla"}else entries
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error!=null){
@@ -337,6 +391,59 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
     }
    }
   }
+ }
+ if(showUpload&&canUpload){
+  AlertDialog(onDismissRequest={if(!uploadBusy)showUpload=false},title={Text("Dokumentum feltöltése")},
+   text={Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("PDF, JPG, PNG, WebP, DOC vagy DOCX · legfeljebb 20 MB. A dokumentum a saját gazdaságodhoz kerül.",color=GrayText,fontSize=12.sp)
+    Box{
+     OutlinedButton(onClick={farmMenu=true},enabled=!uploadBusy){
+      Text("Gazdaság: ${scopes.farms.find{it.id==selectedFarm}?.name?:"Válassz gazdaságot"}")
+     }
+     DropdownMenu(expanded=farmMenu,onDismissRequest={farmMenu=false}){
+      scopes.farms.forEach{farm->DropdownMenuItem(text={Text(farm.name)},onClick={
+       selectedFarm=farm.id;selectedField=null;farmMenu=false
+      })}
+     }
+    }
+    Box{
+     OutlinedButton(onClick={fieldMenu=true},enabled=!uploadBusy&&selectedFarm!=null){
+      Text("Földtábla: ${scopes.fields.find{it.id==selectedField}?.name?:"Nem kötelező"}")
+     }
+     DropdownMenu(expanded=fieldMenu,onDismissRequest={fieldMenu=false}){
+      DropdownMenuItem(text={Text("Nincs megadva")},onClick={selectedField=null;fieldMenu=false})
+      scopes.fields.filter{it.farmId==selectedFarm}.forEach{field->
+       DropdownMenuItem(text={Text(field.name)},onClick={selectedField=field.id;fieldMenu=false})
+      }
+     }
+    }
+    ReportChoice("Kategória",DocumentUploadRules.categories,uploadCategory,{uploadCategory=it})
+    OutlinedTextField(uploadTitle,{uploadTitle=it.take(DocumentUploadRules.MAX_TITLE)},label={Text("Megnevezés")},singleLine=true,modifier=Modifier.fillMaxWidth())
+    OutlinedTextField(uploadNotes,{uploadNotes=it.take(DocumentUploadRules.MAX_NOTES)},label={Text("Megjegyzés (nem kötelező)")},modifier=Modifier.fillMaxWidth(),minLines=2)
+    OutlinedButton(onClick={picker.launch(arrayOf("application/pdf","image/jpeg","image/png","image/webp","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"))},enabled=!uploadBusy){
+     Text(if(uploadFile==null)"Fájl kiválasztása"else"Másik fájl választása")
+    }
+    if(uploadFile!=null)Text("Kiválasztva: ${uploadFile!!.fileName}",fontSize=12.sp,color=MainInk)
+    if(uploadBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
+    if(uploadError!=null)Text(uploadError!!,color=Danger,fontSize=12.sp)
+   }},
+   confirmButton={TextButton(onClick={
+    val farmId=selectedFarm?:return@TextButton
+    val file=uploadFile?:return@TextButton
+    uploadBusy=true;uploadError=null
+    scope.launch{
+     try{
+      repo.uploadDocument(session,context.contentResolver,farmId,selectedField,uploadTitle,uploadCategory,uploadNotes,file)
+      uploadNotice="A dokumentum sikeresen elmentve."
+      showUpload=false;revision++
+     }catch(e:Exception){uploadError="A mentés nem fejeződött be: ${e.message?:"Ismeretlen hiba"}. Ha a fájl már felkerült, ugyanazzal a dokumentummal próbáld újra."}
+     finally{uploadBusy=false}
+    }
+   },enabled=!uploadBusy&&selectedFarm!=null&&uploadFile!=null&&DocumentUploadRules.validDetails(uploadTitle,uploadNotes,uploadCategory)){
+    Text(if(uploadBusy)"Feltöltés…"else"Dokumentum mentése")
+   }},
+   dismissButton={TextButton(onClick={showUpload=false},enabled=!uploadBusy){Text("Mégsem")}}
+  )
  }
 }
 

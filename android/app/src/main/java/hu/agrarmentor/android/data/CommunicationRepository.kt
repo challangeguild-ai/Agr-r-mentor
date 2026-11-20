@@ -3,6 +3,7 @@ package hu.agrarmentor.android.data
 import android.content.ContentResolver
 import android.net.Uri
 import hu.agrarmentor.android.auth.AuthorizedSession
+import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -41,6 +42,12 @@ data class MobileDocument(
  val id:String,val title:String,val fileName:String,val category:String,
  val storagePath:String,val createdAt:String,val notes:String?
 )
+data class DocumentFarm(val id:String,val name:String)
+data class DocumentField(val id:String,val name:String,val farmId:String)
+data class DocumentScopes(val farms:List<DocumentFarm>,val fields:List<DocumentField>)
+data class DocumentUploadInput(val uri:Uri,val fileName:String,val mimeType:String,val sizeBytes:Long?){
+ val key:String get()="${uri}|${fileName}|${mimeType}|${sizeBytes?:"unknown"}"
+}
 data class MobileProfile(val name:String,val phone:String,val city:String,val jobTitle:String)
 
 /** User-scoped PostgREST and Storage calls. Database RLS remains the authority. */
@@ -51,6 +58,16 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  )
  private var pendingReport:PendingReport?=null
  fun hasPendingReport():Boolean=pendingReport!=null
+ private data class PendingDocument(
+  val id:String,val path:String,val farmId:String,val fieldId:String?,val title:String,
+  val category:String,val notes:String,val file:DocumentUploadInput,
+  var uploaded:Boolean=false,var sizeBytes:Long?=null
+ ) {
+  fun sameAs(other:PendingDocument)=farmId==other.farmId&&fieldId==other.fieldId&&
+   title==other.title&&category==other.category&&notes==other.notes&&file.key==other.file.key
+ }
+ private var pendingDocument:PendingDocument?=null
+ fun hasPendingDocument():Boolean=pendingDocument!=null
  suspend fun notifications(session:AuthorizedSession):List<MobileNotification> = withContext(Dispatchers.IO){
   val user=uuid(session.userId)
   getArray("rest/v1/notifications?select=id,title,message,kind,href,created_at,read_at&user_id=eq.$user&order=created_at.desc&limit=100",session)
@@ -257,6 +274,100 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  suspend fun documents(session:AuthorizedSession):List<MobileDocument> = withContext(Dispatchers.IO){
   getArray("rest/v1/documents?select=id,title,file_name,category,storage_path,created_at,notes&order=created_at.desc&limit=100",session)
    .map{row->MobileDocument(row.getString("id"),row.optString("title"),row.optString("file_name"),row.optString("category"),row.optString("storage_path"),row.optString("created_at"),row.nullable("notes"))}
+ }
+
+ /** Document upload is farmer-owned; the existing Storage/REST RLS policies verify ownership again. */
+ suspend fun documentScopes(session:AuthorizedSession):DocumentScopes=withContext(Dispatchers.IO){
+  require(session.role==PortalRole.FARMER)
+  val owner=uuid(session.userId)
+  val farms=getArray("rest/v1/farms?select=id,name&owner_id=eq.$owner&order=name.asc&limit=1000",session)
+   .map{DocumentFarm(it.getString("id"),it.optString("name","Gazdaság"))}
+  val owned=farms.map{it.id}.toSet()
+  val fields=if(owned.isEmpty())emptyList() else
+   getArray("rest/v1/fields?select=id,name,farm_id&order=name.asc&limit=1000",session)
+    .filter{it.optString("farm_id") in owned}
+    .map{DocumentField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
+  DocumentScopes(farms,fields)
+ }
+
+ suspend fun uploadDocument(session:AuthorizedSession,resolver:ContentResolver,farmId:String,fieldId:String?,
+  title:String,category:String,notes:String,file:DocumentUploadInput):String=withContext(Dispatchers.IO){
+  require(session.role==PortalRole.FARMER)
+  require(DocumentUploadRules.validFile(file.mimeType,file.sizeBytes)&&file.fileName.length in 1..DocumentUploadRules.MAX_NAME){
+   "PDF, JPG, PNG, WebP, DOC vagy DOCX fájl tölthető fel, legfeljebb 20 MB méretben."
+  }
+  require(DocumentUploadRules.validDetails(title,notes,category)){
+   "Ellenőrizd a megnevezést, kategóriát és megjegyzést."
+  }
+  val scopes=documentScopes(session)
+  val ownedFarm=scopes.farms.find{it.id==uuid(farmId)}?:error("Csak a saját gazdaságodba tölthetsz fel dokumentumot.")
+  val field=fieldId?.let{id->scopes.fields.find{it.id==uuid(id)&&it.farmId==ownedFarm.id}
+   ?:error("A földtábla nem ehhez a gazdasághoz tartozik.")}
+  val newDocument=PendingDocument(UUID.randomUUID().toString(),
+   "${session.userId}/${UUID.randomUUID()}-${DocumentUploadRules.safeName(file.fileName)}",
+   ownedFarm.id,field?.id,title.trim(),category,notes.trim(),file)
+  val previous=pendingDocument
+  if(previous!=null&&!previous.sameAs(newDocument))
+   error("A korábbi fájl feltöltésének eredménye nem egyértelmű. Ugyanazzal a dokumentummal próbáld újra.")
+  val draft=previous?:newDocument
+  pendingDocument=draft
+  val found=getArray("rest/v1/documents?select=id,storage_path&id=eq.${draft.id}&limit=1",session)
+  if(found.isEmpty()){
+   if(!draft.uploaded){
+    val size=uploadDocumentObject(session,resolver,draft)
+    draft.uploaded=true
+    draft.sizeBytes=size
+   }
+   val body=JSONObject().put("id",draft.id).put("uploaded_by",session.userId)
+    .put("farm_id",draft.farmId).put("field_id",draft.fieldId?:JSONObject.NULL)
+    .put("title",draft.title).put("category",draft.category).put("notes",draft.notes.ifBlank{null})
+    .put("storage_path",draft.path).put("file_name",draft.file.fileName)
+    .put("media_type",draft.file.mimeType).put("file_size",draft.sizeBytes?:draft.file.sizeBytes)
+   try{request("POST","rest/v1/documents",session,body)}
+   catch(e:Exception){
+    val saved=runCatching{getArray("rest/v1/documents?select=id,storage_path&id=eq.${draft.id}&limit=1",session)}
+     .getOrDefault(emptyList())
+    if(saved.singleOrNull()?.optString("storage_path")!=draft.path)throw e
+   }
+  }else require(found.single().optString("storage_path")==draft.path){"A dokumentum azonosítója ütközik."}
+  val confirmed=getArray("rest/v1/documents?select=id,storage_path&id=eq.${draft.id}&limit=1",session)
+  require(confirmed.singleOrNull()?.optString("storage_path")==draft.path){"A dokumentum mentése nem igazolható."}
+  pendingDocument=null
+  draft.id
+ }
+
+ private fun uploadDocumentObject(session:AuthorizedSession,resolver:ContentResolver,draft:PendingDocument):Long{
+  val encoded=draft.path.split('/').joinToString("/"){URLEncoder.encode(it,"UTF-8").replace("+","%20")}
+  val conn=(URL("${baseUrl.trimEnd('/')}/storage/v1/object/documents/$encoded").openConnection() as HttpURLConnection).apply{
+   requestMethod="POST";connectTimeout=15000;readTimeout=60000
+   setRequestProperty("apikey",publishableKey)
+   setRequestProperty("Authorization","Bearer ${session.accessToken}")
+   setRequestProperty("Content-Type",draft.file.mimeType)
+   setRequestProperty("x-upsert","false")
+   doOutput=true
+   if(draft.file.sizeBytes!=null)setFixedLengthStreamingMode(draft.file.sizeBytes) else setChunkedStreamingMode(64*1024)
+  }
+  try{
+   var size=0L
+   val input=resolver.openInputStream(draft.file.uri)?:error("A kiválasztott dokumentum nem olvasható.")
+   input.use{source->conn.outputStream.use{target->
+    val buffer=ByteArray(64*1024)
+    while(true){
+     val read=source.read(buffer)
+     if(read<0)break
+     size+=read
+     require(size<=DocumentUploadRules.MAX_BYTES){"A dokumentum meghaladja a 20 MB-ot."}
+     target.write(buffer,0,read)
+    }
+   }}
+   require(size>0){"Üres dokumentum nem tölthető fel."}
+   draft.sizeBytes=size
+   val status=conn.responseCode
+   // An uncertain previous POST may have saved this unique object before the connection failed.
+   if(status==409&&pendingDocument===draft)return size
+   if(status !in 200..299)error("A feltöltés sikertelen ($status).")
+   return size
+  }finally{conn.disconnect()}
  }
 
  /** The signed download URL is valid for one minute and never cached on disk. */
