@@ -18,16 +18,21 @@ data class OperationCreateInput(
  val fieldId:String,val date:String,val type:String,val subtype:String,val product:String,
  val treatedArea:String,val dose:String,val doseUnit:String,val quantity:String,val quantityUnit:String,
  val machine:String,val operator:String,val weather:String,val notes:String,
- val productId:String?=null,val useId:String?=null,val doseMode:String="custom",val requestedApproverId:String?=null
+ val productId:String?=null,val useId:String?=null,val doseMode:String="custom",val requestedApproverId:String?=null,
+ val crop:String="",val target:String="",val permitAcknowledged:Boolean=false
 )
 data class OperationCreateResult(val id:String,val alreadyExists:Boolean,val warning:String?)
 
-/** Owner operations, including permit-verified plant protection; server RLS/triggers remain authoritative. */
+/** Owner operations, including factual HU manual and permit-verified SK records; server RLS/triggers remain authoritative. */
 class OperationCreateRepository(private val baseUrl:String,private val publishableKey:String){
  private data class Pending(val id:String,val input:OperationCreateInput)
  private var pending:Pending?=null
  fun hasPending():Boolean=pending!=null
  fun pendingInput():OperationCreateInput?=pending?.input
+
+ suspend fun huManualAvailable(session:AuthorizedSession):Boolean=withContext(Dispatchers.IO){
+  read("plant_protection_uses?select=id,plant_protection_products!inner(country_code)&plant_protection_products.country_code=eq.HU&limit=1",session).isEmpty()
+ }
 
  suspend fun ownedFields(session:AuthorizedSession):List<OperationField> = withContext(Dispatchers.IO){
   require(session.role==PortalRole.FARMER)
@@ -56,7 +61,15 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   val quantity=OperationCreateRules.parseAmount(input.quantity)
   val field=ownedFields(session).find{it.id==uuid(input.fieldId)}
    ?:error("Csak a saját gazdaságod földtábláján rögzíthetsz műveletet.")
-  val verified=if(chemical)PlantProtectionCatalogRepository(baseUrl,publishableKey).verify(session,field,input)else null
+  val manualHu=chemical&&field.countryCode=="HU"&&input.productId.isNullOrBlank()&&input.useId.isNullOrBlank()
+  if(manualHu){
+   require(input.doseMode!="official_max") {"Kézi naplózáskor nincs hivatalosan ellenőrzött maximális dózis."}
+   require(OperationCreateRules.validHuManualLog(field.countryCode,!huManualAvailable(session),input.product,input.crop,dose,input.doseUnit,input.permitAcknowledged)){
+    "Kézi magyar növényvédelmi naplózáshoz szer, kultúra, pozitív tényleges dózis, egység és engedélyokirat-ellenőrzés szükséges."
+   }
+  }
+  val verified=if(chemical&&!manualHu)PlantProtectionCatalogRepository(baseUrl,publishableKey).verify(session,field,input)else null
+  require(!chemical||manualHu||verified!=null){"Engedélyezett készítmény és felhasználás szükséges."}
   require(OperationCreateRules.validNumbers(area,field.areaHa,dose,quantity)){
    "A terület legfeljebb a tábla mérete lehet, a dózis és a mennyiség nem lehet negatív."
   }
@@ -70,14 +83,16 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
    .put("product_name",verified?.productName?:input.product.trim().ifBlank{null})
    .put("product_id",verified?.productId?:JSONObject.NULL).put("plant_protection_use_id",verified?.useId?:JSONObject.NULL)
    .put("authorization_number",verified?.authorizationNumber?:JSONObject.NULL)
-   .put("crop",verified?.crop?:JSONObject.NULL).put("target",verified?.target?:JSONObject.NULL)
+   .put("crop",verified?.crop?:input.crop.trim().ifBlank{null}).put("target",verified?.target?:input.target.trim().ifBlank{null})
    .put("active_ingredient",verified?.activeIngredient?:JSONObject.NULL)
    .put("dose",verified?.dose?:dose?:JSONObject.NULL).put("dose_unit",verified?.doseUnit?:input.doseUnit.trim().ifBlank{null})
-   .put("dose_mode",verified?.doseMode?:JSONObject.NULL).put("official_dose_max",verified?.officialDoseMax?:JSONObject.NULL)
+   .put("dose_mode",verified?.doseMode?:if(manualHu)"executed"else JSONObject.NULL).put("official_dose_max",verified?.officialDoseMax?:JSONObject.NULL)
    .put("quantity",quantity?:JSONObject.NULL).put("quantity_unit",input.quantityUnit.trim().ifBlank{null})
    .put("treated_area",area?:JSONObject.NULL).put("machine_name",input.machine.trim().ifBlank{null})
    .put("operator_name",input.operator.trim().ifBlank{null}).put("weather",input.weather.trim().ifBlank{null})
-   .put("notes",input.notes.trim().ifBlank{null}).put("catalog_mode",if(chemical)"official"else"manual")
+   .put("notes",input.notes.trim().ifBlank{null}).put("catalog_mode",if(verified!=null)"official"else"manual")
+   .put("regulatory_snapshot",if(manualHu)JSONObject().put("verification_status","not_verified")
+    .put("permit_check_required",true).put("source","user_reported_actual_application") else JSONObject())
    .put("regulatory_category",verified?.regulatoryCategory?:JSONObject.NULL)
    .put("approval_required",verified?.approvalRequired?:false)
    .put("approval_status",if(verified?.approvalRequired==true)"pending"else"not_required")
@@ -119,8 +134,9 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   val summary=JSONObject().put("type",input.type).put("countryCode",field.countryCode)
    .put("subtype",input.subtype).put("product",verified?.productName?:input.product)
    .put("productId",verified?.productId).put("useId",verified?.useId)
-   .put("authorizationNumber",verified?.authorizationNumber).put("crop",verified?.crop)
-   .put("target",verified?.target).put("activeIngredient",verified?.activeIngredient)
+   .put("authorizationNumber",verified?.authorizationNumber).put("crop",verified?.crop?:input.crop)
+   .put("target",verified?.target?:input.target).put("activeIngredient",verified?.activeIngredient)
+   .put("verificationStatus",if(verified==null&&input.type in setOf("spraying","plant_protection"))"not_verified"else"official")
    .put("dose",verified?.dose?:OperationCreateRules.parseAmount(input.dose))
    .put("doseUnit",verified?.doseUnit?:input.doseUnit).put("quantity",OperationCreateRules.parseAmount(input.quantity))
    .put("quantityUnit",input.quantityUnit).put("treatedArea",OperationCreateRules.parseAmount(input.treatedArea))

@@ -22,7 +22,7 @@ import java.time.ZoneId
 private val OperationHint=Color(0xFF61796B)
 private val OperationError=Color(0xFFAC2A35)
 
-/** Three native steps; regulated plant protection requires a current verified product/use selection. */
+/** Three native steps: HU factual log when permit uses are unavailable; verified use otherwise. */
 @Composable
 internal fun OperationCreateDialog(
  session:AuthorizedSession,colors:PortalPalette,repository:OperationCreateRepository,
@@ -37,6 +37,10 @@ internal fun OperationCreateDialog(
  var type by remember{mutableStateOf(previous?.type?:"soil_work")}
  var subtype by remember{mutableStateOf(previous?.subtype?:"")}
  var product by remember{mutableStateOf(previous?.product?:"")}
+ var crop by remember{mutableStateOf(previous?.crop?:"")}
+ var target by remember{mutableStateOf(previous?.target?:"")}
+ var permitAcknowledged by remember{mutableStateOf(previous?.permitAcknowledged?:false)}
+ var huManualAvailable by remember{mutableStateOf<Boolean?>(null)}
  var productId by remember{mutableStateOf(previous?.productId)}
  var useId by remember{mutableStateOf(previous?.useId)}
  var doseMode by remember{mutableStateOf(previous?.doseMode?:"custom")}
@@ -62,20 +66,29 @@ internal fun OperationCreateDialog(
  }
  val selected=fields.find{it.id==fieldId}
  val chemical=type=="spraying"||type=="plant_protection"
+ LaunchedEffect(session.accessToken,selected?.countryCode){
+  huManualAvailable=null
+  if(selected?.countryCode=="HU"){
+   huManualAvailable=runCatching{repository.huManualAvailable(session)}.getOrDefault(false)
+  }
+ }
+ val manualHu=chemical&&selected?.countryCode=="HU"&&huManualAvailable==true
  val draft=OperationCreateInput(fieldId,date,type,subtype,product,treatedArea,dose,doseUnit,quantity,quantityUnit,machine,operator,weather,notes,
-  productId,useId,doseMode,requestedApproverId)
+  productId,useId,doseMode,requestedApproverId,crop,target,permitAcknowledged)
  fun validate():String?{
   if(selected==null)return "Válassz saját földtáblát."
   if(!OperationCreateRules.validDate(date))return "Érvényes dátumot adj meg (ÉÉÉÉ-HH-NN)."
   if(OperationCreateRules.types.none{it.first==type})return "Válassz érvényes művelettípust."
   if(step==0)return null
   if(!OperationCreateRules.validDetails(type,date,subtype,product,notes))return "Ellenőrizd a művelettípust, az anyagot és a szöveges adatokat."
-  if(chemical&&(productId.isNullOrBlank()||useId.isNullOrBlank()))return "Válassz hivatalos készítményt és engedélyezett felhasználást."
+  if(chemical&&!manualHu&&(productId.isNullOrBlank()||useId.isNullOrBlank()))return "Válassz hivatalos készítményt és engedélyezett felhasználást."
   return runCatching{
    val area=OperationCreateRules.parseAmount(treatedArea)
    val d=if(chemical&&doseMode=="official_max")null else OperationCreateRules.parseAmount(dose)
    val q=OperationCreateRules.parseAmount(quantity)
-   if(!OperationCreateRules.validNumbers(area,selected.areaHa,d,q))"A terület vagy a mennyiségek érvénytelenek." else null
+   if(!OperationCreateRules.validNumbers(area,selected.areaHa,d,q))"A terület vagy a mennyiségek érvénytelenek."
+   else if(manualHu&&!OperationCreateRules.validHuManualLog("HU",false,product,crop,d,doseUnit,permitAcknowledged))"A kézi naplóhoz készítmény, kultúra, tényleges pozitív dózis, egység és engedélyokirat-ellenőrzés kell."
+   else null
   }.getOrElse{it.message?:"Érvénytelen számérték."}
  }
  AlertDialog(onDismissRequest={if(!saving)onDismiss()},title={Text("Művelet rögzítése · ${step+1}/3")},
@@ -90,7 +103,7 @@ internal fun OperationCreateDialog(
       OutlinedButton(onClick={fieldMenu=true},enabled=!saving){Text("Földtábla: ${selected?.name?:"Válassz"}")}
       DropdownMenu(expanded=fieldMenu,onDismissRequest={fieldMenu=false}){
        fields.forEach{field->DropdownMenuItem(text={Text("${field.farmName} · ${field.name}")},onClick={
-        if(fieldId!=field.id){productId=null;useId=null;product="";dose="";doseUnit="";requestedApproverId=null}
+        if(fieldId!=field.id){productId=null;useId=null;product="";crop="";target="";permitAcknowledged=false;dose="";doseUnit="";requestedApproverId=null}
         fieldId=field.id;fieldMenu=false
        })}
       }
@@ -101,17 +114,28 @@ internal fun OperationCreateDialog(
       OutlinedButton(onClick={typeMenu=true},enabled=!saving){Text("Típus: ${OperationCreateRules.types.find{it.first==type}?.second?:"Válassz"}")}
       DropdownMenu(expanded=typeMenu,onDismissRequest={typeMenu=false}){
        OperationCreateRules.types.forEach{(key,label)->DropdownMenuItem(text={Text(label)},onClick={
-        if(type!=key){productId=null;useId=null;product="";dose="";doseUnit="";doseMode="custom";requestedApproverId=null}
+        if(type!=key){productId=null;useId=null;product="";crop="";target="";permitAcknowledged=false;dose="";doseUnit="";doseMode="custom";requestedApproverId=null}
         type=key;typeMenu=false
        })}
       }
      }
-     Text("Permetezésnél a következő lépésben kötelező a hivatalos készítmény, felhasználás és szükség esetén a jogosult jóváhagyó kiválasztása.",color=OperationHint,fontSize=12.sp)
+     Text(if(manualHu)"A magyar felhasználási adatok hiányában csak a ténylegesen elvégzett kezelés kézi, nem engedély-ellenőrzött naplózása érhető el."
+      else "Igazolt felhasználási adat esetén hivatalos készítmény, felhasználás és szükség esetén jogosult jóváhagyó szükséges.",color=OperationHint,fontSize=12.sp)
     }
     1->{
      Text("2. Végrehajtási adatok",fontWeight=FontWeight.Bold)
      OutlinedTextField(subtype,{subtype=it.take(120)},label={Text("Művelet részlete (nem kötelező)")},modifier=Modifier.fillMaxWidth())
-     if(chemical&&selected!=null){
+     if(manualHu){
+      Text("⚠ Kézi naplóbejegyzés – nem igazolja a szer engedélyezettségét vagy a kijuttatási jogosultságot.",color=OperationError,fontSize=12.sp)
+      OutlinedTextField(product,{product=it.take(180)},label={Text("Ténylegesen kijuttatott szer neve")},modifier=Modifier.fillMaxWidth())
+      OutlinedTextField(crop,{crop=it.take(160)},label={Text("Kezelt kultúra")},modifier=Modifier.fillMaxWidth())
+      OutlinedTextField(target,{target=it.take(160)},label={Text("Cél / károsító (nem kötelező)")},modifier=Modifier.fillMaxWidth())
+      Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+       Checkbox(checked=permitAcknowledged,onCheckedChange={permitAcknowledged=it})
+       Text("A hatályos NÉBIH engedélyokiratot külön ellenőriztem; ez csak tényleges kezelés naplózása.",fontSize=12.sp)
+      }
+      Text("Engedélykereső: novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso",color=OperationHint,fontSize=11.sp)
+     }else if(chemical&&selected!=null){
       PlantProtectionSelector(session,selected,date,
        PlantSelectionState(productId,product,useId,dose,doseUnit,doseMode,requestedApproverId),onChange={value->
         productId=value.productId;product=value.productName;useId=value.useId
@@ -119,8 +143,8 @@ internal fun OperationCreateDialog(
        })
      }else OutlinedTextField(product,{product=it.take(180)},label={Text(if(type=="fertilizing")"Anyag neve (kötelező)"else"Anyag neve (nem kötelező)")},modifier=Modifier.fillMaxWidth())
      OutlinedTextField(treatedArea,{treatedArea=it.take(30)},label={Text("Kezelt terület (ha)")},modifier=Modifier.fillMaxWidth())
-     if(!chemical)Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
-      OutlinedTextField(dose,{dose=it.take(30)},label={Text("Dózis")},modifier=Modifier.weight(1f))
+     if(!chemical||manualHu)Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
+      OutlinedTextField(dose,{dose=it.take(30)},label={Text(if(manualHu)"Tényleges dózis"else"Dózis")},modifier=Modifier.weight(1f))
       OutlinedTextField(doseUnit,{doseUnit=it.take(30)},label={Text("Egység")},modifier=Modifier.weight(1f))
      }
      Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
@@ -136,6 +160,7 @@ internal fun OperationCreateDialog(
      OutlinedTextField(weather,{weather=it.take(180)},label={Text("Időjárás / körülmények")},modifier=Modifier.fillMaxWidth())
      OutlinedTextField(notes,{notes=it.take(1000)},label={Text("Megjegyzés")},modifier=Modifier.fillMaxWidth(),minLines=3)
      Text("A rögzítés a meglévő műveleti naplóba és – amennyiben engedélyezett – az idővonalra kerül.",color=OperationHint,fontSize=12.sp)
+     if(manualHu)Text("NEM ELLENŐRZÖTT: a kézi dózis tényadat, nem hivatalos maximális dózis. A hatályos engedélyokirat és jogosultság külön ellenőrizendő.",color=OperationError,fontSize=12.sp)
     }
    }
    if(error!=null)Text(error!!,color=OperationError,fontSize=12.sp)

@@ -3,7 +3,7 @@ package hu.agrarmentor.android.data
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Shared native operation validation. Chemical uses receive additional official-catalogue verification. */
+/** Shared native operation validation. HU manual logs never claim permit verification. */
 internal object OperationCreateRules {
  val types=listOf(
   "spraying" to "Permetezés", "plant_protection" to "Növényvédelem",
@@ -29,4 +29,8 @@ internal object OperationCreateRules {
  fun validDetails(type:String,date:String,subtype:String,product:String,notes:String):Boolean =
   types.any{it.first==type}&&validDate(date)&&subtype.length<=120&&product.length<=180&&notes.length<=1000&&
    (type !in setOf("fertilizing","spraying","plant_protection")||product.isNotBlank())
+
+ fun validHuManualLog(country:String,hasVerifiedUses:Boolean,product:String,crop:String,dose:Double?,doseUnit:String,acknowledged:Boolean):Boolean =
+  country=="HU"&&!hasVerifiedUses&&product.isNotBlank()&&crop.isNotBlank()&&crop.length<=160&&
+   dose!=null&&dose.isFinite()&&dose>0&&doseUnit.isNotBlank()&&doseUnit.length<=30&&acknowledged
 }

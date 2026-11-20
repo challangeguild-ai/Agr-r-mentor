@@ -155,6 +155,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  function markDraftTouched(){draftTouched.current=true;persistDraft()}
  useEffect(()=>{persistDraft()},[draftLoaded,fieldId,type,step,product,customProduct,productId,useId,catalogCrop,dose,doseMode,machineId,customMachine,operationDate]);
  const hasUseCatalog=uses.length>0;
+ const manualHu=spraying&&country==="HU"&&!loadingCatalog&&!catalogLoadError&&coverage?.uses===0;
  const cropOptions=useMemo(()=>Array.from(new Set(uses.map(x=>x.crop).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"hu")),[uses]);
  const filteredProducts=useMemo(()=>!hasUseCatalog||!catalogCrop?products:products.filter(p=>uses.some(u=>u.product_id===p.id&&u.crop===catalogCrop)),[products,uses,catalogCrop,hasUseCatalog]);
  const productUses=useMemo(()=>uses.filter(x=>x.product_id===productId&&(!catalogCrop||x.crop===catalogCrop)),[uses,productId,catalogCrop]),selectedUse=useMemo(()=>productUses.find(x=>x.id===useId),[productUses,useId]),selectedProduct=useMemo(()=>products.find(x=>x.id===productId),[products,productId]);
@@ -199,6 +200,14 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    if(spraying&&catalogLoadError)return "Növényvédelmi művelet nem rögzíthető, amíg a hivatalos katalógus betöltése hibás. Próbáld újra a betöltést.";
    if(fert&&!effectiveProduct.trim())return "Válassz vagy adj meg műtrágyát / anyagot.";
    if(spraying){
+    if(manualHu){
+     if(!effectiveProduct.trim())return "Add meg a ténylegesen kijuttatott szer nevét.";
+     if(!String(formData.get("crop")||"").trim())return "Add meg a kezelt kultúrát.";
+     const actual=decimalOrInvalid(dose);
+     if(actual===null||!Number.isFinite(actual)||actual<=0)return "A tényleges dózisnak pozitív számnak kell lennie.";
+     if(!String(formData.get("dose_unit")||"").trim())return "Add meg a dózis egységét.";
+     if(formData.get("manual_permit_checked")!=="on")return "A hatályos NÉBIH engedélyokirat ellenőrzését meg kell erősíteni.";
+    }else{
     if(productBlock)return productBlock;
     if(!products.length)return "Nincs betöltött hivatalos növényvédőszer-katalógus; a művelet nem rögzíthető.";
     if(!hasUseCatalog)return "A hivatalos növényvédőszer-katalógushoz nincs ellenőrzött felhasználási adat; a művelet nem rögzíthető.";
@@ -212,6 +221,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     }
     if(approvalNeeded&&!eligibleApprovers.length)return "Ehhez a készítményhez előbb rögzíts megfelelő gazdasági jóváhagyót.";
     if(approvalNeeded&&!String(formData.get("requested_approver_id")||""))return "Válassz gazdasági jóváhagyó személyt.";
+    }
    }
    const enteredDose=String(formData.get("dose")||"").trim();
    if(enteredDose&&((!Number.isFinite(decimalOrInvalid(enteredDose)))||(decimalOrInvalid(enteredDose)??0)<0))return "A dózis érvénytelen: nemnegatív számot adj meg.";
@@ -282,7 +292,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    </div>}
   {spraying&&!loadingCatalog&&!catalogLoadError&&coverage?.state!=="ready"&&<div className="operation-wide error-box" role="alert">
     <strong>{coverage?.state==="partial"?"A növényvédőszer-katalógus csak részben teljes.":"A hivatalos növényvédőszer-felhasználási adatok hiányoznak."}</strong>
-    <p>{country==="HU"?"Magyarország":"Szlovákia"}: {coverage?.products??products.length} készítményből {coverage?.productsWithUses??0} rendelkezik rögzített engedélyezett felhasználással. {coverage?.productsWithoutUses??products.length} készítményhez nincs ellenőrzött kultúra–cél–dózis rekord. Hiányzó adatot nem pótolunk becsléssel; ilyen készítménnyel nem lehet műveletet menteni.</p>
+    <p>{country==="HU"?"Magyarország":"Szlovákia"}: {coverage?.products??products.length} készítményből {coverage?.productsWithUses??0} rendelkezik rögzített engedélyezett felhasználással. Hiányzó hivatalos dózishatárt nem becslünk. {manualHu?"A ténylegesen elvégzett kezelés kézzel naplózható, de nem válik hatóságilag ellenőrzötté.":"Igazolt felhasználás hiányában hivatalos művelet nem menthető."}</p>
     {country==="HU"&&<a href="https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso" target="_blank" rel="noopener noreferrer">NÉBIH engedélykereső – a hatályos engedélyokirat ellenőrzése</a>}
   </div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
@@ -293,7 +303,13 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   {hasMethod&&<label>Munkafolyamat<select name="subtype" defaultValue="" key={type}><option value="">Válassz munkafolyamatot</option>{methodOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját művelet</option></select></label>}
   </div>
   <div className="operation-wide am-operation-step" style={{display:step===1?"contents":"none"}}>
-  {fert?<><label>Műtrágya / anyag<select value={product} onChange={e=>{setProduct(e.target.value);setCustomProduct("")}}><option value="">Válassz műtrágyát</option>{fertilizerOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját termék</option></select><input type="hidden" name="product" value={effectiveProduct}/></label>{product==="Egyéb"&&<label>Saját termék megnevezése<input value={customProduct} onChange={e=>setCustomProduct(e.target.value)} required/></label>}</>:spraying?<>
+  {fert?<><label>Műtrágya / anyag<select value={product} onChange={e=>{setProduct(e.target.value);setCustomProduct("")}}><option value="">Válassz műtrágyát</option>{fertilizerOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját termék</option></select><input type="hidden" name="product" value={effectiveProduct}/></label>{product==="Egyéb"&&<label>Saját termék megnevezése<input value={customProduct} onChange={e=>setCustomProduct(e.target.value)} required/></label>}</>:spraying&&manualHu?<>
+   <div className="operation-wide" style={{padding:12,border:"1px solid #e1b95d",borderRadius:12,background:"#fffaf0"}}><b>⚠ Kézi, nem engedély-ellenőrzött naplóbejegyzés</b><p>Csak a ténylegesen végrehajtott kezelés rögzítésére. Nincs automatikus hivatalos dózisellenőrzés; a napló nem ad kijuttatási engedélyt.</p></div>
+   <label>Kijuttatott készítmény neve<input name="product" value={product} onChange={e=>setProduct(e.target.value)} maxLength={180} required/></label>
+   <label>Kezelt kultúra<input name="crop" maxLength={160} required/></label>
+   <label>Cél / károsító (nem kötelező)<input name="target" maxLength={160}/></label>
+   <label className="operation-wide" style={{display:"flex",alignItems:"flex-start",gap:10}}><input type="checkbox" name="manual_permit_checked" required style={{width:20,height:20,flex:"none",margin:0}}/> Megerősítem, hogy a hatályos NÉBIH engedélyokiratot külön ellenőriztem, és csak a tényleges kezelést naplózom. Ez nem kijuttatási engedély.</label>
+  </>:spraying?<>
    {products.length>0&&hasUseCatalog&&<label>Kultúra<select value={catalogCrop} onChange={e=>{setCatalogCrop(e.target.value);setProductId("");setUseId("");setProduct("");setDose("")}} required><option value="">Válassz kultúrát</option>{cropOptions.map(c=><option key={c}>{c}</option>)}</select></label>}
    <label>Készítmény / szer<select name="product_id" value={productId} onChange={e=>{const id=e.target.value;setProductId(id);setUseId("");setDose("");setProduct(products.find(x=>x.id===id)?.name||"")}} disabled={loadingCatalog||!hasUseCatalog||!catalogCrop} required><option value="">{loadingCatalog?"Katalógus betöltése…":!products.length?"Nincs betöltött hivatalos készítmény":!hasUseCatalog?"Nincs igazolt felhasználás":catalogCrop?"Válassz engedélyezett készítményt":"Előbb válassz kultúrát"}</option>{hasUseCatalog&&filteredProducts.map(x=><option key={x.id} value={x.id}>{x.name}{x.regulatory_category?` · ${x.regulatory_category}. kategória`:""}{x.authorization_number?` · ${x.authorization_number}`:""}</option>)}</select><input type="hidden" name="product" value={product}/></label>
    {productBlock&&<div className="error-box operation-wide" role="alert">{productBlock}</div>}
@@ -301,7 +317,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    <label>Hatóanyag(ok){productId?<input name="active_ingredient" value={activeIngredient} readOnly/>:<input name="active_ingredient"/>}</label>
    {selectedUse&&<PlantProtectionUseDetails use={selectedUse} country={country}/>} 
   </>:type==="sowing"?<label>Vetőmag / fajta<input name="product" value={product} onChange={e=>setProduct(e.target.value)}/></label>:null}
-  {inputLike&&<>{spraying&&selectedUse?.dose_max!=null?<><label>Dózis választása<select name="dose_mode" value={doseMode} onChange={e=>chooseDoseMode(e.target.value as "official_max"|"custom")}><option value="official_max">Hivatalos maximális dózis: {selectedUse.dose_max} {selectedUse.dose_unit||""}</option><option value="custom">Egyéni dózis</option></select><small>Az egyéni dózis nem lehet nagyobb a hivatalos maximumnál.</small></label>{doseMode==="custom"&&<label>Egyéni dózis<input name="dose" value={dose} onChange={e=>setDose(e.target.value)} inputMode="decimal" min={selectedUse.dose_min??undefined} max={selectedUse.dose_max} required/><small>Engedélyezett tartomány: {selectedUse.dose_min??0}–{selectedUse.dose_max} {selectedUse.dose_unit||""}</small></label>}{doseMode==="official_max"&&<input type="hidden" name="dose" value={selectedUse.dose_max}/>}</>:<label>Dózis<input name="dose" value={dose} onChange={e=>setDose(e.target.value)} inputMode="decimal"/></label>}<label>Dózis egysége{selectedUse?.dose_unit?<><select value={selectedUse.dose_unit} disabled><option>{selectedUse.dose_unit}</option></select><input type="hidden" name="dose_unit" value={selectedUse.dose_unit}/></>:<select name="dose_unit" defaultValue={spraying?"l/ha":"kg/ha"}><option>l/ha</option><option>kg/ha</option><option>g/ha</option><option>ml/ha</option><option>kg</option><option>l</option></select>}</label></>}
+  {inputLike&&<>{spraying&&selectedUse?.dose_max!=null?<><label>Dózis választása<select name="dose_mode" value={doseMode} onChange={e=>chooseDoseMode(e.target.value as "official_max"|"custom")}><option value="official_max">Hivatalos maximális dózis: {selectedUse.dose_max} {selectedUse.dose_unit||""}</option><option value="custom">Egyéni dózis</option></select><small>Az egyéni dózis nem lehet nagyobb a hivatalos maximumnál.</small></label>{doseMode==="custom"&&<label>Egyéni dózis<input name="dose" value={dose} onChange={e=>setDose(e.target.value)} inputMode="decimal" min={selectedUse.dose_min??undefined} max={selectedUse.dose_max} required/><small>Engedélyezett tartomány: {selectedUse.dose_min??0}–{selectedUse.dose_max} {selectedUse.dose_unit||""}</small></label>}{doseMode==="official_max"&&<input type="hidden" name="dose" value={selectedUse.dose_max}/>}</>:<label>{manualHu?"Ténylegesen kijuttatott dózis":"Dózis"}<input name="dose" value={dose} onChange={e=>setDose(e.target.value)} inputMode="decimal" required={!!manualHu}/></label>}<label>Dózis egysége{selectedUse?.dose_unit?<><select value={selectedUse.dose_unit} disabled><option>{selectedUse.dose_unit}</option></select><input type="hidden" name="dose_unit" value={selectedUse.dose_unit}/></>:<select name="dose_unit" defaultValue={spraying?"l/ha":"kg/ha"}><option>l/ha</option><option>kg/ha</option><option>g/ha</option><option>ml/ha</option><option>kg</option><option>l</option></select>}</label></>}
   {approvalNeeded&&<div className="operation-wide" style={{padding:14,border:"1px solid #e1b95d",borderRadius:12,background:"#fffaf0"}}><b>⚠ Jogosultsághoz kötött készítmény</b><p style={{margin:"6px 0 10px"}}>A szaktanácsadó javaslata nem jelent kijuttatási jóváhagyást. A gazdaságnak saját, érvényes növényvédelmi jogosultsággal rendelkező személyt kell kijelölnie.</p>{eligibleApprovers.length?<label>Gazdasági jóváhagyó személy<select name="requested_approver_id" required><option value="">Válassz a gazdaság jogosult személyei közül</option>{eligibleApprovers.map(a=><option key={a.id} value={a.id}>{a.full_name||"Jogosult személy"} · {a.authorization_level}. kategória{a.permit_number?` · ${a.permit_number}`:""}{a.valid_until?` · érvényes: ${a.valid_until}`:""}</option>)}</select></label>:<div className="error-box">Ehhez a készítményhez nincs megfelelő, aktív jogosultságú személy beállítva a gazdaságnál. Előbb a Gazdaságom oldalon adj meg növényvédelmi jóváhagyót.</div>}</div>}
   </div>
   <div className="operation-wide am-operation-step" style={{display:step===2?"contents":"none"}}>

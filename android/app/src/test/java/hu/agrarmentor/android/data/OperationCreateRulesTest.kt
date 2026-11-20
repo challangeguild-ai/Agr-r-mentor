@@ -5,6 +5,15 @@ import org.junit.Test
 import java.time.LocalDate
 
 class OperationCreateRulesTest {
+ @Test fun manualHuSprayLogMustBeAnAcknowledgedActualDose(){
+  assertTrue(OperationCreateRules.validHuManualLog("HU",false,"Szer","Búza",0.45,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("SK",false,"Szer","Búza",0.45,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("HU",true,"Szer","Búza",0.45,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("HU",false,"Szer","Búza",null,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("HU",false,"Szer","Búza",0.0,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("HU",false,"Szer","",0.45,"l/ha",true))
+  assertFalse(OperationCreateRules.validHuManualLog("HU",false,"Szer","Búza",0.45,"l/ha",false))
+ }
  @Test fun regulatedSprayingRequiresProductNameAndSeparatePermitValidation(){
   assertFalse(OperationCreateRules.validDetails("spraying","2026-11-20","","",""))
   assertFalse(OperationCreateRules.validDetails("plant_protection","2026-11-20","","",""))
