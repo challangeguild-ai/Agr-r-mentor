@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ internal fun OperationCreateDialog(
  var saving by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
  val scope=rememberCoroutineScope()
+ val uriHandler=LocalUriHandler.current
  LaunchedEffect(session.accessToken){
   loading=true;error=null
   try{fields=repository.ownedFields(session)}catch(_:Exception){error="A saját földtáblák nem érhetők el."}
@@ -137,7 +139,9 @@ internal fun OperationCreateDialog(
        Checkbox(checked=permitAcknowledged,onCheckedChange={permitAcknowledged=it})
        Text("A hatályos NÉBIH engedélyokiratot külön ellenőriztem; ez csak tényleges kezelés naplózása.",fontSize=12.sp)
       }
-      Text("Engedélykereső: novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso",color=OperationHint,fontSize=11.sp)
+      TextButton(onClick={uriHandler.openUri("https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso")}){
+       Text("Hatályos NÉBIH engedélyokirat megnyitása",fontSize=12.sp)
+      }
      }else if(chemical&&selected!=null){
       PlantProtectionSelector(session,selected,date,
        PlantSelectionState(productId,product,useId,dose,doseUnit,doseMode,requestedApproverId),onChange={value->
