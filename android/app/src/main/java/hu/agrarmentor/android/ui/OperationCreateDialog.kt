@@ -73,6 +73,9 @@ internal fun OperationCreateDialog(
   }
  }
  val manualHu=chemical&&selected?.countryCode=="HU"&&huManualAvailable==true
+ LaunchedEffect(manualHu){
+  if(manualHu&&doseMode=="official_max")doseMode="custom"
+ }
  val draft=OperationCreateInput(fieldId,date,type,subtype,product,treatedArea,dose,doseUnit,quantity,quantityUnit,machine,operator,weather,notes,
   productId,useId,doseMode,requestedApproverId,crop,target,permitAcknowledged)
  fun validate():String?{
@@ -84,7 +87,7 @@ internal fun OperationCreateDialog(
   if(chemical&&!manualHu&&(productId.isNullOrBlank()||useId.isNullOrBlank()))return "Válassz hivatalos készítményt és engedélyezett felhasználást."
   return runCatching{
    val area=OperationCreateRules.parseAmount(treatedArea)
-   val d=if(chemical&&doseMode=="official_max")null else OperationCreateRules.parseAmount(dose)
+   val d=if(chemical&&!manualHu&&doseMode=="official_max")null else OperationCreateRules.parseAmount(dose)
    val q=OperationCreateRules.parseAmount(quantity)
    if(!OperationCreateRules.validNumbers(area,selected.areaHa,d,q))"A terület vagy a mennyiségek érvénytelenek."
    else if(manualHu&&!OperationCreateRules.validHuManualLog("HU",false,product,crop,d,doseUnit,permitAcknowledged))"A kézi naplóhoz készítmény, kultúra, tényleges pozitív dózis, egység és engedélyokirat-ellenőrzés kell."
@@ -103,7 +106,7 @@ internal fun OperationCreateDialog(
       OutlinedButton(onClick={fieldMenu=true},enabled=!saving){Text("Földtábla: ${selected?.name?:"Válassz"}")}
       DropdownMenu(expanded=fieldMenu,onDismissRequest={fieldMenu=false}){
        fields.forEach{field->DropdownMenuItem(text={Text("${field.farmName} · ${field.name}")},onClick={
-        if(fieldId!=field.id){productId=null;useId=null;product="";crop="";target="";permitAcknowledged=false;dose="";doseUnit="";requestedApproverId=null}
+        if(fieldId!=field.id){productId=null;useId=null;product="";crop="";target="";permitAcknowledged=false;dose="";doseUnit="";doseMode="custom";requestedApproverId=null}
         fieldId=field.id;fieldMenu=false
        })}
       }
