@@ -69,7 +69,7 @@ internal fun NativeMapScreen(session:AuthorizedSession,colors:PortalPalette,onNa
 }
 
 @Composable
-private fun NativeFieldMap(fields:List<NativeMapField>){
+internal fun NativeFieldMap(fields:List<NativeMapField>){
  val context=LocalContext.current
  val owner=LocalLifecycleOwner.current
  val mapView=remember(context){

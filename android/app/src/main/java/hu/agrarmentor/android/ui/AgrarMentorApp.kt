@@ -389,12 +389,26 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{AdvisorTeamScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/workday"&&session!=null){
     item{AdvisorWorkdayScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/supervision"&&session!=null){
+    item{AdvisorSupervisionScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/map/proposals")&&session!=null){
+    item{AdvisorBoundaryScreen(route,session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/map/quality"&&session!=null){
+    item{AdvisorMapQualityScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/plant-protection-import"&&session!=null){
+    item{AdvisorCatalogScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/map/import"&&session!=null){
+    item{AdvancedWebModuleScreen(route,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/backup"&&session!=null){
+    item{AdvisorWorkspaceScreen("/admin",session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/portfolio","/admin/tasks","/admin/daily-work","/admin/priorities")&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){
     item{AdvisorClientDossierScreen(route.removePrefix("/admin/clients/"),session,colors,onNavigate)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security")&&session!=null){
     item{AdminWorkspaceScreen(route,session,colors,onNavigate)}
+   }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin/weather","/system-admin/backup")&&session!=null){
+    item{AdvancedWebModuleScreen(route,colors,onNavigate)}
    }else{
     item{GenericScreen(title,role,colors)}
    }
