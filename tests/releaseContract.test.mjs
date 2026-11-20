@@ -13,7 +13,7 @@ test("the release contract binds the right GitHub, Vercel and Supabase projects"
  assert.equal(result.targets.vercelProjectId,"prj_DMNfMt71StWzgb7rO839NUnrYEjS");
  assert.equal(result.targets.supabaseProjectId,"qkezhvtwirdsvhzjyvfi");
  assert.equal(result.targets.emailRelease,"2026-11-20-email-v1");
- assert.equal(result.documents.length,13);
+ assert.equal(result.documents.length,14);
  for(const item of result.documents)assert.match(item.sha256,/^[a-f0-9]{64}$/);
  assert.equal(migrationFiles.length,5);
  assert.deepEqual(edgeNames,["invite-farmer","invite-advisor","send-notification-email"]);
@@ -49,6 +49,16 @@ test("notification emails require an explicitly configured sender address",()=>{
  });
  assert.equal(result.ok,false);
  assert.ok(result.problems.some(p=>p.includes("feladócím")));
+});
+
+test("fresh backup must target the exact AgrarMentor project without overwriting older dumps",()=>{
+ const result=checkReleaseContract(path=>{
+  if(path==="scripts/Backup-AgrarMentor-Predeploy.ps1")
+   return read(path).replace("$projectRef = 'qkezhvtwirdsvhzjyvfi'","$projectRef = 'wrong-project'");
+  return read(path);
+ });
+ assert.equal(result.ok,false);
+ assert.ok(result.problems.some(p=>p.includes("friss backup")));
 });
 
 test("the release verifier is read-only and CI runs a compatible Node version",()=>{

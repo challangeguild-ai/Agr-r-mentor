@@ -29,7 +29,14 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
   if(typeof targets[field]!=="string"||!targets[field])problems.push(`Hiányzó kiadási célazonosító: ${field}`);
 
  const powershell=get("scripts/Test-AgrarMentor-Migrations.ps1");
+ const backupScript=get("scripts/Backup-AgrarMentor-Predeploy.ps1");
  const rehearsal=get("scripts/verify_staged_migrations.sql");
+ if(!backupScript.includes(`$projectRef = '${targets.supabaseProjectId}'`)
+   ||!backupScript.includes('"--remote=$projectRef"')
+   ||!backupScript.includes("'--data-only', '--use-copy'")
+   ||!backupScript.includes('Létező mentési mappát nem írunk felül')
+   ||/\bdb\s+push\b|\bfunctions\s+deploy\b/i.test(backupScript))
+  problems.push("A friss backup nem bizonyítottan csak olvasó, projekthez kötött és felülírásmentes.");
  if(!powershell.includes("supabase_db_AgrarMentor-mentes-2026-11-19")||!powershell.includes("ON_ERROR_STOP=1"))
   problems.push("A teszt nem a védett, helyi Docker-konténerre korlátozódik.");
  if(!/^BEGIN;$/m.test(rehearsal)||!/^ROLLBACK;$/m.test(rehearsal)||/^COMMIT;$/m.test(rehearsal))
