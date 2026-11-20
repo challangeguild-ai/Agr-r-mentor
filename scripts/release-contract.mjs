@@ -64,6 +64,9 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
   problems.push("Az értesítő e-mail küldési korlátja hiányzik.");
  if(!notification.includes("authorizeNotificationEmail("))
   problems.push("A mentett üzleti esemény címzettjogosultságának ellenőrzése hiányzik.");
+ if(!notification.includes('Deno.env.get("NOTIFICATION_EMAIL_FROM")?.trim()')
+   ||!/if\(!from\)return json\(/.test(notification))
+  problems.push("Az értesítési feladócím nincs kötelező konfigurációhoz kötve.");
  return{ok:problems.length===0,targets,documents,problems};
 }
 

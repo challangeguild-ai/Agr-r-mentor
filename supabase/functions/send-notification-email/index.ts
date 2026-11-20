@@ -64,7 +64,10 @@ Deno.serve(async(req:Request)=>{
   const destination=new URL(href||"/",appUrl);
   if(destination.origin!==appUrl)return json({error:"Érvénytelen értesítési hivatkozás."},400);
   const link=destination.href;
-  const from=Deno.env.get("NOTIFICATION_EMAIL_FROM")||"Agrár Mentor <noreply@uniqerastudio.hu>";
+  // Never silently send from an unrelated or unverified domain. Production
+  // must configure the sender explicitly in Supabase Edge Function secrets.
+  const from=Deno.env.get("NOTIFICATION_EMAIL_FROM")?.trim();
+  if(!from)return json({error:"Az értesítések feladócíme nincs beállítva."},503);
   // An authenticated client may invoke Edge Functions directly. A database
   // claim is atomic across Edge instances and prevents unlimited Resend sends.
   const {data:quotaAllowed,error:quotaError}=await admin.rpc("claim_notification_email_send_quota",{p_sender_id:user.id});

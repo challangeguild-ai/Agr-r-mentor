@@ -12,7 +12,11 @@
 | Supabase | Az AgrárMentor projekt `qkezhvtwirdsvhzjyvfi`; a szerver migrációtörténetének vége 2026.10.04. Az öt 2026.11.19-i migráció még függőben van. | A funkciók éles DB-végpontja még nem áll készen. |
 | Edge Function | `invite-farmer` v9, `invite-advisor` v6, `send-notification-email` v5 volt aktív az ellenőrzéskor. | A Vercel-kódfeltöltés nem telepíti az új Supabase Edge Functionöket. |
 | Helyi SQL-próba | Mind az öt migráció, jogosultsági és e-mail-korlát teszt átment a visszaállított Docker-adatokon; `ROLLBACK` megtörtént. | Az adatbázis-változások valós helyi PostgreSQL-en ellenőrzöttek, élesben nem alkalmazottak. |
-| Kézbesítés | Supabase Auth SMTP beállítás, Resend-küldődomain SPF/DKIM/DMARC és tényleges címzetti kézbesítés ezen ellenőrzésben nem igazolt. | Nem állíthatjuk, hogy az e-mailmodul már élesben működik. |
+| Supabase Auth SMTP | 2026.11.20-án a dashboardon az egyedi SMTP **bekapcsolva**, szolgáltató `smtp.resend.com`, port `465`, feladónév „Agrár Mentor”; a jelszó rejtett, tényleges kézbesítés nem próbált. | Konfiguráció jelen van, de éles kézbesítés külön bizonyítandó. |
+| Resend | A `notify.waterk.hu` küldődomain **verified**, a `mail.waterk.hu` **not_started**. | Az értesítési feladóhoz a hitelesített domaint kell használni. |
+| Auth Site URL | A tárolt alapértelmezett cím `https://agr-r-mentor.vercel.app/**`, noha ezen a mezőn wildcard nem engedélyezett. Az allowlistben `https://agr-r-mentor.vercel.app/**` és `https://agr-r-mentor.vercel.app/reset-password` szerepel. | **Jóváhagyott módosítást igényel**: a Site URL pontos eredetre javítandó; az allowlist éles meghívási útvonalhoz megfelelő. |
+| Edge titkok | `RESEND_API_KEY` és `APP_PUBLIC_ORIGIN` név szerint jelen van; **`NOTIFICATION_EMAIL_FROM` hiányzik**. A kód többé nem használ régi idegen domaint alapértelmezésként. | Éles küldés előtt a hitelesített küldődomainhez illő feladócím beállítandó. |
+| Friss mentés | A Free csomag dashboardja jelzi: nincs automatikus projektmentés. A 2026.11.19-i Windows Docker-mentés helyreállítási próbája sikeres volt, de a mentés kora élesítés előtt frissítendő. | Az adatbázis-migráció előtt **friss, visszaállítható mentés** szükséges. |
 
 ## 2. Forráscsomag és célprojekt-ellenőrzés
 
@@ -33,7 +37,7 @@ node scripts/release-contract.mjs --json
 ## 3. Egyetlen, összehangolt élesítési sorrend – csak külön jóváhagyás után
 
 1. **Záró pillanatkép:** ellenőrizni, hogy a production Supabase még mindig az előre ismert projekt, az öt migráció még függőben van, a korábbi production Vercel-kiadás és mindhárom Edge Function visszaállítható. A biztonsági mentés megvan; migráció előtt a mentés időpontját és visszaállíthatóságát külön megerősíteni.
-2. **Konfiguráció:** rögzíteni a végleges production HTTPS eredetcímet. Egyeztetni Vercel `APP_PUBLIC_ORIGIN`, Supabase Edge `APP_PUBLIC_ORIGIN`, Auth `Site URL` és `Redirect URLs`; az e-mail küldődomaint, Supabase Auth SMTP-t és a Resend titkot. A jelenlegi, hosszú Preview alias önmagában nem alkalmas az éles meghívók célcímének.
+2. **Konfiguráció:** a production `https://agr-r-mentor.vercel.app` eredetcímet egyeztetni Vercel és Supabase Edge `APP_PUBLIC_ORIGIN`, Auth `Site URL` és `Redirect URLs` beállításaival. A hibás Auth Site URL végéről eltávolítani a `/**` részt, és a hiányzó `NOTIFICATION_EMAIL_FROM` értéket a hitelesített Resend-küldődomainen beállítani. A Supabase Auth SMTP jelenlétét már igazoltuk, a kézbesítését még nem. A hosszú Preview alias nem az éles meghívók célcíme.
 3. **DB:** az öt validált migrációt az előre rögzített sorrendben alkalmazni, és minden RPC/RLS jogosultságát ellenőrizni. **Ne** töltsünk fel új Edge Functiont a kvóta-függvények DB-létrehozása előtt.
 4. **Három Edge Function együtt:** `invite-farmer`, `invite-advisor`, `send-notification-email` és közös `_shared` moduljaik ugyanabból a jóváhagyott git commitból kerüljenek ki. A Supabase-ben `verify_jwt=true` maradjon; minden visszaválasz `X-AgrarMentor-Email-Release: 2026-11-20-email-v1` revízióazonosítót tartalmazzon.
 5. **Valódi integrációs próba:** tesztfiókokkal meghívó, aktiválás, gazdálkodó ↔ szaktanácsadó, gazda → munkatárs, szemle és munka leadása; kézbesítés és link működésének ellenőrzése, jogosulatlan célcím és duplázás elutasítása. Nem tesztelünk véletlenszerű valódi felhasználók címére.

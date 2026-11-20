@@ -40,6 +40,17 @@ test("mismatched Edge releases and missing invitation quotas block the package",
  assert.ok(result.problems.some(p=>p.includes("meghívás korlátozása")));
 });
 
+test("notification emails require an explicitly configured sender address",()=>{
+ const result=checkReleaseContract(path=>{
+  if(path==="supabase/functions/send-notification-email/index.ts")
+   return read(path).replace('Deno.env.get("NOTIFICATION_EMAIL_FROM")?.trim()',
+    'Deno.env.get("NOTIFICATION_EMAIL_FROM")||"Agrár Mentor <noreply@old.invalid>"');
+  return read(path);
+ });
+ assert.equal(result.ok,false);
+ assert.ok(result.problems.some(p=>p.includes("feladócím")));
+});
+
 test("the release verifier is read-only and CI runs a compatible Node version",()=>{
  const source=read("scripts/release-contract.mjs");
  assert.doesNotMatch(source,/execSync|spawnSync|child_process|\bawait\s+fetch\(|db push|supabase functions deploy/);
