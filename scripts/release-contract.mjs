@@ -67,6 +67,10 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
   if(/^\s*(BEGIN|COMMIT|ROLLBACK)\s*;/im.test(sql))problems.push(`Beágyazott tranzakció a migrációban: ${filename}`);
   if(filename.includes("manual_hu_spraying_log_guard")&&
     (!sql.includes("hu_manual_spraying_policy_version")||!sql.includes("verification_status','not_verified'")
+      ||!sql.includes("permit_check_attested boolean not null default false")
+      ||!sql.includes("not coalesce(new.permit_check_attested,false)")
+      ||!sql.includes("plant_protection_use_id,crop,dose,dose_unit,dose_mode,permit_check_attested")
+      ||!sql.includes("as $$ select 2 $$")
       ||sql.includes("new.product_id := p.id")))
    problems.push("A kézi HU növényvédelmi migráció hiányosan vagy veszélyesen jelöli a hivatalos termékazonosságot.");
  }

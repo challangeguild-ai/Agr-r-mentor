@@ -58,7 +58,7 @@ export async function GET(request:NextRequest){
   const{data:policyVersion,error:policyError}=country==="HU"
    ?await supabase.rpc("hu_manual_spraying_policy_version")
    :{data:null,error:null};
-  const manualPolicyReady=country==="HU"&&!policyError&&policyVersion===1;
+  const manualPolicyReady=country==="HU"&&!policyError&&policyVersion===2;
   const products:any[]=[];
   for(let from=0;;from+=PAGE){const{data,error}=await supabase.from("plant_protection_products").select("id,name,authorization_number,function_type,valid_from,valid_until,source_name,source_checked_at,source_url,source_snapshot_at,regulatory_category,regulatory_status,withdrawal_effective_at,grace_period_until,status_note,professional_use_only,prescription_required,approval_required,active").eq("country_code",country).eq("active",true).order("name").range(from,from+PAGE-1);if(error)return noStore({error:error.message},500);products.push(...(data??[]));if((data??[]).length<PAGE)break}
   const productIds=products.map(p=>p.id);if(!productIds.length){const coverage=plantProtectionCoverage([],[]);return noStore({country,type,catalog:effectiveCatalog,products:[],uses:[],ingredients:[],approvers,source:source?{...source,status:effectivePlantCatalogStatus(source.status,coverage)}:null,coverage,manualPolicyReady})}

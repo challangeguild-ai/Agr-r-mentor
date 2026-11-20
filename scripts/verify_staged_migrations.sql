@@ -71,10 +71,27 @@ BEGIN
   END IF;
 
   IF to_regprocedure('public.hu_manual_spraying_policy_version()') IS NULL
-     OR public.hu_manual_spraying_policy_version() <> 1
+     OR public.hu_manual_spraying_policy_version() <> 2
      OR has_function_privilege('anon','public.hu_manual_spraying_policy_version()','EXECUTE')
      OR NOT has_function_privilege('authenticated','public.hu_manual_spraying_policy_version()','EXECUTE') THEN
     RAISE EXCEPTION 'A magyar kézi permetezési napló védelmi verziója vagy jogosultsága hiányzik';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='field_operations'
+      AND column_name='permit_check_attested' AND is_nullable='NO'
+  ) THEN
+    RAISE EXCEPTION 'A magyar kézi kezelés engedélyellenőrzési nyilatkozata nem tárolható';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger t
+    WHERE t.tgrelid='public.field_operations'::regclass
+      AND t.tgname='guard_hu_plant_protection_regulatory_status'
+      AND pg_get_triggerdef(t.oid) LIKE '%permit_check_attested%'
+      AND pg_get_triggerdef(t.oid) LIKE '%dose_unit%'
+      AND pg_get_triggerdef(t.oid) LIKE '%crop%'
+  ) THEN
+    RAISE EXCEPTION 'A kézi napló utólagos dózis- vagy nyilatkozatmódosítása nincs ellenőrizve';
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_proc p

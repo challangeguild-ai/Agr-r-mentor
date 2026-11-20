@@ -1,6 +1,10 @@
 -- A manual HU spray entry is a factual log, never an approved product/use record.
 -- The legacy name-based regulatory lookup must not silently populate product_id:
 -- that would bypass the product/use pair check in prepare_field_operation_snapshot.
+-- Keep an auditable user attestation instead of only a transient checkbox.
+alter table public.field_operations
+  add column if not exists permit_check_attested boolean not null default false;
+
 create or replace function public.guard_hu_plant_protection_regulatory_status()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare
@@ -24,8 +28,9 @@ begin
        or new.dose is null or new.dose <= 0
        or nullif(trim(coalesce(new.dose_unit,'')),'') is null
        or new.dose_mode='official_max'
+       or not coalesce(new.permit_check_attested,false)
        or new.plant_protection_use_id is not null then
-      raise exception 'Kézi növényvédelmi naplózáshoz szer, kultúra, pozitív tényleges dózis és mértékegység kell; hivatalos maximum nem választható.';
+      raise exception 'Kézi növényvédelmi naplózáshoz szer, kultúra, pozitív tényleges dózis, mértékegység és az engedélyokirat ellenőrzésének megerősítése kell; hivatalos maximum nem választható.';
     end if;
     new.catalog_mode := 'manual';
     new.official_dose_max := null;
@@ -43,6 +48,8 @@ begin
       'verification_status','not_verified',
       'source','user_reported_actual_application',
       'permit_check_required',true,
+      'permit_check_attested',true,
+      'permit_attested_at',now(),
       'permit_search_url','https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso'
     );
   end if;
@@ -86,7 +93,16 @@ begin
   return new;
 end $$;
 
--- Keep the existing trigger and its name-based checks; replace only the function.
+-- Recheck the attestation and actual dose on every relevant edit, not just when
+-- the operation date or product name changes. Ordinary status updates remain unaffected.
+drop trigger if exists guard_hu_plant_protection_regulatory_status on public.field_operations;
+create trigger guard_hu_plant_protection_regulatory_status
+before insert or update of
+  operation_date,operation_type,country_code,product_id,product_name,
+  plant_protection_use_id,crop,dose,dose_unit,dose_mode,permit_check_attested
+on public.field_operations for each row
+execute function public.guard_hu_plant_protection_regulatory_status();
+
 revoke all on function public.guard_hu_plant_protection_regulatory_status() from public,anon,authenticated;
 
 -- Clients must fail closed until the guarded trigger is actually installed.
@@ -94,6 +110,6 @@ revoke all on function public.guard_hu_plant_protection_regulatory_status() from
 -- trigger above still enforce every operation after the marker is present.
 create or replace function public.hu_manual_spraying_policy_version()
 returns integer language sql stable security invoker set search_path=public,pg_temp
-as $$ select 1 $$;
+as $$ select 2 $$;
 revoke all on function public.hu_manual_spraying_policy_version() from public,anon;
 grant execute on function public.hu_manual_spraying_policy_version() to authenticated;

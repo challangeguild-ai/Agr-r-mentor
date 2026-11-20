@@ -32,7 +32,7 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
 
  suspend fun huManualAvailable(session:AuthorizedSession):Boolean=withContext(Dispatchers.IO){
   // Without the migrated database guard, previews must not silently save an unverified chemical.
-  if(request("POST","rpc/hu_manual_spraying_policy_version",session,JSONObject()).trim()!="1")return@withContext false
+  if(request("POST","rpc/hu_manual_spraying_policy_version",session,JSONObject()).trim()!="2")return@withContext false
   read("plant_protection_uses?select=id,plant_protection_products!inner(country_code)&plant_protection_products.country_code=eq.HU&limit=1",session).isEmpty()
  }
 
@@ -102,7 +102,8 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
    .put("approver_name",verified?.approverName?:JSONObject.NULL)
    .put("approval_basis",if(verified?.approvalRequired==true)"farm_plant_protection_approver"else JSONObject.NULL)
    .put("created_by",session.userId)
-  val lookup="field_operations?select=id,farm_id,field_id,operation_date,operation_type,created_by,product_name,product_id,plant_protection_use_id,requested_approver_id,treated_area,dose,quantity&id=eq.${draft.id}&limit=1"
+  if(manualHu)body.put("permit_check_attested",input.permitAcknowledged)
+  val lookup="field_operations?select=id,farm_id,field_id,operation_date,operation_type,created_by,product_name,product_id,plant_protection_use_id,requested_approver_id${if(manualHu)",permit_check_attested"else""},treated_area,dose,quantity&id=eq.${draft.id}&limit=1"
   var saved=read(lookup,session).singleOrNull()
   var alreadyExists=saved!=null
   if(saved==null){
@@ -120,6 +121,7 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
    saved.optional("product_name")== (verified?.productName?:input.product.trim().ifBlank{null})&&
    saved.optional("product_id")==verified?.productId&&saved.optional("plant_protection_use_id")==verified?.useId&&
    saved.optional("requested_approver_id")==verified?.approverId&&
+   saved.optBoolean("permit_check_attested",false)==(manualHu&&input.permitAcknowledged)&&
    sameAmount(saved,"treated_area",area)&&sameAmount(saved,"dose",verified?.dose?:dose)&&sameAmount(saved,"quantity",quantity)){
    "A művelet mentése nem igazolható, vagy a mentési azonosítóhoz eltérő adatok tartoznak."
   }
