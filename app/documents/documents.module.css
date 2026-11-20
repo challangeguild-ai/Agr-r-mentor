@@ -25,3 +25,12 @@
  .field input,.field select,.field textarea{font-size:16px}
  .dropzone{min-height:135px}
 }
+/* The document editor is shared by farmer and advisor roles. */
+.uploadDisclosure>summary{background:var(--agrar-ui-accent,#0f5637);border-radius:var(--agrar-ui-control-radius)}
+.uploadDisclosure>summary:focus-visible{outline-color:var(--agrar-ui-focus,#55a271)}
+.uploadCard,.libraryCard{background:var(--agrar-ui-surface,#fffdf8);border-color:var(--agrar-ui-border,#e0e7dd);border-radius:var(--agrar-ui-card-radius,13px)}
+.uploadHead span,.uploadHead h2,.libraryHead h2{color:var(--agrar-ui-ink,#1d3427)}
+.field,.dropLabel{color:var(--agrar-ui-ink,#24372d)}
+.field input,.field select,.field textarea{min-width:0;max-width:100%;box-sizing:border-box;border-color:var(--agrar-ui-border,#d9dfda);border-radius:var(--agrar-ui-control-radius,9px)}
+.field input:focus,.field select:focus,.field textarea:focus,.dropzone:hover{border-color:var(--agrar-ui-focus,#6aa17f)}
+.uploadIcon{background:var(--agrar-ui-soft,#e9f3eb);color:var(--agrar-ui-accent,#246b49)}

@@ -3,6 +3,9 @@ import {createSystemAdminDataClient} from "@/lib/supabase/systemAdminData";
 import {BlockHelpButton} from "@/components/GuidedTour";
 import styles from "./system-admin-dashboard.module.css";
 
+const AUDIT_ACTION_LABELS:Record<string,string>={task_status_repair:"Feladatállapot helyesbítése"};
+const AUDIT_TARGET_LABELS:Record<string,string>={task:"Feladat",user:"Felhasználó",farm:"Gazdaság",field:"Földtábla"};
+
 export default async function SystemAdminPage(){
  const supabase=await createSystemAdminDataClient();
  const[{count:users},{count:farms},{count:fields},{count:tasks},{count:openTasks},{count:reports},{count:securityHigh},{data:recentAudit}]=await Promise.all([
@@ -46,7 +49,7 @@ export default async function SystemAdminPage(){
 
   <section className={styles.auditPanel} data-help-block="system-audit">
    <div className={styles.sectionHead}><div><span>AUDIT</span><h2>Legutóbbi admin beavatkozások</h2></div><div className={styles.auditTools}><span>Összes feladat: {tasks??0}</span><BlockHelpButton label="Az admin auditnapló magyarázata" content={{title:"Adminisztrátori auditnapló",body:"A legutóbbi rendszeradminisztrátori beavatkozások visszakövethető listája: művelet, érintett objektum, időpont és indoklás.",important:"Kritikus beavatkozásnál az indoklásnak konkrétnak és ellenőrizhetőnek kell lennie."}}/></div></div>
-   {recentAudit?.length?<div className={styles.auditList}>{recentAudit.map(e=><article key={e.id}><span className={styles.auditDot}/><div><strong>{e.action}</strong><small>{e.target_type}{e.target_id?` · ${e.target_id}`:""} · {new Date(e.created_at).toLocaleString("hu-HU")}</small><p>{e.reason}</p></div></article>)}</div>:<div className={styles.empty}>Még nincs adminisztrátori beavatkozás naplózva.</div>}
+   {recentAudit?.length?<div className={styles.auditList}>{recentAudit.map(e=><article key={e.id}><span className={styles.auditDot}/><div><strong>{AUDIT_ACTION_LABELS[e.action]??e.action}</strong><small>{AUDIT_TARGET_LABELS[e.target_type]??e.target_type}{e.target_id?` · ${e.target_id}`:""} · {new Date(e.created_at).toLocaleString("hu-HU")}</small><p>{e.reason}</p></div></article>)}</div>:<div className={styles.empty}>Még nincs adminisztrátori beavatkozás naplózva.</div>}
   </section>
  </main>;
 }

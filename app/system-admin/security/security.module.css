@@ -1,0 +1,13 @@
+.summaryHeading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;min-width:0;gap:12px;padding:0 2px 2px}
+.summaryHeading h2{margin:0;font-size:16px;line-height:1.35;color:var(--agrar-ui-ink)}
+.eventList{display:grid;gap:12px;min-width:0}
+.eventCard{min-width:0;max-width:100%;padding:14px;background:#fff;border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius)}
+.highRisk{background:#fff4f5;border-color:#e5b9be}
+.eventHeading{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
+.eventTitle{min-width:0;flex:1 1 240px;overflow-wrap:anywhere}
+.eventTitle strong{display:block;font-size:14px;line-height:1.4;color:var(--agrar-ui-ink)}
+.eventTitle small{display:block;margin-top:4px;font-size:11.5px;line-height:1.5;color:var(--agrar-ui-muted);overflow-wrap:anywhere}
+.eventHeading :global(.user-pill){max-width:100%;font-size:12px;overflow-wrap:anywhere}
+.eventDetails{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:9px;margin-top:12px;font-size:12px;line-height:1.5}
+.eventDetails span{min-width:0;overflow-wrap:anywhere}
+@media(max-width:700px){.summaryHeading h2{font-size:14px}.eventCard{padding:13px}.eventDetails{grid-template-columns:minmax(0,1fr)}}

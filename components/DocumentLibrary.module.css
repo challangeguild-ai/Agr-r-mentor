@@ -24,3 +24,11 @@
  .nameCell small,.scope,.size,.row time{font-size:11.5px}
  .actions button{min-height:40px;font-size:11.5px}
 }
+/* Shared document browser: farmer green and advisor blue from the role root. */
+.categoryTabs button.categoryActive{background:var(--agrar-ui-accent,#0f5637);border-color:var(--agrar-ui-accent,#0f5637)}
+.categoryTabs button:focus-visible,.nameCell:focus-visible,.actions button:focus-visible{outline-color:var(--agrar-ui-focus,#55a271)}
+.toolbar select,.searchWrap input,.categoryTabs button,.table,.row{border-color:var(--agrar-ui-border,#dfe5df)}
+.clear,.actions button{color:var(--agrar-ui-accent,#2f7049);border-color:var(--agrar-ui-border,#dfe5df)}
+.badge,.emptyIcon{background:var(--agrar-ui-soft,#e9f3eb);color:var(--agrar-ui-accent,#246b49)}
+.nameCell strong,.empty strong{color:var(--agrar-ui-ink,#223329)}
+.empty,.table{background:var(--agrar-ui-surface,#fff)}

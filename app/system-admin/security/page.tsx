@@ -1,11 +1,84 @@
 import {createAdminClient} from "@/lib/supabase/admin";
 import {BlockHelpButton} from "@/components/GuidedTour";
+import styles from "./security.module.css";
 
-function label(sev:string){return sev==="critical"?"Kritikus":sev==="high"?"Magas":sev==="medium"?"Közepes":sev==="low"?"Alacsony":"Információ"}
-export default async function SecurityPage(){
- const supabase=createAdminClient();const{data:events}=await supabase.from("security_events").select("id,created_at,actor_user_id,event_type,severity,risk_score,ip_address,country_code,region,city,user_agent,request_path,method,subject_type,subject_id,detail").order("created_at",{ascending:false}).limit(250);
- const rows=events??[],high=rows.filter(e=>Number(e.risk_score)>=70).length,critical=rows.filter(e=>e.severity==="critical").length;
- return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">BIZTONSÁGI KÖZPONT</span><h1>Biztonsági események</h1><p>Hitelesítési, export- és jogosultsági események incidensvizsgálathoz.</p></div></header>
- <section className="admin-summary" data-help-block="system-security-summary"><div style={{gridColumn:"1/-1",display:"flex",justifyContent:"flex-end"}}><BlockHelpButton label="A biztonsági összesítő magyarázata" content={{title:"Biztonsági események összesítése",body:"Az összesítő a betöltött biztonsági események számát, a 70 vagy magasabb kockázati pontszámú tételeket és a kritikus súlyosságú eseményeket külön emeli ki. Ez gyors incidens-triázsra szolgál.",important:"A kockázati pontszám és a súlyosság vizsgálati prioritást jelez, nem automatikus bizonyítékot támadásra vagy jogosulatlan hozzáférésre."}}/></div><div><span>Betöltött események</span><strong>{rows.length}</strong></div><div><span>Magas kockázat</span><strong>{high}</strong></div><div><span>Kritikus</span><strong>{critical}</strong></div></section>
- <section className="panel" data-help-block="system-security-events"><div className="panel-heading"><div><span className="eyebrow">INCIDENSVIZSGÁLAT</span><h2>Eseménynapló</h2></div><BlockHelpButton label="A biztonsági eseménynapló magyarázata" content={{title:"Biztonsági eseménynapló",body:"A lista eseményenként megmutatja a típust, időpontot, érintett útvonalat és HTTP műveletet, súlyosságot, kockázati pontszámot, IP-címet, közelítő helyet, felhasználót és érintett rendszerobjektumot. Ezekből lehet egy incidens körülményeit visszakövetni.",important:"Az IP-alapú hely csak közelítő adat. VPN, mobilhálózat vagy szolgáltatói útvonalválasztás miatt eltérhet a tényleges helytől, ezért önmagában nem alkalmas személy vagy helyzet biztos azonosítására."}}/></div><div className="notice" style={{marginBottom:16}}>Az IP-alapú hely csak közelítő adat. VPN, mobilhálózat vagy szolgáltatói routing miatt eltérhet a tényleges tartózkodási helytől.</div><div style={{display:"grid",gap:10}}>{rows.map(e=><article key={e.id} style={{padding:14,border:"1px solid #eadcdf",borderRadius:11,background:e.risk_score>=70?"#fff4f5":"#fff"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{e.event_type}</strong><small style={{display:"block",marginTop:4,color:"#75666a"}}>{new Date(e.created_at).toLocaleString("hu-HU")} · {e.request_path||"—"} · {e.method||"—"}</small></div><span className="user-pill">{label(e.severity)} · {e.risk_score}/100</span></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginTop:10,fontSize:12}}><span><b>IP:</b> {e.ip_address||"nem ismert"}</span><span><b>Hely:</b> {[e.city,e.region,e.country_code].filter(Boolean).join(", ")||"nem ismert"}</span><span><b>Felhasználó:</b> {e.actor_user_id||"ismeretlen"}</span><span><b>Cél:</b> {e.subject_type||"—"} {e.subject_id||""}</span></div></article>)}</div></section></main>
+const EVENT_LABELS: Record<string, string> = {
+  mfa_step_up_failed: "Sikertelen MFA-megerősítés",
+  mfa_step_up_success: "Sikeres MFA-megerősítés",
+  backup_export_without_fresh_mfa: "Mentés blokkolva: nincs friss MFA",
+  backup_export_failed: "Sikertelen biztonsági mentés",
+  backup_export_success: "Sikeres biztonsági mentés",
+};
+
+function severityLabel(value: string | null | undefined) {
+  return value === "critical" ? "Kritikus" : value === "high" ? "Magas" : value === "medium" ? "Közepes" : value === "low" ? "Alacsony" : "Információ";
+}
+
+export default async function SecurityPage() {
+  const supabase = createAdminClient();
+  const {data: events} = await supabase.from("security_events")
+    .select("id,created_at,actor_user_id,event_type,severity,risk_score,ip_address,country_code,region,city,user_agent,request_path,method,subject_type,subject_id,detail")
+    .order("created_at", {ascending: false}).limit(250);
+  const rows = events ?? [];
+  const high = rows.filter((event) => Number(event.risk_score) >= 70).length;
+  const critical = rows.filter((event) => event.severity === "critical").length;
+
+  return (
+    <main className="admin-shell">
+      <header className="admin-header">
+        <div>
+          <span className="eyebrow">BIZTONSÁGI KÖZPONT</span>
+          <h1>Biztonsági események</h1>
+          <p>Hitelesítési, export- és jogosultsági események incidensvizsgálathoz.</p>
+        </div>
+      </header>
+
+      <section className="admin-summary" data-help-block="system-security-summary" aria-labelledby="security-summary-heading">
+        <header className={styles.summaryHeading}>
+          <h2 id="security-summary-heading">Biztonsági helyzetkép</h2>
+          <BlockHelpButton label="A biztonsági összesítő magyarázata" content={{
+            title: "Biztonsági események összesítése",
+            body: "Az összesítő a betöltött biztonsági események számát, a 70 vagy magasabb kockázati pontszámú tételeket és a kritikus súlyosságú eseményeket külön emeli ki. Ez gyors incidens-triázsra szolgál.",
+            important: "A kockázati pontszám és a súlyosság vizsgálati prioritást jelez, nem automatikus bizonyítékot támadásra vagy jogosulatlan hozzáférésre.",
+          }}/>
+        </header>
+        <div><span>Betöltött események</span><strong>{rows.length}</strong></div>
+        <div><span>Magas kockázat</span><strong>{high}</strong></div>
+        <div><span>Kritikus</span><strong>{critical}</strong></div>
+      </section>
+
+      <section className="panel" data-help-block="system-security-events">
+        <div className="panel-heading">
+          <div><span className="eyebrow">INCIDENSVIZSGÁLAT</span><h2>Eseménynapló</h2></div>
+          <BlockHelpButton label="A biztonsági eseménynapló magyarázata" content={{
+            title: "Biztonsági eseménynapló",
+            body: "A lista eseményenként megmutatja a típust, időpontot, érintett útvonalat és HTTP műveletet, súlyosságot, kockázati pontszámot, IP-címet, közelítő helyet, felhasználót és érintett rendszerobjektumot. Ezekből lehet egy incidens körülményeit visszakövetni.",
+            important: "Az IP-alapú hely csak közelítő adat. VPN, mobilhálózat vagy szolgáltatói útvonalválasztás miatt eltérhet a tényleges helytől, ezért önmagában nem alkalmas személy vagy helyzet biztos azonosítására.",
+          }}/>
+        </div>
+        <div className="notice" style={{marginBottom: 16}}>
+          Az IP-alapú hely csak közelítő adat. VPN, mobilhálózat vagy szolgáltatói routing miatt eltérhet a tényleges tartózkodási helytől.
+        </div>
+        <div className={styles.eventList}>
+          {rows.map((event) => (
+            <article className={`${styles.eventCard} ${Number(event.risk_score) >= 70 ? styles.highRisk : ""}`} key={event.id}>
+              <div className={styles.eventHeading}>
+                <div className={styles.eventTitle}>
+                  <strong>{EVENT_LABELS[event.event_type] ?? event.event_type}</strong>
+                  <small>{new Date(event.created_at).toLocaleString("hu-HU")} · {event.request_path || "—"} · {event.method || "—"}</small>
+                </div>
+                <span className="user-pill">{severityLabel(event.severity)} · {event.risk_score}/100</span>
+              </div>
+              <div className={styles.eventDetails}>
+                <span><b>IP:</b> {event.ip_address || "nem ismert"}</span>
+                <span><b>Hely:</b> {[event.city, event.region, event.country_code].filter(Boolean).join(", ") || "nem ismert"}</span>
+                <span><b>Felhasználó:</b> {event.actor_user_id || "ismeretlen"}</span>
+                <span><b>Cél:</b> {event.subject_type || "—"} {event.subject_id || ""}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
 }
