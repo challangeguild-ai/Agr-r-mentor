@@ -136,7 +136,11 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
    .put("productId",verified?.productId).put("useId",verified?.useId)
    .put("authorizationNumber",verified?.authorizationNumber).put("crop",verified?.crop?:input.crop)
    .put("target",verified?.target?:input.target).put("activeIngredient",verified?.activeIngredient)
-   .put("verificationStatus",if(verified==null&&input.type in setOf("spraying","plant_protection"))"not_verified"else"official")
+   .put("verificationStatus",when{
+    verified!=null->"official"
+    input.type in setOf("spraying","plant_protection")->"not_verified"
+    else->"not_applicable"
+   })
    .put("dose",verified?.dose?:OperationCreateRules.parseAmount(input.dose))
    .put("doseUnit",verified?.doseUnit?:input.doseUnit).put("quantity",OperationCreateRules.parseAmount(input.quantity))
    .put("quantityUnit",input.quantityUnit).put("treatedArea",OperationCreateRules.parseAmount(input.treatedArea))
