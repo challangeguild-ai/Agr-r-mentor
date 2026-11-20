@@ -23,11 +23,14 @@
 
 **Közös keret:** `components/Sidebar.tsx`, `components/FarmerSidebar.module.css`, `components/FarmerTopbar.module.css`, a modulok CSS-állományai és a `portal-final.css` már a meglévő dizájnt viszik tovább. Az oldalsáv a referencia színrendszerét, dekoratív tájhorizontot és profil-láblécet kapott, működő navigációk elvesztése nélkül.
 
+**Második, kiegészítő egységesítési kör:** a felső keresősáv a képernyőhöz illő keresőszöveget jeleníti meg, és telefonon is jól használható méretű; a profil és az értesítési központ kártyái, szövegei és gombjai a hat fő mintaképernyő méretarányaihoz igazodnak. A napi munkaközpont mobilos összesítői, valamint a régebbi gazdálkodói űrlapok, statisztikák és fókuszjelzések is azonos ritmust kaptak. A földtábla állapotjelzője szemle nélkül **semleges**, nem zöld „jó” állapotot sugall. Ezek megjelenési finomítások: a működő jogosultságokat, adatokat, műveleteket és szerepkörönként eltérő profilszíneket nem írják át.
+
 ## Amit még élő, bejelentkezett vizuális ellenőrzés követ
 
 1. Referenciával összevetett teljes asztali nézet legalább 1280 px tartalmi szélességen: az oldalsáv, a földtábla térkép és minden valódi adatmező.
 2. Mobilon 360/390/430 px: térkép/lista kapcsoló, hosszú földtáblanév, összetett műveleti sor, dokumentum/feltöltés, beszélgetés visszanavigálás, oldalsáv görgetés.
 3. Bejelentkezett farmer/munkatárs szerepkörrel az összes 02–07 útvonal megnyitása a Vercel Previewban. A build és az automatizált tesztek **nem helyettesítik** a tényleges böngészős megtekintést.
+   - 2026.11.20.: a Preview elkészült, de a külső vizuális ellenőrzést a Vercel Authentication belépési kapuja megállította. Ezt a fennmaradó QA-feladatot nem tekintjük elvégzettnek.
 4. A referencia 01-es (áttekintő dashboard) képe **nem szerepelt** ezen a hatképernyős montázson; a már elkészült dashboardot változatlanul őrizzük, amíg a hozzá tartozó elfogadott minta is rendelkezésre nem áll.
 
 **Kiadási határ:** ezek a módosítások kizárólag a Draft javítási ágon vannak. Supabase migráció vagy Vercel production élesítés ezzel nem történt.

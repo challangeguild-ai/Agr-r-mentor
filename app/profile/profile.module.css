@@ -20,3 +20,25 @@
 .red .fileButton{border-color:#e5cdd1!important;color:#922f3a!important}
 .blue :global(.btn-primary){background:#2e6e9f!important}
 .red :global(.btn-primary){background:#922f3a!important}
+
+/* Profile reached from the reference account footer: same card rhythm on phone. */
+.head{flex-wrap:wrap;align-items:center}
+.head h1{font-size:clamp(27px,3vw,34px);line-height:1.15}
+.head p{font-size:13px;line-height:1.5}
+.card{background:#fff;border-color:#e0e7dd;border-radius:14px}
+.avatarRow{background:#f8faf6;border-color:#dfe7dd}
+.avatarRow strong{font-size:15px}
+.avatarRow p{font-size:12px;line-height:1.45}
+.grid label{font-size:13px;line-height:1.45}
+.grid input,.grid select{min-height:44px;font-size:14px;border-color:#cfdccf;border-radius:9px}
+.section p{font-size:12px;line-height:1.5}
+.success,.error{font-size:12px;line-height:1.45}
+@media(max-width:700px){
+ .head{gap:12px}
+ .head h1{font-size:28px}
+ .head p{font-size:12.5px}
+ .avatarRow{padding:12px;gap:12px}
+ .grid{gap:13px}
+ .grid label{font-size:12.5px}
+ .grid input,.grid select{font-size:16px;min-height:46px}
+}

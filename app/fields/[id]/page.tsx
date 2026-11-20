@@ -80,7 +80,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés táblák, műveletek vagy dokumentumok között…"/>
       <section className={styles.fieldHero}>
        <div className={styles.fieldHeroMain}><Link href="/fields">← Táblák</Link><span>FÖLDTÁBLA</span><h1>{field.name}</h1><p>{field.area_ha?`${field.area_ha} ha`:"—"} · {field.current_crop||"Nincs kultúra"} · {farm?.name||"Gazdaság"}</p></div>
-       <div className={styles.fieldHeroState}><span className={latestInspection?.condition==="critical"?styles.stateCritical:latestInspection?.condition==="attention"?styles.stateAttention:styles.stateGood}>{conditionLabel(latestInspection?.condition)}</span><Link href={operationHref}>Művelet rögzítése →</Link></div>
+       <div className={styles.fieldHeroState}><span className={latestInspection?.condition==="critical"?styles.stateCritical:latestInspection?.condition==="attention"?styles.stateAttention:latestInspection?.condition==="good"?styles.stateGood:styles.stateUnknown}>{conditionLabel(latestInspection?.condition)}</span><Link href={operationHref}>Művelet rögzítése →</Link></div>
       </section>
 
       <nav className={styles.tabs} aria-label="Földtábla részletei"><a href="#attekintes">Áttekintés</a><a href="#muveletek">Műveletek</a><a href="#idojaras">Időjárás</a><a href="#allapot">Talaj és növény</a><a href="#dokumentumok">Dokumentumok</a><a href="#terkep">Térkép</a></nav>

@@ -28,3 +28,23 @@
  .profileText,.chevron{display:none}
  .menu{right:0;top:41px;width:min(245px,calc(100vw - 24px))}
 }
+
+/* Reference header: clear search hierarchy, consistent focus and touch targets. */
+.bar{background:rgba(250,249,244,.98);border-bottom-color:#e4e8df}
+.search{border-color:#dce5d9;background:#fff;min-height:44px}
+.search:focus-within{border-color:#49926a;box-shadow:0 0 0 3px rgba(61,146,90,.13)}
+.search input{font-size:13.5px;line-height:1.35}
+.search input::placeholder{color:#7b8880;opacity:1}
+.profile:focus-visible,.menu>a:focus-visible,.logout:focus-visible{outline:3px solid #4a9e6c!important;outline-offset:2px}
+.menu>a{min-height:42px;font-size:12px}
+.menuHead strong{font-size:12px}
+.menuHead small{font-size:11px}
+@media(max-width:767px){
+ .bar{min-height:64px}
+ .search{min-height:44px}
+ .search input{font-size:16px}
+ .profile{width:42px!important;min-width:42px!important;max-width:42px!important;height:42px!important;min-height:42px!important;padding:4px!important}
+ .profileWrap{min-width:42px}
+ .avatar,.avatarImage{width:34px;height:34px;flex-basis:34px}
+ .menu{top:48px}
+}

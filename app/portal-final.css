@@ -132,3 +132,26 @@
  .farmer-app .task-create-grid button[type="submit"]{width:100%}
  .farmer-app .task-create-grid .am-dispatch-summary{font-size:13px}
 }
+
+/* Accepted reference continuity for legacy farmer screens without altering workflows. */
+.farmer-app .topbar h1{font-size:clamp(28px,3vw,34px)!important;color:#183125!important;letter-spacing:-.035em}
+.farmer-app .topbar p{font-size:13px!important;line-height:1.55!important;color:#69796f!important}
+.farmer-app .topbar .eyebrow{color:#30764c}
+.farmer-app .stats-grid .stat-card{border-color:#dfe6dc!important;background:#fff!important}
+.farmer-app .stats-grid .stat-card span{font-size:12px!important;line-height:1.4}
+.farmer-app .stats-grid .stat-card strong{font-size:clamp(22px,2.2vw,28px)!important;overflow-wrap:anywhere}
+.farmer-app .stats-grid .stat-card small{font-size:11px!important;line-height:1.4}
+.farmer-app .task-admin-row strong,.farmer-app .field-card-link strong{font-size:14px;line-height:1.45}
+.farmer-app .task-admin-row small,.farmer-app .field-card-link small{font-size:12px;line-height:1.45}
+.farmer-app .admin-form :is(input,select,textarea){min-height:44px;font-size:14px;line-height:1.45;border-color:#cad9cd;border-radius:9px}
+.farmer-app .admin-form label{font-size:12.5px;line-height:1.45}
+.farmer-app :is(a,button,input,select,textarea):focus-visible{outline:3px solid #55a271!important;outline-offset:2px!important}
+@media(max-width:767px){
+ .farmer-app .topbar h1{font-size:28px!important}
+ .farmer-app .topbar p{font-size:12.5px!important}
+ .farmer-app .stats-grid .stat-card span{font-size:11.5px!important}
+ .farmer-app .stats-grid .stat-card small{font-size:11px!important}
+ .farmer-app .task-admin-row strong,.farmer-app .field-card-link strong{font-size:13px}
+ .farmer-app .task-admin-row small,.farmer-app .field-card-link small{font-size:11.5px}
+ .farmer-app .admin-form :is(input,select,textarea){font-size:16px}
+}

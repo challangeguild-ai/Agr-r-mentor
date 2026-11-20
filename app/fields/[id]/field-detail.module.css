@@ -33,6 +33,7 @@
 .healthRing.healthCritical strong{color:#a33831;font-size:12px}
 .healthRing.healthUnknown{background:#b7c7ba}
 .healthRing.healthUnknown strong{color:#68766c}
+.stateUnknown{background:#edf1ed;color:#647469}
 @media(max-width:767px){
  .fieldHero{padding:19px 16px;min-height:152px}
  .fieldHeroMain h1{font-size:30px}

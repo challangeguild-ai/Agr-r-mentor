@@ -35,7 +35,7 @@ export function FarmerTopbar({
  return <header className={styles.bar} data-tour="farmer-topbar">
   <form className={styles.search} action="/dashboard" method="get" data-tour="farmer-global-search">
    <span aria-hidden="true">⌕</span>
-   <input name="q" defaultValue={defaultQuery} placeholder="Keresés…" aria-label={placeholder} title={placeholder}/>
+   <input name="q" type="search" defaultValue={defaultQuery} placeholder={placeholder} aria-label={placeholder} title={placeholder}/>
    <button type="submit">Keresés</button>
   </form>
   <div className={styles.actions}>

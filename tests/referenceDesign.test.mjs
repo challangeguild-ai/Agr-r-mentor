@@ -62,3 +62,29 @@ test("six reference sections preserve responsive views and readable controls",()
   assert.match(css,/font-size:1[2-6]px/,`${path}: no readable text sizing`);
  }
 });
+
+test("shared farmer header preserves real search behavior and usable mobile controls",()=>{
+ const header=read("components/FarmerTopbar.tsx");
+ const css=read("components/FarmerTopbar.module.css");
+ assert.match(header,/action="\/dashboard" method="get"/);
+ assert.match(header,/name="q" type="search"/);
+ assert.match(header,/placeholder=\{placeholder\}/);
+ assert.match(css,/\.search:focus-within/);
+ assert.match(css,/@media\(max-width:767px\)/);
+ assert.match(css,/\.search input\{font-size:16px\}/);
+ assert.match(css,/\.profile\{width:42px!important/);
+});
+
+test("unknown field health is neutral and remaining farmer screens stay accessible",()=>{
+ const fieldPage=read("app/fields/[id]/page.tsx");
+ const fieldCss=read("app/fields/[id]/field-detail.module.css");
+ const notifications=read("app/notifications/notifications.module.css");
+ const profile=read("app/profile/profile.module.css");
+ const shared=read("app/portal-final.css");
+ assert.match(fieldPage,/latestInspection\?\.condition==="good"\?styles\.stateGood:styles\.stateUnknown/);
+ assert.match(fieldCss,/\.stateUnknown\{background:#edf1ed/);
+ assert.match(notifications,/\.toolbar a:focus-visible/);
+ assert.match(notifications,/\.actions a,\.actions button\{min-height:42px/);
+ assert.match(profile,/\.grid input,\.grid select\{font-size:16px/);
+ assert.match(shared,/\.farmer-app :is\(a,button,input,select,textarea\):focus-visible/);
+});
