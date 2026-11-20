@@ -31,6 +31,8 @@
 
 **Vercel Toolbar:** a tulajdonos harmadik képernyőképpel igazolta, hogy a jobb oldali fekete kör a Vercel előnézeti fejlesztői eszköztára, és kérte annak kikapcsolását. A Vercel projekt előnézeti eszköztárbeállítását `enablePreviewFeedback=false` értékre állítottuk. Az éles környezet eszköztár-beállítását, a deployment protectiont és a kiadási ágat nem változtattuk.
 
+**Második valós mobilos visszajelzés:** a tulajdonos szerint a fejléc kigörgethető állapota megfelelő; ezen nem változtatunk. A zöld lebegő súgógomb azonban az utolsó táblakártyát továbbra is takarhatta. A globális gazdálkodói gombstílus felülírhatta a komponens mobilos `display:none` szabályát, ezért célzott `display:none!important` elsőbbséget kapott. A Súgóközpont változatlanul a mobil menüben nyitható meg.
+
 ## Amit még élő, bejelentkezett vizuális ellenőrzés követ
 
 1. Referenciával összevetett teljes asztali nézet legalább 1280 px tartalmi szélességen: az oldalsáv, a földtábla térkép és minden valódi adatmező.

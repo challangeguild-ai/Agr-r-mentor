@@ -112,7 +112,7 @@ test("real mobile field screenshots cannot be obscured by fixed farmer help or m
  assert.match(help,/removeEventListener\("agrar-help-center-open",show\)/);
  assert.match(help,/aria-label="Súgóközpont megnyitása"/);
  assert.match(help,/role="dialog" aria-modal="true"/);
- assert.match(helpCss,/:global\(\.farmer-app\) \.launch\{display:none\}/);
+ assert.match(helpCss,/:global\(\.farmer-app\) \.launch\{display:none!important\}/);
  assert.match(sidebarCss,/:global\(\.farmer-app\) \.launch\{position:absolute;top:10px;left:12px\}/);
  assert.match(shared,/\.farmer-app\{position:relative\}/);
 });

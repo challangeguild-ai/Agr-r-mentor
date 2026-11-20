@@ -6,5 +6,5 @@
 
 /* On farmer phones, the same help center opens from the side menu instead. */
 @media(max-width:767px){
- :global(.farmer-app) .launch{display:none}
+ :global(.farmer-app) .launch{display:none!important}
 }
