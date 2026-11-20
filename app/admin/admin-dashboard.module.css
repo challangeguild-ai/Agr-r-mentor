@@ -11,3 +11,56 @@
 @media(min-width:768px) and (max-width:1199px){.page{width:min(100%,980px);padding:0 22px 30px!important}.topbar{margin:0 -22px 14px;padding:12px 22px 12px 78px;min-height:72px}.quickGrid,.stats{grid-template-columns:repeat(2,1fr)}.content{grid-template-columns:1fr}.alertGrid{grid-template-columns:repeat(2,1fr)}.clientFocusGrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:767px){.page{width:100%;padding:70px 12px 86px!important}.topbar{margin:0 -12px 12px;padding:11px 12px;min-height:68px;height:auto}.welcome h1{font-size:21px;margin-bottom:3px}.welcome p{font-size:9px;line-height:1.35}.year{display:none}.alerts{padding:10px;margin-bottom:10px}.alertHead{align-items:flex-start}.alertHead a{display:none}.alertGrid{grid-template-columns:1fr}.quickGrid,.stats{grid-template-columns:1fr 1fr;gap:7px}.quickCard{grid-template-columns:36px minmax(0,1fr);padding:10px;min-height:80px}.quickIcon{width:34px;height:34px;font-size:15px}.quickCount{grid-column:2;font-size:17px}.stat{padding:10px;display:block;min-height:110px}.icon{width:36px;height:36px;font-size:17px;margin-bottom:8px}.value{font-size:19px}.content{gap:9px}.panelHead{min-height:48px;padding:10px 11px}.panelHead h2{font-size:14px}.clientFocusGrid{grid-template-columns:1fr;padding:8px}.row{grid-template-columns:36px minmax(0,1fr);padding:10px 11px}.row time{grid-column:2;text-align:left;font-size:8px}.rowIcon{width:34px;height:34px}.row strong{font-size:10px}.row small{font-size:8px}}
 @media(max-width:430px){.quickGrid,.stats{grid-template-columns:1fr}.stat{min-height:auto}.quickCard{grid-template-columns:36px minmax(0,1fr) auto}.quickCount{grid-column:auto}}
+
+/* Advisor dashboard mobile readability and action visibility.
+   The persistent mobile role header owns the top of the viewport. */
+@media(max-width:767px){
+ .topbar{position:relative;top:auto;z-index:auto;flex-wrap:wrap;gap:12px}
+ .welcome h1{font-size:23px;line-height:1.2}
+ .welcome p{font-size:12.5px;line-height:1.5}
+ .quickCard{min-height:88px}
+ .quickCard strong{font-size:13px;line-height:1.35}
+ .quickCard small{font-size:11.5px;line-height:1.45}
+ .quickCount{font-size:21px}
+ .panelHead{gap:8px;flex-wrap:wrap}
+ .panelHead h2{font-size:17px;line-height:1.3}
+ .panelHead a{display:inline-flex;align-items:center;min-height:42px;font-size:12px}
+ .clientFocusCard{padding:12px}
+ .clientFocusTop strong{font-size:13px;line-height:1.35}
+ .clientFocusTop small{font-size:11.5px;line-height:1.4}
+ .clientFocusTop b{font-size:11px}
+ .clientFocusMeta span{font-size:11px;line-height:1.4}
+ .alertHead{align-items:center;flex-wrap:wrap}
+ .alertHead strong{font-size:15px}
+ .alertHead small{font-size:11.5px;line-height:1.4}
+ .alertHead a{display:inline-flex;align-items:center;min-height:44px;padding:0 8px;font-size:12px;white-space:nowrap}
+ .alert{min-height:64px}
+ .alert b{font-size:12.5px;line-height:1.35}
+ .alert small{font-size:11.5px;line-height:1.4;white-space:normal;overflow:visible;text-overflow:clip}
+ .label,.meta{font-size:11.5px;line-height:1.4}
+ .row{min-height:68px}
+ .row strong{font-size:13px}
+ .row small,.row time{font-size:11.5px;line-height:1.45}
+ .empty{font-size:12px;line-height:1.5}
+}
+
+/* Shared AgrárMentor component contract, blue role palette. */
+.page{color:var(--agrar-ui-ink);--surface:var(--agrar-ui-surface);--line:var(--agrar-ui-border);--blue:var(--agrar-ui-accent);--blueSoft:var(--agrar-ui-soft);--muted:var(--agrar-ui-muted)}
+.quickCard,.stat,.panel{background:var(--agrar-ui-surface);border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius);box-shadow:var(--agrar-ui-shadow)}
+.quickCard,.stat{min-height:88px;padding:12px;gap:10px}
+.quickIcon,.icon{width:44px;height:44px;border-radius:50%;background:var(--agrar-ui-soft);color:var(--agrar-ui-accent)}
+.quickCard strong{font-size:13px;line-height:1.35}.quickCard small{font-size:11px;line-height:1.4}.quickCount{font-size:21px;color:var(--agrar-ui-accent)}
+.panelHead{min-height:52px;padding:12px 14px;background:linear-gradient(180deg,#fffefa,var(--agrar-ui-surface));border-bottom:1px solid var(--agrar-ui-border)}
+.panelHead h2{font-size:17px;color:var(--agrar-ui-ink)}.panelHead a{font-size:12px;color:var(--agrar-ui-accent)}
+.clientFocusCard,.alert{background:#fff;border:1px solid var(--agrar-ui-border);border-radius:10px;padding:12px}
+.clientFocusTop strong,.alert b,.row strong{font-size:13px;line-height:1.4}
+.clientFocusTop small,.alert small,.row small,.row time{font-size:11px;line-height:1.45}
+.clientFocusMeta span{font-size:11px;line-height:1.4}
+.row{min-height:64px;padding:12px 13px;border-bottom:1px solid var(--agrar-ui-border)}
+.rowIcon,.clientAvatar{border-radius:9px;background:var(--agrar-ui-soft);color:var(--agrar-ui-accent)}
+.label,.meta{font-size:11px;line-height:1.45}.value{font-size:21px;color:var(--agrar-ui-ink)}
+@media(max-width:767px){
+ .quickCard,.stat{min-height:88px}.quickIcon,.icon{width:36px;height:36px}
+ .quickCard strong,.row strong{font-size:13px}.quickCard small,.row small,.row time{font-size:11.5px}
+ .panelHead h2{font-size:17px}.panelHead a{font-size:12px;min-height:44px}
+}

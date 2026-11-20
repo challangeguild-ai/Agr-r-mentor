@@ -1,0 +1,67 @@
+/* One component design language across the three portals. Navigation and
+   permissions are role-specific; geometry and interaction patterns are not. */
+.farmer-app,.agrar-role-ui{
+ --agrar-ui-surface:#fffdf8;
+ --agrar-ui-canvas:#f5f3ed;
+ --agrar-ui-ink:#1d3026;
+ --agrar-ui-muted:#69776e;
+ --agrar-ui-border:#dfe3d9;
+ --agrar-ui-card-radius:13px;
+ --agrar-ui-control-radius:9px;
+ --agrar-ui-shadow:0 5px 17px rgba(27,48,35,.05);
+ --agrar-ui-gap:12px;
+ --agrar-ui-accent:#12613f;
+ --agrar-ui-soft:#e7f3e8;
+ --agrar-ui-focus:#8bbca0;
+}
+.agrar-role-advisor{
+ --agrar-ui-accent:#286f9c;
+ --agrar-ui-soft:#e8f2f9;
+ --agrar-ui-ink:#1d3140;
+ --agrar-ui-muted:#697987;
+ --agrar-ui-border:#dce4e9;
+ --agrar-ui-focus:#8cb7d3;
+}
+.agrar-role-system-admin{
+ --agrar-ui-accent:#94323d;
+ --agrar-ui-soft:#f8e9eb;
+ --agrar-ui-ink:#392429;
+ --agrar-ui-muted:#7c6c70;
+ --agrar-ui-border:#e9dce0;
+ --agrar-ui-focus:#d79aa2;
+}
+/* Existing non-dashboard pages use these original shared global classes. */
+.agrar-role-ui{
+ --green:var(--agrar-ui-accent);
+ --green2:var(--agrar-ui-accent);
+ --mint:var(--agrar-ui-soft);
+ --ink:var(--agrar-ui-ink);
+ --muted:var(--agrar-ui-muted);
+ --line:var(--agrar-ui-border);
+}
+:is(.farmer-app,.agrar-role-ui) :is(.panel,.stat-card,.inspection-card,.admin-overview-card,.admin-summary>div){
+ background:var(--agrar-ui-surface);
+ border:1px solid var(--agrar-ui-border);
+ border-radius:var(--agrar-ui-card-radius);
+ box-shadow:var(--agrar-ui-shadow);
+}
+:is(.farmer-app,.agrar-role-ui) :is(.btn,.ghost-btn,.btn-primary,.btn-secondary){
+ min-height:42px;
+ border-radius:var(--agrar-ui-control-radius);
+ font-size:13px;
+ line-height:1.35;
+}
+.agrar-role-ui .btn-primary{background:var(--agrar-ui-accent)!important;color:white!important}
+.agrar-role-ui :is(.btn-secondary,.ghost-btn){color:var(--agrar-ui-accent)!important;border-color:var(--agrar-ui-border)!important;background:var(--agrar-ui-surface)!important}
+:is(.farmer-app,.agrar-role-ui) :is(.client-row,.admin-row,.task-admin-row,.task-row){
+ border-color:var(--agrar-ui-border);
+ line-height:1.45;
+}
+:is(.farmer-app,.agrar-role-ui) :is(input,select,textarea,button,a):focus-visible{
+ outline:3px solid var(--agrar-ui-focus);
+ outline-offset:2px;
+}
+@media(max-width:767px){
+ :is(.farmer-app,.agrar-role-ui) :is(.btn,.ghost-btn,.btn-primary,.btn-secondary){min-height:44px;font-size:13px}
+ :is(.farmer-app,.agrar-role-ui) :is(.client-row,.admin-row,.task-admin-row,.task-row){min-height:48px}
+}

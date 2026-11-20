@@ -142,3 +142,25 @@
 @media(max-width:430px){
  .summaryGrid{grid-template-columns:1fr}
 }
+
+/* Shared AgrárMentor component contract, red role palette. */
+.page{color:var(--agrar-ui-ink);--surface:var(--agrar-ui-surface);--line:var(--agrar-ui-border);--red:var(--agrar-ui-accent);--redSoft:var(--agrar-ui-soft);--muted:var(--agrar-ui-muted)}
+.summaryCard,.controlGrid,.auditPanel{background:var(--agrar-ui-surface);border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius);box-shadow:var(--agrar-ui-shadow)}
+.summaryCard{min-height:88px;padding:12px;gap:10px}
+.summaryCard>span,.cardIcon{width:44px;height:44px;border-radius:50%;background:var(--agrar-ui-soft);color:var(--agrar-ui-accent)}
+.summaryCard small{font-size:11px;line-height:1.4;text-transform:none;letter-spacing:0}
+.summaryCard strong{font-size:21px;color:var(--agrar-ui-accent)}
+.sectionHead{min-height:52px;padding:12px 14px;background:linear-gradient(180deg,#fffefa,var(--agrar-ui-surface));border-bottom:1px solid var(--agrar-ui-border)}
+.sectionHead h2{font-size:17px;color:var(--agrar-ui-ink)}
+.controlCard{min-height:88px;padding:12px;gap:10px;background:#fff;border:1px solid var(--agrar-ui-border);border-radius:10px}
+.controlCard strong,.auditList strong{font-size:13px;line-height:1.4}
+.controlCard small,.auditList small,.auditList p{font-size:11px;line-height:1.45}
+.controlCard em{font-size:21px;color:var(--agrar-ui-accent)}
+.auditList article{min-height:64px;padding:12px 0;border-bottom:1px solid var(--agrar-ui-border)}
+.hero{border-radius:16px;min-height:210px}.hero h2{font-size:clamp(24px,2.6vw,32px);line-height:1.15}.hero p,.hero>div>span{font-size:11px;line-height:1.45}.hero>a{min-height:44px;font-size:12px;border-radius:var(--agrar-ui-control-radius)}
+@media(max-width:767px){
+ .summaryCard{min-height:88px}.summaryCard>span,.cardIcon{width:36px;height:36px}
+ .summaryCard small,.controlCard small,.auditList small,.auditList p{font-size:11.5px}
+ .controlCard strong,.auditList strong{font-size:13px}
+ .sectionHead h2{font-size:17px}.hero{min-height:0}.hero p{font-size:11.5px}
+}
