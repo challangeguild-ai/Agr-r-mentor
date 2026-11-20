@@ -24,7 +24,7 @@ internal fun summarizeMobilePolygon(raw:String):MobilePolygonSummary? {
  return runCatching{
  val geometry=JSONObject(raw)
  val coordinates=geometry.getJSONArray("coordinates")
- val parts:List<JSONArray>=when(geometry.getString("type")){
+ val parts:List<JSONArray> = when(geometry.getString("type")){
   "Polygon"->listOf(coordinates)
   "MultiPolygon"->(0 until coordinates.length()).map{coordinates.getJSONArray(it)}
   else->return null

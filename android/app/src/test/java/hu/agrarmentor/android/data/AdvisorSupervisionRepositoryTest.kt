@@ -13,6 +13,7 @@ class AdvisorSupervisionRepositoryTest {
   assertEquals(MobileSupervisionConfig("03-15","10-31",21,true,"Terepi idény"),decoded)
   assertNull(decodeMobileSupervision("OTHER:{}"))
   assertNull(decodeMobileSupervision("SUPERVISION:broken"))
+  assertNull(decodeMobileSupervision("SUPERVISION:{\"activeFrom\":\"02-30\"}"))
  }
 
  @Test fun crossYearSeasonAndDisabledConfig(){

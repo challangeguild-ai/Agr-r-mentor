@@ -21,10 +21,12 @@ internal fun decodeMobileSupervision(description:String?):MobileSupervisionConfi
  if(description?.startsWith("SUPERVISION:")!=true)return null
  return runCatching{
   val raw=JSONObject(description.removePrefix("SUPERVISION:"))
-  MobileSupervisionConfig(
+  val config=MobileSupervisionConfig(
    raw.optString("activeFrom","03-15"),raw.optString("activeTo","10-31"),
    raw.optInt("inspectionIntervalDays",30).coerceIn(1,365),raw.optBoolean("enabled",true),raw.optString("note")
   )
+  validateMobileSupervision(config)
+  config
  }.getOrNull()
 }
 

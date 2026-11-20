@@ -129,7 +129,7 @@ private fun BoundaryReviewCard(detail:MobileBoundaryReview,repo:AdvisorBoundaryR
      finally{saving=false}
     }
    }){Text(if(saving)"Mentés..." else "Döntés megerősítése")}},
-   dismissButton={TextButton(enabled=!saving,onClick={decision=null}){Text("Mégsem")})
+   dismissButton={TextButton(enabled=!saving,onClick={decision=null}){Text("Mégsem")}}
   )
  }
 }

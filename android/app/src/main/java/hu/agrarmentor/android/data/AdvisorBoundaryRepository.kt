@@ -2,6 +2,7 @@ package hu.agrarmentor.android.data
 
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.model.PortalRole
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -77,7 +78,8 @@ class AdvisorBoundaryRepository(private val baseUrl:String,private val publishab
    conn.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
    if(conn.responseCode !in 200..299)rpcError="Az elbírálás nem sikerült (${conn.responseCode})."
    else conn.inputStream.bufferedReader().use{it.readText()}
-  }catch(e:Exception){rpcError="A kapcsolat megszakadt az elbírálás közben."}
+  }catch(e:CancellationException){throw e}
+  catch(e:Exception){rpcError="A kapcsolat megszakadt az elbírálás közben."}
   finally{conn.disconnect()}
   val saved=read("field_boundary_proposals?select=field_id,status,reviewed_by,review_note&id=eq.$id&limit=1",session).singleOrNull()
   val wanted=if(approve)"approved" else "rejected"
