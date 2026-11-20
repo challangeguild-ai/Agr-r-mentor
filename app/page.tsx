@@ -39,7 +39,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
  return <main className={styles.site}>
   <header className={styles.header}>
    <div className={styles.headerInner}>
-    <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><AgrarMentorLogo className={styles.brandLogo} priority/></a>
+    <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><AgrarMentorLogo className={styles.brandLogo} onLight priority/></a>
     <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
     <div className={styles.headerActions}><LandingLoginModal triggerLabel="Belépés" triggerClassName={styles.loginButton} initialOpen={params.login==="1"} next={requestedNext}/><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
    </div>

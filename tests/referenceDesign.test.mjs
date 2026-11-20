@@ -12,18 +12,23 @@ test("accepted reference screens keep all six real farmer routes",()=>{
  assert.match(sidebar,/styles\.landscape/);
 });
 
-test("original agricultural photo and shared accessible artwork stay consistent across all roles and public website",()=>{
+test("original agricultural photo and transparent PNG branding stay consistent across all roles and public website",async()=>{
  const photo=new URL("../public/images/agrar-fields-sunrise.webp",import.meta.url);
  const photoBytes=readFileSync(photo);
  assert.equal(photoBytes.toString("ascii",0,4),"RIFF","Agricultural banner must be a real WebP asset");
  assert.ok(statSync(photo).size<400_000,"Agricultural banner should stay lightweight on mobile");
- const logo=new URL("../public/images/agrar-mentor-logo.webp",import.meta.url);
- const logoBytes=readFileSync(logo);
- assert.equal(logoBytes.toString("ascii",0,4),"RIFF","Brand artwork must be a real WebP image");
- assert.equal(logoBytes.toString("ascii",8,12),"WEBP");
- assert.ok(statSync(logo).size<200_000,"Brand artwork should stay lightweight on mobile");
+ const sharp=(await import("sharp")).default;
+ for(const name of ["agrar-mentor-logo.png","agrar-mentor-logo-on-light.png"]){
+  const logo=new URL(`../public/images/${name}`,import.meta.url);
+  const bytes=readFileSync(logo);
+  assert.equal(bytes.subarray(0,8).toString("hex"),"89504e470d0a1a0a",`${name} must be PNG`);
+  assert.equal(bytes[25],6,`${name} must have an RGBA alpha channel`);
+  const corner=await sharp(bytes).extract({left:0,top:0,width:1,height:1}).ensureAlpha().raw().toBuffer();
+  assert.equal(corner[3],0,`${name} background must be transparent`);
+  assert.ok(statSync(logo).size<800_000,`${name} should remain lightweight on mobile`);
+ }
  const sharedLogo=read("components/AgrarMentorLogo.tsx");
- assert.match(sharedLogo,/src="\/images\/agrar-mentor-logo\.webp"/);
+ assert.match(sharedLogo,/onLight\?"\/images\/agrar-mentor-logo-on-light\.png":"\/images\/agrar-mentor-logo\.png"/);
  assert.match(sharedLogo,/alt="AGRÁR MENTOR"/);
  const sidebar=read("components/FarmerSidebar.module.css");
  const field=read("app/fields/[id]/field-detail.module.css");
@@ -37,9 +42,10 @@ test("original agricultural photo and shared accessible artwork stay consistent 
   assert.match(source,/<AgrarMentorLogo className=\{styles\.mobileBrandLogo\}/,`${role}: mobile header logo missing`);
  }
  const publicSite=read("app/page.tsx");
- assert.match(publicSite,/<AgrarMentorLogo className=\{styles\.brandLogo\}/);
+ assert.match(publicSite,/<AgrarMentorLogo className=\{styles\.brandLogo\} onLight/);
  assert.match(publicSite,/<AgrarMentorLogo className=\{styles\.footerBrandLogo\}/);
- assert.match(read("components/LandingLoginModal.tsx"),/<AgrarMentorLogo className=\{brandStyles\.modalLogo\}/);
+ assert.match(read("components/LandingLoginModal.tsx"),/<AgrarMentorLogo className=\{brandStyles\.modalLogo\} onLight/);
+ assert.match(read("app/landing.module.css"),/\.brand\{width:max-content;max-width:100%;padding:0;background:transparent\}/);
  assert.match(markup,/aria-hidden="true"\/\>/);
 });
 
