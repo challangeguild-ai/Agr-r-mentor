@@ -28,10 +28,12 @@ import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.AdminWorkspace
+import hu.agrarmentor.android.data.AdvisorClientDossier
 import hu.agrarmentor.android.data.AdvisorTask
 import hu.agrarmentor.android.data.AdvisorTaskReview
 import hu.agrarmentor.android.data.AdvisorWorkspace
 import hu.agrarmentor.android.data.RoleWorkspaceRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private val Ink=Color(0xFF24372E)
@@ -61,7 +63,7 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
   else snapshot?.let{data->
    when(route){
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
-    "/admin/clients"->AdvisorClients(data,colors)
+    "/admin/clients"->AdvisorClients(data,colors,onNavigate)
     "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onReviewed={revision++})
    }
   }
@@ -100,12 +102,12 @@ private fun AdvisorDashboard(data:AdvisorWorkspace,colors:PortalPalette,onNaviga
 }
 
 @Composable
-private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette){
+private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette,onNavigate:(String)->Unit){
  Text("Gazdálkodók – figyelmeztetési sorrendben",fontSize=14.sp,color=SoftInk)
  if(data.clients.isEmpty())Text("Nincs elérhető gazdálkodói ügyfél.",color=SoftInk)
  data.clients.forEach{client->
   val severity=when{client.critical>0->Critical;client.attention>0->Attention;else->colors.border}
-  Card(colors,border=severity){
+  Card(colors,border=severity,onClick={onNavigate("/admin/clients/${client.id}")}){
    Row(verticalAlignment=Alignment.CenterVertically){
     Icon(Icons.Default.Person,null,tint=colors.accent)
     Spacer(Modifier.width(10.dp))
@@ -117,9 +119,68 @@ private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette){
    }
    Text("${client.farms} gazdaság · ${client.fields} tábla",color=SoftInk,fontSize=13.sp)
    if(client.critical+client.attention>0)Text("${client.critical} kritikus · ${client.attention} figyelmeztetés",color=Ink,fontSize=12.sp)
+   Text("Ügyféldosszié megnyitása ›",color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
   }
  }
- Text("A részletes ügyféldossziék bekötése még folyamatban van.",fontSize=12.sp,color=SoftInk)
+}
+
+@Composable
+internal fun AdvisorClientDossierScreen(clientId:String,session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
+ val repository=remember{RoleWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ var dossier by remember(clientId,session.accessToken){mutableStateOf<AdvisorClientDossier?>(null)}
+ var busy by remember(clientId,session.accessToken){mutableStateOf(true)}
+ var error by remember(clientId,session.accessToken){mutableStateOf<String?>(null)}
+ var revision by remember(clientId){mutableIntStateOf(0)}
+ LaunchedEffect(clientId,session.accessToken,revision){
+  busy=true;error=null
+  try{dossier=repository.clientDossier(session,clientId)}
+  catch(e:CancellationException){throw e}
+  catch(e:Exception){error=e.message?:"Az ügyféldosszié nem érhető el."}
+  finally{busy=false}
+ }
+ Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+  TextButton(onClick={onNavigate("/admin/clients")}){Text("‹ Vissza az ügyfelekhez",color=colors.accent)}
+  if(busy)CircularProgressIndicator(color=colors.accent)
+  else if(error!=null){
+   Text(error!!,color=Critical,fontSize=13.sp)
+   TextButton(onClick={revision++}){Text("Újrapróbálás")}
+  }else dossier?.let{client->
+   Card(colors,background=colors.tint){
+    Text(client.name,color=Ink,fontSize=21.sp,fontWeight=FontWeight.Bold)
+    client.phone?.let{Text("Telefon: $it",color=SoftInk,fontSize=13.sp)}
+    Text("${client.farms.size} gazdaság · ${client.farms.sumOf{it.fields.size}} földtábla",color=colors.accent,fontSize=14.sp)
+   }
+   Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    Box(Modifier.weight(1f)){Metric("Nyitott teendők",client.openTasks,colors)}
+    Box(Modifier.weight(1f)){Metric("Ellenőrzésre vár",client.awaitingReview,colors)}
+   }
+   if(client.farms.isEmpty())Card(colors){Text("Ehhez az ügyfélhez nincs hozzáférhető gazdaság.",color=SoftInk)}
+   client.farms.forEach{farm->
+    Card(colors){
+     Text(farm.name,color=Ink,fontSize=18.sp,fontWeight=FontWeight.Bold)
+     Text("${farm.countryCode} · ${farm.fields.size} földtábla · ${farm.openTasks} nyitott teendő",color=SoftInk,fontSize=13.sp)
+    }
+    if(farm.fields.isEmpty())Text("Nincs elérhető földtábla.",color=SoftInk,fontSize=12.sp)
+    farm.fields.forEach{field->
+     val outline=when(field.condition){"critical"->Critical;"attention"->Attention;else->colors.border}
+     Card(colors,border=outline,onClick={onNavigate("/fields/${field.id}")}){
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Column(Modifier.weight(1f)){
+        Text(field.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
+        Text("${field.areaHa?.let{"$it ha"}?:"Terület nincs megadva"} · ${field.crop?:"Kultúra nincs megadva"}",color=SoftInk,fontSize=12.sp)
+       }
+       Icon(Icons.Default.ChevronRight,"Földtábla megnyitása",tint=colors.accent)
+      }
+      val condition=when(field.condition){"critical"->"Kritikus szemle";"attention"->"Figyelmet igényel";"good"->"Rendben";else->"Nincs friss szemleállapot"}
+      Text(condition,color=if(field.condition=="critical")Critical else if(field.condition=="attention")Color(0xFF936611)else SoftInk,fontSize=12.sp)
+      Text("${field.openTasks} nyitott · ${field.overdueTasks} lejárt teendő",color=SoftInk,fontSize=12.sp)
+      field.lastInspection?.let{Text("Utolsó szemle: ${huDate(it)}",color=SoftInk,fontSize=12.sp)}
+     }
+    }
+   }
+   Text("Az adatok a bejelentkezett szaktanácsadó jogosultságával, közvetlenül a közös Agrár Mentor rendszerből érkeznek.",color=SoftInk,fontSize=12.sp)
+  }
+ }
 }
 
 @Composable

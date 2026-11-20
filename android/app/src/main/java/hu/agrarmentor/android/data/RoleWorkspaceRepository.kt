@@ -1,12 +1,15 @@
 package hu.agrarmentor.android.data
 
 import hu.agrarmentor.android.auth.AuthorizedSession
+import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
+import java.time.ZoneId
 
 data class AdvisorClient(
  val id:String,
@@ -41,6 +44,38 @@ data class AdvisorWorkspace(
  val openReports:Int,
  val totalFields:Int
 )
+
+data class AdvisorDossierField(
+ val id:String,
+ val name:String,
+ val areaHa:Double?,
+ val crop:String?,
+ val condition:String?,
+ val lastInspection:String?,
+ val openTasks:Int,
+ val overdueTasks:Int
+)
+
+data class AdvisorDossierFarm(
+ val id:String,
+ val name:String,
+ val countryCode:String,
+ val fields:List<AdvisorDossierField>,
+ val openTasks:Int
+)
+
+data class AdvisorClientDossier(
+ val id:String,
+ val name:String,
+ val phone:String?,
+ val farms:List<AdvisorDossierFarm>,
+ val openTasks:Int,
+ val awaitingReview:Int
+)
+
+internal fun dossierTaskOpen(status:String):Boolean = status !in setOf("done","cancelled","submitted")
+internal fun dossierTaskOverdue(status:String,dueDate:String?,today:String):Boolean =
+ dossierTaskOpen(status)&&dueDate!=null&&dueDate<today
 
 data class AdminAccount(
  val id:String,
@@ -82,6 +117,52 @@ data class AdminWorkspace(
  * A missing grant or RLS policy is surfaced as a fetch failure, not bypassed.
  */
 class RoleWorkspaceRepository(private val baseUrl:String,private val publishableKey:String){
+ /** Fetches only the requested farmer and the farms returned by advisor RLS. */
+ suspend fun clientDossier(session:AuthorizedSession,clientId:String):AdvisorClientDossier = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.ADVISOR){"Ügyféldossziét csak szaktanácsadó nyithat meg."}
+  require(clientId.matches(Regex("[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}"))){"Érvénytelen ügyfélazonosító."}
+  val person=read("profiles?select=id,full_name,phone&role=eq.farmer&id=eq.$clientId&limit=1",session)
+   .objects().singleOrNull()?:error("Ez az ügyfél nem érhető el a jogosultságaiddal.")
+  val farms=read("farms?select=id,name,country_code,owner_id&owner_id=eq.$clientId&order=name.asc&limit=1000",session).objects()
+  if(farms.isEmpty())return@withContext AdvisorClientDossier(clientId,person.optString("full_name").ifBlank{"Gazdálkodó"},person.optional("phone"),emptyList(),0,0)
+  val farmIds=farms.map{it.getString("id")}
+  val farmFilter="in.(${farmIds.joinToString(",")})"
+  val fields=read("fields?select=id,name,farm_id,area_ha,current_crop&farm_id=$farmFilter&order=name.asc&limit=1000",session).objects()
+  val fieldIds=fields.map{it.getString("id")}
+  val inspections=if(fieldIds.isEmpty())emptyList() else read(
+   "inspections?select=field_id,condition,inspected_at&field_id=in.(${fieldIds.joinToString(",")})&order=inspected_at.desc&limit=1000",session).objects()
+  val latestByField=linkedMapOf<String,JSONObject>()
+  inspections.forEach{item->latestByField.putIfAbsent(item.optString("field_id"),item)}
+  val tasks=read("tasks?select=field_id,farm_id,status,due_date&farm_id=$farmFilter&order=due_date.asc&limit=1000",session).objects()
+  val today=LocalDate.now(ZoneId.of("Europe/Budapest")).toString()
+  val activeTasks=tasks.filter{dossierTaskOpen(it.optString("status"))}
+  val dossierFarms=farms.map{farm->
+   val farmId=farm.getString("id")
+   AdvisorDossierFarm(
+    id=farmId,
+    name=farm.optString("name").ifBlank{"Gazdaság"},
+    countryCode=farm.optString("country_code","HU"),
+    fields=fields.filter{it.optString("farm_id")==farmId}.map{field->
+     val fieldId=field.getString("id")
+     val latest=latestByField[fieldId]
+     val fieldTasks=activeTasks.filter{it.optString("field_id")==fieldId}
+     AdvisorDossierField(
+      id=fieldId,name=field.optString("name").ifBlank{"Földtábla"},
+      areaHa=if(field.isNull("area_ha"))null else field.optDouble("area_ha").takeIf{it.isFinite()},
+      crop=field.optional("current_crop"),condition=latest?.optional("condition"),
+      lastInspection=latest?.optional("inspected_at"),openTasks=fieldTasks.size,
+      overdueTasks=fieldTasks.count{dossierTaskOverdue(it.optString("status"),it.optional("due_date"),today)}
+     )
+    },
+    openTasks=activeTasks.count{it.optString("farm_id")==farmId}
+   )
+  }
+  AdvisorClientDossier(
+   clientId,person.optString("full_name").ifBlank{"Gazdálkodó"},person.optional("phone"),
+   dossierFarms,activeTasks.size,tasks.count{it.optString("status")=="submitted"}
+  )
+ }
+
  suspend fun advisor(session:AuthorizedSession):AdvisorWorkspace = withContext(Dispatchers.IO){
   val people=read("profiles?select=id,full_name,phone&role=eq.farmer&order=full_name.asc&limit=500",session)
   val farms=read("farms?select=id,name,owner_id&limit=1000",session)
