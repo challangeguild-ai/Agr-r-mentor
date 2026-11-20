@@ -16,7 +16,7 @@
 | Resend | A `notify.waterk.hu` küldődomain **verified**, a `mail.waterk.hu` **not_started**. | Az értesítési feladóhoz a hitelesített domaint kell használni. |
 | Auth Site URL | **JAVÍTVA 2026.11.20.** A hibás `https://agr-r-mentor.vercel.app/**` helyett a tárolt Site URL `https://agr-r-mentor.vercel.app`, mentés és újratöltés után ellenőrizve. Az allowlistben `https://agr-r-mentor.vercel.app/**` és `https://agr-r-mentor.vercel.app/reset-password` maradt. | Az éles meghívó-/bejelentkezési eredet alapértéke megfelelő; a valódi meghívási próba még hiányzik. |
 | Edge titkok | **JAVÍTVA 2026.11.20.** A meglévő `RESEND_API_KEY` és `APP_PUBLIC_ORIGIN` mellé létrejött a `NOTIFICATION_EMAIL_FROM` = `Agrár Mentor <noreply@notify.waterk.hu>`; a Supabase sikeres létrehozást jelzett. | A hibás feladó-fallback megszűnt a Draft kódban; kézbesítés és Edge-funkciók új telepítése még nem igazolt. |
-| Friss mentés | A Free csomag dashboardja jelzi: nincs automatikus projektmentés. A 2026.11.19-i Windows Docker-mentés helyreállítási próbája sikeres volt, de a mentés kora élesítés előtt frissítendő. Készült egy **csak olvasó**, pontos Supabase-projektre célzó, felülírásmentes Windows-segédscript. | Az adatbázis-migráció előtt **friss, ellenőrzött mentés** szükséges. |
+| Friss mentés | A Free csomag dashboardja jelzi: nincs automatikus projektmentés. A 2026.11.19-i Windows Docker-mentés helyreállítási próbája sikeres volt. Készült egy **csak olvasó**, pontos Supabase-projektre célzó, felülírásmentes Windows-segédscript, valamint egy **kézi, titkosított GitHub Actions backup-workflow a Draft ágon**. A GitHub-workflow még NEM futott. | Az adatbázis-migráció előtt **friss, ellenőrzött és ténylegesen letölthető mentés** szükséges; addig a Windows-gép nem kell az előkészítő fejlesztéshez. |
 | Jelenlegi adatmennyiségek | 2026.11.20-án olvasó SQL-ellenőrzés: `auth.users=4`, `public.tasks=12`, `public.field_operations=9`, `public.inspections=7`, `storage.objects=2`; a legutóbbi Storage-metaadat frissítés 2026.10.04. | A darabszámok a korábbi helyi visszaállítás eredményével egyeznek, **de ez nem bizonyítja a sorok teljes változatlanságát**. |
 
 ## 2. Forráscsomag és célprojekt-ellenőrzés
@@ -46,6 +46,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Backup-AgrarMe
 A script **kifejezetten** a `qkezhvtwirdsvhzjyvfi` production projektet célozza (`--remote=qkezhvtwirdsvhzjyvfi`, Supabase CLI 3.2.0), és kizárólag olvas. Minden futás új mappát készít a felhasználói profil alatti `AgrarMentor-friss-mentesek` könyvtárban; a régi mentést nem írja felül. Az új `roles.sql`, `schema.sql`, `data.sql` mellett `manifest.json` készül SHA-256 fájlhash-ekkel, COPY-blokk ellenőrzéssel és a kritikus táblák sorainak számával. Hiányzó Auth/Storage-metaadat, rövid vagy megszakadt dump esetén **hibát jelez**.
 
 **Korlát:** az SQL-dump **nem** tartalmazza a Supabase Storage-objektumok tényleges bájtjait. A 2026.11.19-i külön Storage-mentést meg kell őrizni, az új mappát tőle függetlenül. A friss SQL-dumpot éles migráció előtt helyi visszaállítási próbával is ellenőrizni kell; a puszta fájlellenőrzés nem bizonyít teljes visszaállíthatóságot. A script **nem** futtat migrációt, nem állít vissza adatbázist, és nem telepít semmit.
+
+### PC nélküli alternatíva – titkosított GitHub Actions-mentés (még nincs aktiválva)
+
+A `.github/workflows/agrarmentor-encrypted-backup.yml` ugyanúgy **csak** a `qkezhvtwirdsvhzjyvfi` projektből olvas `roles.sql`, `schema.sql`, `data.sql` fájlokat a `supabase@3.2.0` CLI-vel. Ellenőrzi a COPY-blokkokat és az alapvető táblákat, majd egyetlen **AES-256/GPG-vel titkosított** `.tar.gz.gpg` állományt tölthet fel a GitHub Actions artefaktjai közé, 7 napos lejárattal. A nyers SQL- és tar-fájlok **nem kerülhetnek az artefaktumba**; a runneren a titkosítás után törlődnek. A Storage fájlok valódi tartalmát ez sem menti.
+
+**A GitHub-repository nyilvános.** Nyers `.sql` mentést, autentikációs adatot vagy nem titkosított archívumot ide feltölteni tilos. Az élesítés előtt egyetlen egyszer létre kell hozni a GitHubon a `agrarmentor-backup` *Environment*-et, lehetőleg kötelező jóváhagyóval, és ennek titkai között:
+
+- `AGRAR_SUPABASE_ACCESS_TOKEN` – kizárólag szükséges Supabase hozzáféréssel;
+- `AGRAR_SUPABASE_DB_PASSWORD` – a célprojekt adatbázisjelszava;
+- `AGRAR_BACKUP_PASSPHRASE` – **legalább 32 karakteres**, véletlenszerű, a GitHubon kívül is biztonságosan megőrzött GPG-jelszó.
+
+**A jelszavakat soha ne írjuk bele a kódba, commitba, ChatGPT-beszélgetésbe vagy workflow-indítási mezőbe.** Az Environment secretjei nem azonosak a Vercel vagy Supabase Edge secretjeivel. A workflow `workflow_dispatch` eseménnyel kézzel futtatható, de GitHub-szabály miatt előbb a **default ágra** kell kerülnie. Jelenleg csak a **Draft #59 ágon előkészített**, és a `main`-t / Vercel productiont emiatt **nem módosítjuk automatikusan**. Mielőtt a workflow-t önállóan a default ágra juttatnánk, külön engedélyt és a Vercel production build-kockázat értékelését kérjük.
+
+A sikeres runner-futás után a titkosított artefaktumot **7 napon belül** le kell tölteni biztonságos magántárolóba, megőrizve a külön kezelt visszafejtő jelszót. A titkosítás önmagában **nem bizonyítja** a későbbi visszaállíthatóságot; egy visszaállítási teszt továbbra is a kiadás feltétele. Ez a workflow **nem helyettesíti** a november 19-én külön lementett Storage-fájlokat.
 
 ## 3. Egyetlen, összehangolt élesítési sorrend – csak külön jóváhagyás után
 

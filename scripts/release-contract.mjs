@@ -30,6 +30,7 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
 
  const powershell=get("scripts/Test-AgrarMentor-Migrations.ps1");
  const backupScript=get("scripts/Backup-AgrarMentor-Predeploy.ps1");
+ const runnerBackup=get(".github/workflows/agrarmentor-encrypted-backup.yml");
  const rehearsal=get("scripts/verify_staged_migrations.sql");
  if(!backupScript.includes(`$projectRef = '${targets.supabaseProjectId}'`)
    ||!backupScript.includes('"--remote=$projectRef"')
@@ -37,6 +38,21 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
    ||!backupScript.includes('Létező mentési mappát nem írunk felül')
    ||/\bdb\s+push\b|\bfunctions\s+deploy\b/i.test(backupScript))
   problems.push("A friss backup nem bizonyítottan csak olvasó, projekthez kötött és felülírásmentes.");
+ const dispatchOnly=/^on:\s*\n\s+workflow_dispatch:\s*$/m.test(runnerBackup)
+   && !/^\s+(push|pull_request|schedule|workflow_run):/m.test(runnerBackup);
+ const encryptedOnly=runnerBackup.includes("--symmetric --cipher-algo AES256")
+   && runnerBackup.includes("--passphrase-fd 0")
+   && runnerBackup.includes("actions/upload-artifact@")
+   && /path:\s*\$\{\{ runner\.temp \}\}\/agrarmentor-db-\$\{\{ github\.run_id \}\}\.tar\.gz\.gpg/.test(runnerBackup)
+   && !/path:\s*.*\.(?:sql|tar\.gz)\s*$/m.test(runnerBackup);
+ const lockedProject=runnerBackup.match(/db dump --remote=([^\s]+)/g)??[];
+ if(!dispatchOnly||!encryptedOnly||lockedProject.length!==3
+   ||lockedProject.some(command=>command!==`db dump --remote=${targets.supabaseProjectId}`)
+   ||!runnerBackup.includes("environment: agrarmentor-backup")
+   ||!runnerBackup.includes("test \"${#BACKUP_PASSPHRASE}\" -ge 32" )
+   ||!/retention-days:\s*7/.test(runnerBackup)
+   ||/\b(?:db\s+push|db\s+reset|migration\s+up|functions\s+deploy)\b/.test(runnerBackup))
+  problems.push("A GitHub runner mentése nem bizonyítottan kézi, célprojektre kötött és csak titkosítva feltölthető.");
  if(!powershell.includes("supabase_db_AgrarMentor-mentes-2026-11-19")||!powershell.includes("ON_ERROR_STOP=1"))
   problems.push("A teszt nem a védett, helyi Docker-konténerre korlátozódik.");
  if(!/^BEGIN;$/m.test(rehearsal)||!/^ROLLBACK;$/m.test(rehearsal)||/^COMMIT;$/m.test(rehearsal))
