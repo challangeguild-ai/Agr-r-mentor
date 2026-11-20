@@ -1,5 +1,7 @@
 package hu.agrarmentor.android.data
 
+import android.content.ContentResolver
+import android.net.Uri
 import hu.agrarmentor.android.auth.AuthorizedSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,6 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.time.Instant
+import java.util.UUID
 
 data class MobileNotification(
  val id:String,val title:String,val message:String,val kind:String,
@@ -17,7 +20,13 @@ data class MobileNotification(
 data class MobileMessage(
  val id:String,val title:String,val text:String,val status:String,
  val response:String?,val fieldId:String?,val createdAt:String,
- val category:String="other",val severity:String="normal"
+ val category:String="other",val severity:String="normal",val attachments:List<ReportAttachment> = emptyList()
+)
+data class ReportMediaInput(val uri:Uri,val fileName:String,val mimeType:String,val sizeBytes:Long?){
+ val key:String get()="${uri}|${fileName}|${mimeType}|${sizeBytes?:"unknown"}"
+}
+data class ReportAttachment(
+ val reportId:String,val path:String,val fileName:String,val mimeType:String,val mediaType:String,val sizeBytes:Long?
 )
 data class ReportField(val id:String,val name:String,val farmId:String)
 data class ReportCreateResult(val id:String,val warning:String?)
@@ -25,7 +34,7 @@ data class AdvisorReport(
  val id:String,val title:String,val message:String,val status:String,
  val fieldId:String,val fieldName:String,val farmId:String,val farmerId:String,
  val category:String,val severity:String,val createdAt:String,
- val updatedAt:String,val reply:String?
+ val updatedAt:String,val reply:String?,val attachments:List<ReportAttachment> = emptyList()
 )
 data class ReportDecisionResult(val alreadySaved:Boolean,val warnings:List<String>)
 data class MobileDocument(
@@ -36,8 +45,12 @@ data class MobileProfile(val name:String,val phone:String,val city:String,val jo
 
 /** User-scoped PostgREST and Storage calls. Database RLS remains the authority. */
 class CommunicationRepository(private val baseUrl:String,private val publishableKey:String){
- private data class PendingReport(val id:String,val fieldId:String,val title:String,val message:String,val category:String,val severity:String)
+ private data class PendingReport(
+  val id:String,val fieldId:String,val title:String,val message:String,val category:String,val severity:String,
+  val media:List<ReportMediaInput>,val uploaded:MutableMap<Int,String> = mutableMapOf(),val linked:MutableSet<Int> = mutableSetOf()
+ )
  private var pendingReport:PendingReport?=null
+ fun hasPendingReport():Boolean=pendingReport!=null
  suspend fun notifications(session:AuthorizedSession):List<MobileNotification> = withContext(Dispatchers.IO){
   val user=uuid(session.userId)
   getArray("rest/v1/notifications?select=id,title,message,kind,href,created_at,read_at&user_id=eq.$user&order=created_at.desc&limit=100",session)
@@ -50,8 +63,9 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  }
 
  suspend fun messages(session:AuthorizedSession):List<MobileMessage> = withContext(Dispatchers.IO){
-  getArray("rest/v1/farmer_reports?select=id,title,message,status,advisor_reply,field_id,created_at,category,severity&farmer_id=eq.${uuid(session.userId)}&order=created_at.desc&limit=100",session)
-   .map{row->MobileMessage(row.getString("id"),row.optString("title"),row.optString("message"),row.optString("status"),row.nullable("advisor_reply"),row.nullable("field_id"),row.optString("created_at"),row.optString("category","other"),row.optString("severity","normal"))}
+  val rows=getArray("rest/v1/farmer_reports?select=id,title,message,status,advisor_reply,field_id,created_at,category,severity&farmer_id=eq.${uuid(session.userId)}&order=created_at.desc&limit=100",session)
+  val media=reportAttachments(session)
+  rows.map{row->MobileMessage(row.getString("id"),row.optString("title"),row.optString("message"),row.optString("status"),row.nullable("advisor_reply"),row.nullable("field_id"),row.optString("created_at"),row.optString("category","other"),row.optString("severity","normal"),media[row.getString("id")].orEmpty())}
  }
 
  suspend fun reportFields(session:AuthorizedSession):List<ReportField> = withContext(Dispatchers.IO){
@@ -63,15 +77,19 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
    .map{ReportField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
  }
 
- suspend fun createReport(session:AuthorizedSession,fieldId:String,title:String,message:String,category:String,severity:String):ReportCreateResult=withContext(Dispatchers.IO){
+ suspend fun createReport(session:AuthorizedSession,fieldId:String,title:String,message:String,category:String,severity:String,
+  media:List<ReportMediaInput> = emptyList(),contentResolver:ContentResolver? = null):ReportCreateResult=withContext(Dispatchers.IO){
   require(ReportWorkflowRules.validDraft(title,message,category,severity)){"Ellenőrizd a tárgyat, a leírást, a kategóriát és a sürgősséget."}
+  require(media.size<=ReportMediaRules.MAX_ITEMS){"Legfeljebb 10 csatolmány küldhető."}
+  require(media.all{ReportMediaRules.valid(it.mimeType,it.sizeBytes)&&it.fileName.length in 1..255}){"Csak legfeljebb 50 MB-os JPG, PNG, WebP, MP4, WebM vagy MOV csatolható."}
+  require(media.isEmpty()||contentResolver!=null){"A fájlok olvasása nem elérhető."}
   val validField=reportFields(session).find{it.id==uuid(fieldId)}?:error("Csak a saját gazdaságod földtáblájáról küldhetsz bejelentést.")
-  val proposed=PendingReport(java.util.UUID.randomUUID().toString(),validField.id,title.trim(),message.trim(),category,severity)
+  val proposed=PendingReport(UUID.randomUUID().toString(),validField.id,title.trim(),message.trim(),category,severity,media)
   val pending=pendingReport
   if(pending!=null&&!ReportWorkflowRules.sameDraft(
-   ReportDraftIdentity(pending.fieldId,pending.title,pending.message,pending.category,pending.severity),
-   ReportDraftIdentity(proposed.fieldId,proposed.title,proposed.message,proposed.category,proposed.severity)))
-   error("A korábbi bejelentés mentése még nem igazolható. Ugyanazzal a szöveggel próbáld újra.")
+   ReportDraftIdentity(pending.fieldId,pending.title,pending.message,pending.category,pending.severity,pending.media.map{it.key}),
+   ReportDraftIdentity(proposed.fieldId,proposed.title,proposed.message,proposed.category,proposed.severity,proposed.media.map{it.key})))
+   error("A korábbi bejelentés és mellékletek mentése még nem igazolható. Ugyanazzal a tartalommal próbáld újra.")
   val draft=pending?:proposed
   pendingReport=draft
   val body=JSONObject().put("id",draft.id).put("field_id",draft.fieldId)
@@ -85,6 +103,29 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
     val persisted=runCatching{getArray("rest/v1/farmer_reports?select=id&id=eq.${draft.id}&farmer_id=eq.${uuid(session.userId)}&limit=1",session)}.getOrDefault(emptyList())
     if(persisted.isEmpty())throw e
    }
+  }
+  for((index,file) in draft.media.withIndex()){
+   if(index in draft.linked)continue
+   val storedPath=draft.uploaded[index]?:"${session.userId}/${draft.id}/${UUID.randomUUID()}-${ReportMediaRules.safeName(file.fileName)}".also{
+    draft.uploaded[index]=it
+   }
+   // Same report may already have other files: never count a foreign media row as ours.
+   val hasLink=getArray("rest/v1/farmer_report_media?select=id,storage_path&report_id=eq.${draft.id}&limit=30",session)
+    .any{it.optString("storage_path")==storedPath}
+   if(!hasLink){
+    val present=runCatching{storedObjectExists(session,storedPath)}.getOrDefault(false)
+    if(!present)uploadReportMedia(session,contentResolver!!,file,storedPath)
+    val row=JSONObject().put("report_id",draft.id).put("storage_path",storedPath)
+     .put("file_name",file.fileName).put("media_type",ReportMediaRules.kind(file.mimeType))
+     .put("mime_type",file.mimeType).put("size_bytes",file.sizeBytes?:JSONObject.NULL)
+    try{request("POST","rest/v1/farmer_report_media",session,row)}
+    catch(e:Exception){
+     val verified=getArray("rest/v1/farmer_report_media?select=storage_path&report_id=eq.${draft.id}&limit=30",session)
+      .any{it.optString("storage_path")==storedPath}
+     if(!verified)throw e
+    }
+   }
+   draft.linked.add(index)
   }
   pendingReport=null
   val warning=runCatching{
@@ -103,6 +144,7 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   require(session.role==hu.agrarmentor.android.model.PortalRole.ADVISOR)
   val farms=getArray("rest/v1/farms?select=id,owner_id&limit=1000",session).associateBy{it.getString("id")}
   val fields=getArray("rest/v1/fields?select=id,name,farm_id&limit=1000",session).associateBy{it.getString("id")}
+  val media=reportAttachments(session)
   getArray("rest/v1/farmer_reports?select=id,title,message,status,field_id,farmer_id,category,severity,created_at,updated_at,advisor_reply&order=created_at.desc&limit=250",session).mapNotNull{r->
    val field=fields[r.optString("field_id")]?:return@mapNotNull null
    val farmId=field.optString("farm_id");val owner=farms[farmId]?.optString("owner_id")
@@ -110,8 +152,68 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
    AdvisorReport(r.getString("id"),r.optString("title"),r.optString("message"),r.optString("status"),
     field.getString("id"),field.optString("name","Földtábla"),farmId,r.getString("farmer_id"),
     r.optString("category","other"),r.optString("severity","normal"),r.optString("created_at"),
-    r.optString("updated_at"),r.nullable("advisor_reply"))
+    r.optString("updated_at"),r.nullable("advisor_reply"),media[r.getString("id")].orEmpty())
   }
+ }
+
+ private fun reportAttachments(session:AuthorizedSession):Map<String,List<ReportAttachment>> =
+  getArray("rest/v1/farmer_report_media?select=report_id,storage_path,file_name,media_type,mime_type,size_bytes&order=created_at.asc&limit=1000",session)
+   .map{row->ReportAttachment(row.getString("report_id"),row.getString("storage_path"),row.optString("file_name"),
+    row.optString("mime_type"),row.optString("media_type"),if(row.isNull("size_bytes"))null else row.optLong("size_bytes"))}
+   .groupBy{it.reportId}
+
+ suspend fun signedReportAttachmentUrl(session:AuthorizedSession,file:ReportAttachment):String=withContext(Dispatchers.IO){
+  uuid(file.reportId)
+  val allowed=getArray("rest/v1/farmer_report_media?select=storage_path&report_id=eq.${file.reportId}&limit=30",session)
+   .any{it.optString("storage_path")==file.path}
+  require(allowed){"Nincs jogosultság a csatolmányhoz."}
+  signedReportStorageUrl(session,file.path)
+ }
+
+ private fun signedReportStorageUrl(session:AuthorizedSession,path:String):String{
+  val pieces=path.split('/')
+  require(pieces.size>=3&&pieces.all{it.isNotBlank()&&it!="."&&it!=".."})
+  val encoded=pieces.joinToString("/"){URLEncoder.encode(it,"UTF-8").replace("+","%20")}
+  val result=JSONObject(request("POST","storage/v1/object/sign/farmer-report-media/$encoded",session,JSONObject().put("expiresIn",60)))
+  val signed=result.optString("signedURL").ifBlank{result.optString("signedUrl")}.trimStart('/')
+  require(signed.startsWith("object/sign/farmer-report-media/")||signed.startsWith("storage/v1/object/sign/farmer-report-media/"))
+  return "${baseUrl.trimEnd('/')}/${if(signed.startsWith("storage/v1/"))signed else "storage/v1/$signed"}"
+ }
+
+ private fun storedObjectExists(session:AuthorizedSession,path:String):Boolean{
+  val url=signedReportStorageUrl(session,path)
+  val conn=(URL(url).openConnection() as HttpURLConnection).apply{
+   requestMethod="HEAD";connectTimeout=10000;readTimeout=10000
+  }
+  return try{conn.responseCode in 200..299}finally{conn.disconnect()}
+ }
+
+ private fun uploadReportMedia(session:AuthorizedSession,resolver:ContentResolver,file:ReportMediaInput,path:String){
+  val uriPath=path.split('/').joinToString("/"){URLEncoder.encode(it,"UTF-8").replace("+","%20")}
+  val connection=(URL("${baseUrl.trimEnd('/')}/storage/v1/object/farmer-report-media/$uriPath").openConnection() as HttpURLConnection).apply{
+   requestMethod="POST";connectTimeout=15000;readTimeout=60000
+   setRequestProperty("apikey",publishableKey)
+   setRequestProperty("Authorization","Bearer ${session.accessToken}")
+   setRequestProperty("Content-Type",file.mimeType)
+   setRequestProperty("x-upsert","false")
+   doOutput=true;setChunkedStreamingMode(64*1024)
+  }
+  try{
+   var total=0L
+   val source=resolver.openInputStream(file.uri)?:error("A csatolmány nem olvasható.")
+   source.use{input->connection.outputStream.use{output->
+    val buffer=ByteArray(64*1024)
+    while(true){
+     val count=input.read(buffer)
+     if(count<0)break
+     total+=count
+     require(total<=ReportMediaRules.MAX_BYTES){"A fájl 50 MB-nál nagyobb."}
+     output.write(buffer,0,count)
+    }
+   }}
+   require(total>0){"Üres fájl nem csatolható."}
+   if(connection.responseCode !in 200..299)error("A csatolmány feltöltése sikertelen (${connection.responseCode}).")
+  }finally{connection.disconnect()}
  }
 
  suspend fun decideReport(session:AuthorizedSession,report:AdvisorReport,reply:String,close:Boolean):ReportDecisionResult=withContext(Dispatchers.IO){

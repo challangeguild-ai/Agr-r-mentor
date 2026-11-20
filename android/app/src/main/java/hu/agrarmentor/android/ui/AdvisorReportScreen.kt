@@ -1,5 +1,7 @@
 package hu.agrarmentor.android.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +26,7 @@ private val ReportRed=Color(0xFFB1303E)
 @Composable
 internal fun LiveAdvisorReportsScreen(session:AuthorizedSession,colors:PortalPalette){
  val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var records by remember(session.userId){mutableStateOf<List<AdvisorReport>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
@@ -33,6 +37,7 @@ internal fun LiveAdvisorReportsScreen(session:AuthorizedSession,colors:PortalPal
  var handling by remember{mutableStateOf<Pair<AdvisorReport,Boolean>?>(null)}
  var reply by remember{mutableStateOf("")}
  var saving by remember{mutableStateOf(false)}
+ var openingMedia by remember{mutableStateOf<String?>(null)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=null
   try{records=repo.advisorReports(session)}catch(e:Exception){error=e.message?:"A bejelentések betöltése sikertelen."}
@@ -67,6 +72,18 @@ internal fun LiveAdvisorReportsScreen(session:AuthorizedSession,colors:PortalPal
     Text("${report.fieldName} · ${huDate(report.createdAt)}",color=TextSoft,fontSize=12.sp)
     Text("${when(report.severity){"urgent"->"SÜRGŐS";"high"->"Fontos";else->"Normál"}} · ${report.category}",color=if(report.severity=="urgent")ReportRed else TextSoft,fontSize=12.sp)
     if(report.message.isNotBlank())Text(report.message,color=TextInk,fontSize=13.sp)
+    report.attachments.forEach{attachment->
+     TextButton(onClick={
+      openingMedia=attachment.path
+      scope.launch{
+       try{
+        val signed=repo.signedReportAttachmentUrl(session,attachment)
+        context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(signed)).addCategory(Intent.CATEGORY_BROWSABLE))
+       }catch(e:Exception){message="A csatolmány nem nyitható meg: ${e.message?:"Nincs hozzáférés."}"}
+       finally{openingMedia=null}
+      }
+     },enabled=openingMedia==null){Text(if(openingMedia==attachment.path)"Megnyitás…" else "${if(attachment.mediaType=="video")"Videó"else"Fénykép"}: ${attachment.fileName}",color=colors.accent)}
+    }
     if(!report.reply.isNullOrBlank()){
      HorizontalDivider(color=colors.border)
      Text("Korábbi szaktanácsadói válasz:",color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)

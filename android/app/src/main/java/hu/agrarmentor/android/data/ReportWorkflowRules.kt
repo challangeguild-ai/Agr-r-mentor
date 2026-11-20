@@ -14,4 +14,7 @@ internal object ReportWorkflowRules {
   (status!="closed"||close)&& (close||reply.trim().isNotEmpty()&&reply.length<=5000)
 }
 
-internal data class ReportDraftIdentity(val fieldId:String,val title:String,val message:String,val category:String,val severity:String)
+internal data class ReportDraftIdentity(
+ val fieldId:String,val title:String,val message:String,val category:String,val severity:String,
+ val mediaKeys:List<String> = emptyList()
+)

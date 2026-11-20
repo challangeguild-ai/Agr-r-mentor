@@ -2,6 +2,11 @@ package hu.agrarmentor.android.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,9 +31,13 @@ import hu.agrarmentor.android.data.MobileMessage
 import hu.agrarmentor.android.data.MobileNotification
 import hu.agrarmentor.android.data.MobileProfile
 import hu.agrarmentor.android.data.ReportField
+import hu.agrarmentor.android.data.ReportMediaInput
+import hu.agrarmentor.android.data.ReportMediaRules
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.launch
+import java.io.File
+import java.util.UUID
 
 private val GrayText=Color(0xFF6C7D72)
 private val MainInk=Color(0xFF1D3026)
@@ -94,6 +103,7 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
 @Composable
 internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
  val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val context=LocalContext.current
  var entries by remember(session.userId){mutableStateOf<List<MobileMessage>>(emptyList())}
  var ownFields by remember(session.userId){mutableStateOf<List<ReportField>>(emptyList())}
  var expanded by remember{mutableStateOf<String?>(null)}
@@ -109,8 +119,48 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
  var severity by remember{mutableStateOf("normal")}
  var sending by remember{mutableStateOf(false)}
  var sendError by remember{mutableStateOf<String?>(null)}
+ var chosenMedia by remember{mutableStateOf<List<ReportMediaInput>>(emptyList())}
+ var pendingCamera by remember{mutableStateOf<Pair<Uri,File>?>(null)}
+ val cameraFiles=remember{mutableStateListOf<File>()}
+ var openingMedia by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
  val scope=rememberCoroutineScope()
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(ReportMediaRules.MAX_ITEMS)){uris->
+  try{
+   val added=uris.map{uri->
+    val resolver=context.contentResolver
+    val mime=resolver.getType(uri)?:error("A fájl típusa nem olvasható.")
+    val cursor=resolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE),null,null,null)
+    val data=cursor?.use{c->if(c.moveToFirst()){
+     val nameIndex=c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+     val sizeIndex=c.getColumnIndex(OpenableColumns.SIZE)
+     (if(nameIndex>=0)c.getString(nameIndex)else"csatolmany") to
+      (if(sizeIndex>=0&&!c.isNull(sizeIndex))c.getLong(sizeIndex)else null)
+    }else null}
+    val name=data?.first?.take(255)?:"csatolmany"
+    val size=data?.second
+    check(ReportMediaRules.valid(mime,size)){"Nem támogatott fájl vagy túl nagy csatolmány: $name"}
+    ReportMediaInput(uri,name,mime,size)
+   }
+   val combined=(chosenMedia+added).distinctBy{it.key}
+   check(combined.size<=ReportMediaRules.MAX_ITEMS){"Legfeljebb 10 csatolmány csatolható."}
+   chosenMedia=combined;sendError=null
+  }catch(e:Exception){sendError=e.message?:"A csatolmányok kiválasztása nem sikerült."}
+ }
+ val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()){ok->
+  val capture=pendingCamera
+  pendingCamera=null
+  if(capture!=null){
+   if(ok&&capture.second.length() in 1..ReportMediaRules.MAX_BYTES&&chosenMedia.size<ReportMediaRules.MAX_ITEMS){
+    cameraFiles.add(capture.second)
+    chosenMedia=chosenMedia+ReportMediaInput(capture.first,"helyszini-foto-${System.currentTimeMillis()}.jpg","image/jpeg",capture.second.length())
+    sendError=null
+   }else{
+    capture.second.delete()
+    if(ok)sendError="A fénykép túl nagy, vagy már 10 csatolmányt választottál."
+   }
+  }
+ }
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
   try{
@@ -123,7 +173,11 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
   Text("A szaktanácsadónak küldött bejelentések és válaszok",color=GrayText,fontSize=13.sp)
   if(notice!=null)Text(notice!!,color=colors.accent,fontSize=13.sp)
   Button(onClick={
-   selectedField=null;title="";message="";category="crop_health";severity="normal";sendError=null;composeReport=true
+   if(!repo.hasPendingReport()){
+    selectedField=null;title="";message="";category="crop_health";severity="normal";sendError=null;chosenMedia=emptyList()
+    cameraFiles.forEach{it.delete()};cameraFiles.clear()
+   }else sendError="A korábban megkezdett beküldést az eredeti adatokkal folytathatod."
+   composeReport=true
   },enabled=!loading&&ownFields.isNotEmpty(),colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
    Text("Új szakmai bejelentés")
   }
@@ -148,6 +202,18 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
       Text("Szaktanácsadói válasz",fontWeight=FontWeight.Bold,color=colors.accent,fontSize=13.sp)
       Text(entry.response,color=MainInk)
      }
+     entry.attachments.forEach{attachment->
+      TextButton(onClick={
+       openingMedia=attachment.path
+       scope.launch{
+        try{
+         val signed=repo.signedReportAttachmentUrl(session,attachment)
+         context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(signed)).addCategory(Intent.CATEGORY_BROWSABLE))
+        }catch(e:Exception){notice="A csatolmány megnyitása sikertelen: ${e.message?:"Nincs hozzáférés."}"}
+        finally{openingMedia=null}
+       }
+      },enabled=openingMedia==null){Text(if(openingMedia==attachment.path)"Megnyitás…" else "${if(attachment.mediaType=="video")"Videó"else"Fénykép"}: ${attachment.fileName}")}
+     }
     }else Text("Koppints a beszélgetés megnyitásához",color=GrayText,fontSize=12.sp)
    }
   }
@@ -167,7 +233,28 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
     ReportChoice("Súlyosság",listOf("normal" to "Normál","high" to "Fontos","urgent" to "Sürgős"),severity,{severity=it})
     OutlinedTextField(title,{title=it.take(200)},label={Text("Tárgy")},modifier=Modifier.fillMaxWidth(),singleLine=true)
     OutlinedTextField(message,{message=it.take(5000)},label={Text("Részletes leírás")},modifier=Modifier.fillMaxWidth(),minLines=3)
-    Text("Helyszíni kép/videó és külön GPS-pont még a webes bejelentőből csatolható.",fontSize=11.sp,color=GrayText)
+    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+     OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))},enabled=!sending&&chosenMedia.size<ReportMediaRules.MAX_ITEMS){Text("Kép / videó")}
+     OutlinedButton(onClick={
+      try{
+       val folder=File(context.cacheDir,"task-photos").apply{mkdirs()}
+       val file=File(folder,"${UUID.randomUUID()}.jpg")
+       val uri=FileProvider.getUriForFile(context,"${context.packageName}.files",file)
+       pendingCamera=uri to file
+       camera.launch(uri)
+      }catch(e:Exception){sendError="A kamera nem indítható: ${e.message?:"ismeretlen hiba"}"}
+     },enabled=!sending&&chosenMedia.size<ReportMediaRules.MAX_ITEMS){Text("Fotózás")}
+    }
+    Text("${chosenMedia.size}/10 csatolmány · JPG, PNG, WebP, MP4, WebM vagy MOV · legfeljebb 50 MB/fájl",fontSize=11.sp,color=GrayText)
+    chosenMedia.forEach{item->
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+      Text(item.fileName,Modifier.weight(1f),fontSize=11.sp,maxLines=1)
+      TextButton(onClick={
+       chosenMedia=chosenMedia.filterNot{it.key==item.key}
+       cameraFiles.find{it.name==item.uri.lastPathSegment}?.let{file->file.delete();cameraFiles.remove(file)}
+      },enabled=!sending){Text("Eltávolít")}
+     }
+    }
     if(sending)LinearProgressIndicator(Modifier.fillMaxWidth())
     if(sendError!=null)Text(sendError!!,color=Danger,fontSize=12.sp)
    }},
@@ -176,10 +263,11 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
     sending=true;sendError=null
     scope.launch{
      try{
-      val result=repo.createReport(session,fieldId,title,message,category,severity)
+      val result=repo.createReport(session,fieldId,title,message,category,severity,chosenMedia,context.contentResolver)
       notice=result.warning?:"A bejelentést elmentettük és továbbítottuk a szaktanácsadóknak."
+      cameraFiles.forEach{it.delete()};cameraFiles.clear()
       composeReport=false;revision++
-     }catch(e:Exception){sendError=e.message?:"A bejelentés nem menthető."}
+     }catch(e:Exception){sendError="A beküldés nem fejeződött be: ${e.message?:"Ismeretlen hiba"}. Ha már elment a bejelentés, ugyanazzal a tartalommal folytathatod a csatolmányok feltöltését."}
      finally{sending=false}
     }
    },enabled=!sending&&selectedField!=null&&title.trim().isNotEmpty()){
