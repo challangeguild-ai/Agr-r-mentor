@@ -26,17 +26,16 @@ export function SystemAdminSidebar(){
     <AgrarMentorLogo className={styles.mobileBrandLogo} priority/>
     <small>RENDSZERADMIN</small>
    </Link>
-   <b>ADMIN</b>
   </div>
-  <button className={styles.launch} type="button" onClick={()=>setOpen(true)} aria-label="Admin menü megnyitása"><span/><span/><span/></button>
-  {open&&<button className={styles.overlay} onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"/>}
-  <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
+  <button className={styles.launch} type="button" onClick={()=>setOpen(true)} aria-label="Admin menü megnyitása" aria-expanded={open} aria-controls="system-admin-drawer"><span/><span/><span/></button>
+  {open&&<button className={styles.overlay} type="button" onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"/>}
+  <aside id="system-admin-drawer" className={`${styles.sidebar} ${open?styles.open:""}`} onKeyDown={event=>{if(event.key==="Escape")setOpen(false)}}>
    <div className={styles.brand}>
     <div className={styles.brandIdentity}><AgrarMentorLogo className={styles.brandLogo} priority/><small>RENDSZERADMINISZTRÁTOR</small></div>
     <button className={styles.close} type="button" onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"><span/><span/><span/></button>
    </div>
    <div className={styles.warning}>ADMIN MÓD<br/><small>Minden beavatkozás naplózható.</small></div>
-   <nav className={styles.nav}>{items.map(([href,icon,label,tour])=>{
+   <nav className={styles.nav} aria-label="Rendszeradmin menüpontok">{items.map(([href,icon,label,tour])=>{
     const active=href==="/system-admin"?pathname===href:pathname.startsWith(href);
     return <Link data-admin-tour={tour} onClick={()=>setOpen(false)} key={href} className={active?styles.active:""} href={href}><span>{icon}</span><b>{label}</b></Link>
    })}</nav>
@@ -50,11 +49,5 @@ export function SystemAdminSidebar(){
     <LogoutButton className={styles.logout}/>
    </div>
   </aside>
-  <nav className={styles.mobileNav} aria-label="Rendszeradmin mobil navigáció">
-   <Link className={pathname==="/system-admin"?styles.mobileActive:""} href="/system-admin"><span>⌂</span><small>Áttekintés</small></Link>
-   <Link className={pathname.startsWith("/system-admin/support")?styles.mobileActive:""} href="/system-admin/support"><span>⌘</span><small>Támogatás</small></Link>
-   <Link className={pathname.startsWith("/system-admin/users")?styles.mobileActive:""} href="/system-admin/users"><span>♙</span><small>Felhasználók</small></Link>
-   <Link className={pathname.startsWith("/system-admin/security")?styles.mobileActive:""} href="/system-admin/security"><span>⚠</span><small>Biztonság</small></Link>
-  </nav>
  </>;
 }

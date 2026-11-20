@@ -164,3 +164,6 @@
  .controlCard strong,.auditList strong{font-size:13px}
  .sectionHead h2{font-size:17px}.hero{min-height:0}.hero p{font-size:11.5px}
 }
+
+/* The mobile admin navigation is now a drawer instead of bottom tabs. */
+@media(max-width:767px){.page{padding-bottom:calc(28px + env(safe-area-inset-bottom))!important}}
