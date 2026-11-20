@@ -1,0 +1,52 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {checkReleaseContract,migrationFiles,edgeNames} from "../scripts/release-contract.mjs";
+
+const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
+
+test("the release contract binds the right GitHub, Vercel and Supabase projects",()=>{
+ const result=checkReleaseContract(read);
+ assert.deepEqual(result.problems,[]);
+ assert.equal(result.ok,true);
+ assert.equal(result.targets.repository,"challangeguild-ai/Agr-r-mentor");
+ assert.equal(result.targets.vercelProjectId,"prj_DMNfMt71StWzgb7rO839NUnrYEjS");
+ assert.equal(result.targets.supabaseProjectId,"qkezhvtwirdsvhzjyvfi");
+ assert.equal(result.targets.emailRelease,"2026-11-20-email-v1");
+ assert.equal(result.documents.length,13);
+ for(const item of result.documents)assert.match(item.sha256,/^[a-f0-9]{64}$/);
+ assert.equal(migrationFiles.length,5);
+ assert.deepEqual(edgeNames,["invite-farmer","invite-advisor","send-notification-email"]);
+});
+
+test("a stale SQL trial or a missing migration cannot pass the release gate",()=>{
+ const result=checkReleaseContract(path=>{
+  if(path==="scripts/verify_staged_migrations.sql")return read(path).replace("20261119093000_authorized_advisor_notifications.sql","other_old_migration.sql");
+  return read(path);
+ });
+ assert.equal(result.ok,false);
+ assert.ok(result.problems.some(p=>p.includes("sorrendje")));
+});
+
+test("mismatched Edge releases and missing invitation quotas block the package",()=>{
+ const result=checkReleaseContract(path=>{
+  if(path==="supabase/functions/invite-advisor/index.ts")
+   return read(path).replace('"X-AgrarMentor-Email-Release":"2026-11-20-email-v1"','"X-AgrarMentor-Email-Release":"old-build"')
+    .replace('rpc("claim_invitation_email_send_quota"','rpc("missing_quota"');
+  return read(path);
+ });
+ assert.equal(result.ok,false);
+ assert.ok(result.problems.some(p=>p.includes("verzióazonosító")));
+ assert.ok(result.problems.some(p=>p.includes("meghívás korlátozása")));
+});
+
+test("the release verifier is read-only and CI runs a compatible Node version",()=>{
+ const source=read("scripts/release-contract.mjs");
+ assert.doesNotMatch(source,/execSync|spawnSync|child_process|\bawait\s+fetch\(|db push|supabase functions deploy/);
+ const ci=read(".github/workflows/ci-build.yml");
+ assert.match(ci,/node-version: '22'/);
+ assert.match(ci,/npm ci/);
+ assert.match(ci,/npm run build/);
+ const pkg=JSON.parse(read("package.json"));
+ assert.match(pkg.scripts.build,/release:check/);
+});

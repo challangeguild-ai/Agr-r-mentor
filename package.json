@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm test && next build",
+    "build": "npm test && npm run release:check && next build",
     "start": "next start",
     "lint": "eslint",
+    "release:check": "node scripts/release-contract.mjs",
     "test:invite": "node --experimental-strip-types --test tests/inviteRedirect.test.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },

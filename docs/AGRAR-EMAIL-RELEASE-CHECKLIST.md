@@ -1,6 +1,6 @@
 # AgrárMentor – a teljes levelezési modul kiadási ellenőrzése
 
-Állapot: **Draft / előkészítve, nem élesítve.** 2026. november 19.
+Állapot: **Draft / helyi PostgreSQL-próba sikeres, nem élesítve.** 2026. november 20.
 
 ## A csomag részei
 
@@ -12,11 +12,11 @@
 
 ## Kiadási sorrend – **csak külön jóváhagyás után**
 
-1. A már visszaállított **helyi** Docker-adatbázison futtatni a `scripts/Test-AgrarMentor-Migrations.ps1` teljes, öt migrációs, egyetlen tranzakciós tesztjét. A végén kötelező `ROLLBACK`; a 61. értesítő e-mail és a 11. meghívó tiltását is ellenőrzi.
+1. **Teljesítve (2026.11.20.):** a visszaállított **helyi** Docker-adatbázison az öt migráció egy tranzakcióban sikeresen lefutott. A séma-/jogosultságtesztek, a 61. értesítő e-mail és a 11. meghívó tiltása sikeres; a végén `ROLLBACK` történt, az eredeti adatok megmaradtak.
 2. Az öt SQL-migráció élesítési tervét és előzetes mentését ellenőrizni. A `20261119211340_notification_email_send_quota.sql` **előbb** alkalmazandó, mint a három frissített Edge Function.
 3. A Supabase szerveroldali kulcsait és `APP_PUBLIC_ORIGIN` HTTPS-eredetét ellenőrizni a `send-notification-email`, `invite-farmer`, `invite-advisor` funkcióknál. A `send-notification-email` külön `RESEND_API_KEY` és ellenőrzött küldődomaint igényel (`NOTIFICATION_EMAIL_FROM`). A meghívókat a Supabase **Auth e-mail-szolgáltatása** küldi; annak SMTP-beállítása, sablonja, kvótája és Auth redirect URL-allowlistje külön ellenőrzendő.
-4. Ezután a **mindhárom** frissített Edge Functiont és a közös `_shared` fájlokat egy ütemben telepíteni. A Vercel Preview kódfrissítése **önmagában nem frissíti** a már telepített Supabase Edge Functionöket.
+4. Ezután a **mindhárom** frissített Edge Functiont és a közös `_shared` fájlokat egy ütemben telepíteni. Az egységes `X-AgrarMentor-Email-Release` válaszfejléc értéke `2026-11-20-email-v1`; ezzel az új kiadás azonosítható. A Vercel Preview kódfrissítése **önmagában nem frissíti** a már telepített Supabase Edge Functionöket.
 5. Engedélyezett tesztfiókokkal, valódi postaládával, ellenőrzött célcímen kézi próbák: rendszeradmin → advisor meghívó; advisor → farmer meghívó; farmtulajdonos → munkatárs meghívó + csatlakozás; advisor → gazda teendő/szemle/válasz; gazda → végrehajtó munkakiosztás; végrehajtó → advisor ellenőrzésre beküldés. Ellenőrizendő: sikeres kézbesítés, működő link, helyes címzett és role, azonos esemény ismétlése nem küld több levelet, idegen címzett elutasítása, hálózati hiba jelzése.
 6. A küldési domain SPF/DKIM/DMARC, spam-besorolás, Resend / Supabase Auth szolgáltatói naplók és a címzetti postaláda összevetése után jöhet csak a production-közzététel.
 
-**Fontos korlát:** a helyi Node-tesztek és a Next.js build **nem igazolják** az éles levelek tényleges kézbesítését, a Supabase Auth SMTP és a Resend beállításait, sem az öt függő SQL-migráció valódi PostgreSQL-működését. Ezek külön kiadási kapuk.
+**Fontos korlát:** a helyi SQL-próba **sikeres**, de az éles adatbázisban a migrációk még nincsenek alkalmazva. A helyi tesztek és a Next.js build **nem igazolják** az éles levelek tényleges kézbesítését, a Supabase Auth SMTP és a Resend beállításait. Ezek külön kiadási kapuk.

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json"};
+const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json","X-AgrarMentor-Email-Release":"2026-11-20-email-v1"};
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:corsHeaders});
 function fail(message:string,status:number,meta?:unknown){console.error("invite-farmer error",{status,message,meta});return json({error:message},status)}
 

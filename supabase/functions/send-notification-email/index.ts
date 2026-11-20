@@ -3,7 +3,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {normalizeNotificationEventKey,notificationEmailIdempotencyKey} from "../_shared/notificationIdempotency.ts";
 import {authorizeNotificationEmail} from "../_shared/notificationAuthorization.ts";
 
-const headers={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json"};
+// Read-only deployment fingerprint; useful when Vercel has new code but an
+// older Supabase Edge Function still serves requests.
+const headers={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json","X-AgrarMentor-Email-Release":"2026-11-20-email-v1"};
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
 const esc=(v:string)=>v.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]||c));
 
