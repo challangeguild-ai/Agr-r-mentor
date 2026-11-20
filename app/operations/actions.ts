@@ -4,7 +4,7 @@ import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {encodeOperation,operationLabel,operationTypes,type OperationType,type OperationData,OP_EVENT} from "@/lib/operations";
-import {requireOfficialPlantProtectionUse} from "@/lib/operationCatalogGuard";
+import {validateManualPlantProtection} from "@/lib/operationCatalogGuard";
 import {productUseBlockingReason} from "@/lib/productUseStatus";
 
 function num(v:FormDataEntryValue|null){const s=String(v||"").trim().replace(",",".");if(!s)return null;const n=Number(s);return Number.isFinite(n)?n:null}
@@ -17,7 +17,20 @@ function huRestricted(category:string|null|undefined){const c=(category||"").tri
 function levelAllows(level:string,category:string|null|undefined){const c=(category||"").trim().toUpperCase().replace(/\.$/,"");if(c==="I")return level==="I";if(c==="II")return level==="I"||level==="II";return true}
 
 async function validatePlantProtection(supabase:any,farmId:string,countryCode:"HU"|"SK",operationDate:string,formData:FormData,rawDose:number|null,doseUnit:string){
- const productId=text(formData.get("product_id"),100),useId=text(formData.get("use_id"),100);const selectionError=requireOfficialPlantProtectionUse(productId,useId);if(selectionError)throw new Error(selectionError);if(!uuid(productId))throw new Error("Érvénytelen növényvédőszer-azonosító.");if(!uuid(useId))throw new Error("Hivatalos készítménynél válassz engedélyezett kultúrát és felhasználást.");
+ const productId=text(formData.get("product_id"),100),useId=text(formData.get("use_id"),100);
+ if(!productId){
+  const{data:verifiedUses,error:catalogError}=await supabase.from("plant_protection_uses")
+   .select("id,plant_protection_products!inner(country_code)")
+   .eq("plant_protection_products.country_code",countryCode).limit(1);
+  if(catalogError)throw new Error("A felhasználási katalógus ellenőrzése sikertelen. Próbáld újra később.");
+  const manualError=validateManualPlantProtection({country:countryCode,hasVerifiedUses:!!verifiedUses?.length,
+   productId:"",useId,productName:text(formData.get("product"),180),crop:text(formData.get("crop"),160),
+   dose:rawDose,doseUnit,acknowledged:formData.get("manual_permit_checked")==="on"});
+  if(manualError)throw new Error(manualError);
+  if(text(formData.get("dose_mode"),20)==="official_max")throw new Error("Kézi naplózáskor nincs hivatalosan ellenőrzött maximális dózis.");
+  return null;
+ }
+ if(!uuid(productId))throw new Error("Érvénytelen növényvédőszer-azonosító.");if(!uuid(useId))throw new Error("Hivatalos készítménynél válassz engedélyezett kultúrát és felhasználást.");
  const{data:product}=await supabase.from("plant_protection_products").select("id,name,country_code,authorization_number,active,valid_from,valid_until,regulatory_status,grace_period_until,regulatory_category,professional_use_only,prescription_required,approval_required").eq("id",productId).maybeSingle();if(!product||!product.active)throw new Error("A kiválasztott növényvédő szer nem aktív vagy nem található.");if(product.country_code!==countryCode)throw new Error("A kiválasztott növényvédő szer nem engedélyezett a gazdaság országában.");
  const regulatoryError=productUseBlockingReason({country:countryCode,operationDate,active:product.active,validFrom:product.valid_from,validUntil:product.valid_until,regulatoryStatus:product.regulatory_status,gracePeriodUntil:product.grace_period_until});
  if(regulatoryError)throw new Error(regulatoryError);
