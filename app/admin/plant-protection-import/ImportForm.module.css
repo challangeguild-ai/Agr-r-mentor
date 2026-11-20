@@ -1,0 +1,27 @@
+.catalogCard{
+ min-width:0;
+ padding:16px;
+ border:1px solid var(--agrar-ui-border);
+ border-radius:var(--agrar-ui-card-radius);
+ background:var(--agrar-ui-surface);
+}
+.catalogCard h3{margin-top:0;overflow-wrap:anywhere}
+.catalogCard p{overflow-wrap:anywhere}
+.highlightedCard{background:var(--agrar-ui-soft)}
+.catalogCard button,.catalogForm button{white-space:normal;overflow-wrap:anywhere;text-align:center}
+.progress{min-width:0;margin-top:12px;padding:12px;border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-control-radius);background:var(--agrar-ui-surface)}
+.progressTrack{height:10px;margin-top:8px;border-radius:999px;background:var(--agrar-ui-border);overflow:hidden}
+.progressFill{height:100%;background:var(--agrar-ui-accent);transition:width .2s ease}
+.catalogForm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;min-width:0;padding:16px;border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius);background:var(--agrar-ui-surface)}
+.catalogForm>*{min-width:0}
+.wide{grid-column:1/-1;min-width:0}
+.catalogForm label{min-width:0;overflow-wrap:anywhere}
+.catalogForm :is(input,select,textarea){width:100%;min-width:0;max-width:100%;font-size:16px}
+.submit{grid-column:1/-1;justify-self:start}
+@media(max-width:767px){
+ .catalogCard,.catalogForm{padding:13px}
+ .catalogForm{grid-template-columns:minmax(0,1fr)}
+ .wide{grid-column:auto}
+ .submit{grid-column:auto;width:100%}
+ .catalogCard button{width:100%}
+}

@@ -60,6 +60,7 @@ export default async function SecurityPage() {
           Az IP-alapú hely csak közelítő adat. VPN, mobilhálózat vagy szolgáltatói routing miatt eltérhet a tényleges tartózkodási helytől.
         </div>
         <div className={styles.eventList}>
+          {rows.length === 0 && <p className="empty-state" role="status">Még nincs naplózott biztonsági esemény.</p>}
           {rows.map((event) => (
             <article className={`${styles.eventCard} ${Number(event.risk_score) >= 70 ? styles.highRisk : ""}`} key={event.id}>
               <div className={styles.eventHeading}>
