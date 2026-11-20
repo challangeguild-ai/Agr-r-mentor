@@ -110,7 +110,7 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 
 **A helyi környezetben nincs telepített Android SDK vagy Gradle-disztribúció.** A meglévő GitHub Actions fejlesztői ágán automatizált teszt és konfigurálatlan debug APK-fordítás fut. A demó APK nem végleges kiadás; a tényleges kiadáshoz konfigurált build és készülékpróba szükséges.
 
-**Release-környezet ellenőrzése (2026-11-20):** az élő GitHub-tárolóban jelenleg csak `Preview` és `Production` environment található. A kiadáshoz külön `agrarmentor-release` environment kell, kötelező jóváhagyóval. A release workflow most már ennek meglétét futás közben is ellenőrzi, és hiányában megszakítja a kiadást. A tartós aláírókulcsot a felhasználónak biztonságosan meg kell őriznie; sem a kulcsot, sem a jelszavát nem tesszük a forráskódba vagy az APK mellé.
+**Release-környezet ellenőrzése (2026-11-20):** az élő GitHub-tárolóban jelenleg csak `Preview` és `Production` environment található. A kiadáshoz külön `agrarmentor-release` environment kell, kötelező jóváhagyóval. A release workflow most már ennek meglétét futás közben is ellenőrzi, és hiányában megszakítja a kiadást. Végleges kiadás kizárólag a felülvizsgált `main` ágról indítható, tehát a fejlesztői ág biztonságos integrálása is kiadási feltétel. A fejlesztői CI teszteli a debug fordítást, de nem tölt fel köztes APK-t. A tartós aláírókulcsot a felhasználónak biztonságosan meg kell őriznie; sem a kulcsot, sem a jelszavát nem tesszük a forráskódba vagy az APK mellé.
 
 ### Végleges, aláírt Android APK kiadása
 

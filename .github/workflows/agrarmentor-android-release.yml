@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: agrarmentor-android-release
+  cancel-in-progress: false
+
 jobs:
   signed-release:
     name: Android 36 · teszt és aláírt release
@@ -45,12 +49,16 @@ jobs:
       # GitHub may silently auto-create an unprotected environment if missing.
       # An unattended signed release must NEVER proceed without an explicit reviewer gate.
       - name: Védett kiadási környezet ellenőrzése
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Only the reviewed default-branch code may be released.
+          [[ "$GITHUB_REF_NAME" == 'main' ]] || {
+            echo 'Végleges APK csak a felülvizsgált main ágról adható ki.'
+            exit 1
+          }
+          # This repository is public: the environment metadata can be read
+          # without an administration-scoped token. Fail closed if unavailable.
           environment_json="$(curl --fail --silent --show-error \
-            --header "Authorization: Bearer $GH_TOKEN" \
             --header 'Accept: application/vnd.github+json' \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-release")" || {
               echo 'Az agrarmentor-release környezet nincs megfelelően létrehozva.'
