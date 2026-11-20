@@ -1,16 +1,15 @@
 /**
- * The UI normally requires a permit-backed product when the country's official
- * catalogue has any active products. A forged server-action FormData must not
- * circumvent those controls by omitting product_id.
+ * A spraying record always needs a permit-backed product and its verified use.
+ * A missing/empty official catalogue is not permission to enter an arbitrary
+ * manual pesticide. This also guards forged server-action FormData.
  */
 export function validateSprayingProductSelection(
  hasOfficialProducts:boolean,
  productId:string,
  manualProductName:string
 ):string|null{
- if(hasOfficialProducts&&!productId)
-  return "A hivatalos növényvédőszer-katalógus elérhető. Válassz engedélyezett készítményt és felhasználást.";
- if(!productId&&!manualProductName.trim())
-  return "A növényvédelmi művelethez add meg a készítményt.";
+ if(!productId)return hasOfficialProducts
+  ? "Válassz hivatalos növényvédő szert és engedélyezett felhasználást. Kézi készítménynévvel nem helyettesíthető az engedélyokirat."
+  : "A hivatalos növényvédőszer-katalógus nem áll rendelkezésre. Engedélyezett felhasználás nélkül a művelet nem rögzíthető.";
  return null;
 }

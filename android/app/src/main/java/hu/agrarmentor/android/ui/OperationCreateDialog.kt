@@ -22,7 +22,7 @@ import java.time.ZoneId
 private val OperationHint=Color(0xFF61796B)
 private val OperationError=Color(0xFFAC2A35)
 
-/** Three short, native steps; regulated plant protection remains excluded until its catalogue guard is ported. */
+/** Three native steps; regulated plant protection requires a current verified product/use selection. */
 @Composable
 internal fun OperationCreateDialog(
  session:AuthorizedSession,colors:PortalPalette,repository:OperationCreateRepository,
@@ -37,6 +37,10 @@ internal fun OperationCreateDialog(
  var type by remember{mutableStateOf(previous?.type?:"soil_work")}
  var subtype by remember{mutableStateOf(previous?.subtype?:"")}
  var product by remember{mutableStateOf(previous?.product?:"")}
+ var productId by remember{mutableStateOf(previous?.productId)}
+ var useId by remember{mutableStateOf(previous?.useId)}
+ var doseMode by remember{mutableStateOf(previous?.doseMode?:"custom")}
+ var requestedApproverId by remember{mutableStateOf(previous?.requestedApproverId)}
  var treatedArea by remember{mutableStateOf(previous?.treatedArea?:"")}
  var dose by remember{mutableStateOf(previous?.dose?:"")}
  var doseUnit by remember{mutableStateOf(previous?.doseUnit?:"")}
@@ -57,16 +61,19 @@ internal fun OperationCreateDialog(
   finally{loading=false}
  }
  val selected=fields.find{it.id==fieldId}
- val draft=OperationCreateInput(fieldId,date,type,subtype,product,treatedArea,dose,doseUnit,quantity,quantityUnit,machine,operator,weather,notes)
+ val chemical=type=="spraying"||type=="plant_protection"
+ val draft=OperationCreateInput(fieldId,date,type,subtype,product,treatedArea,dose,doseUnit,quantity,quantityUnit,machine,operator,weather,notes,
+  productId,useId,doseMode,requestedApproverId)
  fun validate():String?{
   if(selected==null)return "Válassz saját földtáblát."
   if(!OperationCreateRules.validDate(date))return "Érvényes dátumot adj meg (ÉÉÉÉ-HH-NN)."
   if(OperationCreateRules.types.none{it.first==type})return "Válassz érvényes művelettípust."
   if(step==0)return null
   if(!OperationCreateRules.validDetails(type,date,subtype,product,notes))return "Ellenőrizd a művelettípust, az anyagot és a szöveges adatokat."
+  if(chemical&&(productId.isNullOrBlank()||useId.isNullOrBlank()))return "Válassz hivatalos készítményt és engedélyezett felhasználást."
   return runCatching{
    val area=OperationCreateRules.parseAmount(treatedArea)
-   val d=OperationCreateRules.parseAmount(dose)
+   val d=if(chemical&&doseMode=="official_max")null else OperationCreateRules.parseAmount(dose)
    val q=OperationCreateRules.parseAmount(quantity)
    if(!OperationCreateRules.validNumbers(area,selected.areaHa,d,q))"A terület vagy a mennyiségek érvénytelenek." else null
   }.getOrElse{it.message?:"Érvénytelen számérték."}
@@ -82,7 +89,10 @@ internal fun OperationCreateDialog(
      Box{
       OutlinedButton(onClick={fieldMenu=true},enabled=!saving){Text("Földtábla: ${selected?.name?:"Válassz"}")}
       DropdownMenu(expanded=fieldMenu,onDismissRequest={fieldMenu=false}){
-       fields.forEach{field->DropdownMenuItem(text={Text("${field.farmName} · ${field.name}")},onClick={fieldId=field.id;fieldMenu=false})}
+       fields.forEach{field->DropdownMenuItem(text={Text("${field.farmName} · ${field.name}")},onClick={
+        if(fieldId!=field.id){productId=null;useId=null;product="";dose="";doseUnit="";requestedApproverId=null}
+        fieldId=field.id;fieldMenu=false
+       })}
       }
      }
      if(selected?.areaHa!=null)Text("Tábla mérete: ${selected.areaHa} ha",color=OperationHint,fontSize=12.sp)
@@ -90,17 +100,26 @@ internal fun OperationCreateDialog(
      Box{
       OutlinedButton(onClick={typeMenu=true},enabled=!saving){Text("Típus: ${OperationCreateRules.types.find{it.first==type}?.second?:"Válassz"}")}
       DropdownMenu(expanded=typeMenu,onDismissRequest={typeMenu=false}){
-       OperationCreateRules.types.forEach{(key,label)->DropdownMenuItem(text={Text(label)},onClick={type=key;typeMenu=false})}
+       OperationCreateRules.types.forEach{(key,label)->DropdownMenuItem(text={Text(label)},onClick={
+        if(type!=key){productId=null;useId=null;product="";dose="";doseUnit="";doseMode="custom";requestedApproverId=null}
+        type=key;typeMenu=false
+       })}
       }
      }
-     Text("Permetezés és növényvédelem a kötelező hivatalos készítmény- és engedélyellenőrzés elkészültéig nem rögzíthető itt.",color=OperationHint,fontSize=12.sp)
+     Text("Permetezésnél a következő lépésben kötelező a hivatalos készítmény, felhasználás és szükség esetén a jogosult jóváhagyó kiválasztása.",color=OperationHint,fontSize=12.sp)
     }
     1->{
      Text("2. Végrehajtási adatok",fontWeight=FontWeight.Bold)
      OutlinedTextField(subtype,{subtype=it.take(120)},label={Text("Művelet részlete (nem kötelező)")},modifier=Modifier.fillMaxWidth())
-     OutlinedTextField(product,{product=it.take(180)},label={Text(if(type=="fertilizing")"Anyag neve (kötelező)"else"Anyag neve (nem kötelező)")},modifier=Modifier.fillMaxWidth())
+     if(chemical&&selected!=null){
+      PlantProtectionSelector(session,selected,date,
+       PlantSelectionState(productId,product,useId,dose,doseUnit,doseMode,requestedApproverId),onChange={value->
+        productId=value.productId;product=value.productName;useId=value.useId
+        dose=value.dose;doseUnit=value.doseUnit;doseMode=value.doseMode;requestedApproverId=value.approverId
+       })
+     }else OutlinedTextField(product,{product=it.take(180)},label={Text(if(type=="fertilizing")"Anyag neve (kötelező)"else"Anyag neve (nem kötelező)")},modifier=Modifier.fillMaxWidth())
      OutlinedTextField(treatedArea,{treatedArea=it.take(30)},label={Text("Kezelt terület (ha)")},modifier=Modifier.fillMaxWidth())
-     Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
+     if(!chemical)Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
       OutlinedTextField(dose,{dose=it.take(30)},label={Text("Dózis")},modifier=Modifier.weight(1f))
       OutlinedTextField(doseUnit,{doseUnit=it.take(30)},label={Text("Egység")},modifier=Modifier.weight(1f))
      }

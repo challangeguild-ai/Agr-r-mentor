@@ -20,7 +20,8 @@ type Use={id:string;product_id:string;crop:string;target:string|null;dose_min:nu
 type Ingredient={product_id:string;ingredient:string;concentration:number|null;concentration_unit:string|null};
 type Approver={id:string;full_name:string|null;authorization_level:"I"|"II"|"III";permit_number:string|null;valid_until:string|null;role:string|null};
 type Source={source_name:string;source_url:string;status:"pending"|"ready"|"stale"|"error";last_imported_at:string|null;product_count:number;use_count:number;notes:string|null};
-type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];ingredients?:Ingredient[];approvers?:Approver[];source?:Source|null;error?:string};
+type CatalogCoverage={state:"unavailable"|"partial"|"ready";products:number;productsWithUses:number;productsWithoutUses:number;uses:number};
+type CatalogResponse={catalog:CatalogItem[];products:Product[];uses:Use[];ingredients?:Ingredient[];approvers?:Approver[];source?:Source|null;coverage?:CatalogCoverage;error?:string};
 const methodTypes=new Set(["soil_work","sowing","harvest","irrigation","mowing","other"]);
 const DRAFT_MAX_AGE=12*60*60*1000;
 function decimalOrInvalid(value:string){try{return parseDecimalOrNull(value)}catch{return NaN}}
@@ -46,7 +47,7 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
  const [operationDate,setOperationDate]=useState(localToday);
  const initial=fields.find(f=>f.id===defaultFieldId);const[busy,setBusy]=useState(false),[loadingCatalog,setLoadingCatalog]=useState(false),[catalogLoadError,setCatalogLoadError]=useState(""),[catalogRetry,setCatalogRetry]=useState(0),[error,setError]=useState(""),[step,setStep]=useState(0);
  const[type,setType]=useState("spraying"),[fieldId,setFieldId]=useState(defaultFieldId),[product,setProduct]=useState(""),[customProduct,setCustomProduct]=useState(""),[productId,setProductId]=useState(""),[useId,setUseId]=useState(""),[catalogCrop,setCatalogCrop]=useState(""),[dose,setDose]=useState(""),[doseMode,setDoseMode]=useState<"official_max"|"custom">("custom"),[machineId,setMachineId]=useState(""),[customMachine,setCustomMachine]=useState("");
- const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null);
+ const[catalog,setCatalog]=useState<CatalogItem[]>([]),[products,setProducts]=useState<Product[]>([]),[uses,setUses]=useState<Use[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[approvers,setApprovers]=useState<Approver[]>([]),[source,setSource]=useState<Source|null>(null),[coverage,setCoverage]=useState<CatalogCoverage|null>(null);
  const selectedField=fields.find(f=>f.id===fieldId)||initial,country:CountryCode=selectedField?.countryCode||"HU",farmId=selectedField?.farmId||"",spraying=type==="spraying"||type==="plant_protection",fert=type==="fertilizing",inputLike=fert||spraying,hasMethod=methodTypes.has(type);
  useEffect(()=>{
   let active=true;
@@ -58,10 +59,10 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   // A different field, farm, operation type or country must clear the old permit data.
   if(contextChanged){
    setCatalog([]);setProducts([]);setUses([]);setIngredients([]);setApprovers([]);
-   setSource(null);setProduct("");setCustomProduct("");setProductId("");
+   setSource(null);setCoverage(null);setProduct("");setCustomProduct("");setProductId("");
    setUseId("");setCatalogCrop("");setDose("");setDoseMode("custom");
   }
-  fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);
+  fetch(`/api/operation-catalog?country=${country}&type=${encodeURIComponent(type)}${farmId?`&farm=${encodeURIComponent(farmId)}`:""}`,{cache:"no-store"}).then(async r=>{const body=await r.json() as CatalogResponse;if(!r.ok)throw new Error(body.error||"A katalógus betöltése sikertelen.");return body}).then(body=>{if(!active)return;setCatalog(body.catalog||[]);setProducts(body.products||[]);setUses(body.uses||[]);setIngredients(body.ingredients||[]);setApprovers(body.approvers||[]);setSource(body.source||null);setCoverage(body.coverage||null);
   // A same-context retry may import a newer permit dataset. Do not keep
   // references that are no longer present in the returned official records.
   if(!contextChanged&&productId){
@@ -199,9 +200,9 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
    if(fert&&!effectiveProduct.trim())return "Válassz vagy adj meg műtrágyát / anyagot.";
    if(spraying){
     if(productBlock)return productBlock;
-    if(products.length&&!productId)return "Válassz hivatalos készítményt.";
-    if(!products.length&&!product.trim())return "Add meg a készítmény nevét.";
-    if(products.length&&!hasUseCatalog)return "Ehhez a katalógusbeli készítményhez nincs ellenőrzött felhasználási adat; hivatalos műveletként nem rögzíthető.";
+    if(!products.length)return "Nincs betöltött hivatalos növényvédőszer-katalógus; a művelet nem rögzíthető.";
+    if(!hasUseCatalog)return "A hivatalos növényvédőszer-katalógushoz nincs ellenőrzött felhasználási adat; a művelet nem rögzíthető.";
+    if(!productId)return "Válassz hivatalos készítményt.";
     if(hasUseCatalog&&(!catalogCrop||!useId||!selectedUse))return "Válassz érvényes kultúrát és engedélyezett felhasználást.";
     if(selectedUse&&(selectedUse.dose_max!=null||selectedUse.dose_min!=null)){
      const n=decimalOrInvalid(dose);
@@ -279,6 +280,11 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
     <span>A szakmai katalógus betöltése sikertelen. Növényvédelmi rögzítéshez előbb helyre kell állnia az adatkapcsolatnak.</span>
     <button type="button" disabled={loadingCatalog} onClick={()=>setCatalogRetry(v=>v+1)}>Katalógus újratöltése</button>
    </div>}
+  {spraying&&!loadingCatalog&&!catalogLoadError&&coverage?.state!=="ready"&&<div className="operation-wide error-box" role="alert">
+    <strong>{coverage?.state==="partial"?"A növényvédőszer-katalógus csak részben teljes.":"A hivatalos növényvédőszer-felhasználási adatok hiányoznak."}</strong>
+    <p>{country==="HU"?"Magyarország":"Szlovákia"}: {coverage?.products??products.length} készítményből {coverage?.productsWithUses??0} rendelkezik rögzített engedélyezett felhasználással. {coverage?.productsWithoutUses??products.length} készítményhez nincs ellenőrzött kultúra–cél–dózis rekord. Hiányzó adatot nem pótolunk becsléssel; ilyen készítménnyel nem lehet műveletet menteni.</p>
+    {country==="HU"&&<a href="https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso" target="_blank" rel="noopener noreferrer">NÉBIH engedélykereső – a hatályos engedélyokirat ellenőrzése</a>}
+  </div>}
   <div className="operation-wide am-operation-step" style={{display:step===0?"contents":"none"}}>
   <label>Földtábla<select name="field_id" value={fieldId} onChange={e=>changeField(e.target.value)} required><option value="">Válassz földtáblát</option>{fields.map(f=><option key={f.id} value={f.id}>{f.name} – {f.farmName}{f.areaHa?` (${f.areaHa} ha)`:""}</option>)}</select></label>
   <label>Dátum<input type="date" name="operation_date" value={operationDate} onChange={e=>setOperationDate(e.target.value)} required/></label>
@@ -289,11 +295,9 @@ export function OperationForm({fields,machines=[],defaultFieldId="",draftOwnerId
   <div className="operation-wide am-operation-step" style={{display:step===1?"contents":"none"}}>
   {fert?<><label>Műtrágya / anyag<select value={product} onChange={e=>{setProduct(e.target.value);setCustomProduct("")}}><option value="">Válassz műtrágyát</option>{fertilizerOptions.map(x=><option key={x}>{x}</option>)}<option value="Egyéb">Egyéb / saját termék</option></select><input type="hidden" name="product" value={effectiveProduct}/></label>{product==="Egyéb"&&<label>Saját termék megnevezése<input value={customProduct} onChange={e=>setCustomProduct(e.target.value)} required/></label>}</>:spraying?<>
    {products.length>0&&hasUseCatalog&&<label>Kultúra<select value={catalogCrop} onChange={e=>{setCatalogCrop(e.target.value);setProductId("");setUseId("");setProduct("");setDose("")}} required><option value="">Válassz kultúrát</option>{cropOptions.map(c=><option key={c}>{c}</option>)}</select></label>}
-   <label>Készítmény / szer<select name={hasUseCatalog?"product_id":undefined} value={productId} onChange={e=>{const id=e.target.value;setProductId(id);setUseId("");setDose("");setProduct(products.find(x=>x.id===id)?.name||"")}} disabled={loadingCatalog||(products.length>0&&hasUseCatalog&&!catalogCrop)} required={products.length>0}><option value="">{loadingCatalog?"Katalógus betöltése…":products.length?(hasUseCatalog?(catalogCrop?"Válassz engedélyezett készítményt":"Előbb válassz kultúrát"):"Válassz hivatalos terméktörzsből"):"Nincs betöltött hivatalos készítmény"}</option>{filteredProducts.map(x=><option key={x.id} value={x.id}>{x.name}{x.regulatory_category?` · ${x.regulatory_category}. kategória`:""}{x.authorization_number?` · ${x.authorization_number}`:""}</option>)}</select>{products.length?<input type="hidden" name="product" value={product}/>:null}</label>
+   <label>Készítmény / szer<select name="product_id" value={productId} onChange={e=>{const id=e.target.value;setProductId(id);setUseId("");setDose("");setProduct(products.find(x=>x.id===id)?.name||"")}} disabled={loadingCatalog||!hasUseCatalog||!catalogCrop} required><option value="">{loadingCatalog?"Katalógus betöltése…":!products.length?"Nincs betöltött hivatalos készítmény":!hasUseCatalog?"Nincs igazolt felhasználás":catalogCrop?"Válassz engedélyezett készítményt":"Előbb válassz kultúrát"}</option>{hasUseCatalog&&filteredProducts.map(x=><option key={x.id} value={x.id}>{x.name}{x.regulatory_category?` · ${x.regulatory_category}. kategória`:""}{x.authorization_number?` · ${x.authorization_number}`:""}</option>)}</select><input type="hidden" name="product" value={product}/></label>
    {productBlock&&<div className="error-box operation-wide" role="alert">{productBlock}</div>}
-   {!products.length&&!loadingCatalog&&<label>Készítmény kézi megnevezése<input name="product" value={product} onChange={e=>setProduct(e.target.value)} placeholder={`${country} készítmény neve`}/></label>}
    {productId&&productUses.length>0&&<label>Engedélyezett felhasználás / cél<select name="use_id" value={useId} onChange={e=>chooseUse(e.target.value)} required><option value="">Válassz engedélyezett felhasználást</option>{productUses.map(u=><option key={u.id} value={u.id}>{u.target||u.application_method||u.crop}{u.dose_min!=null||u.dose_max!=null?` (${u.dose_min??"?"}–${u.dose_max??"?"} ${u.dose_unit||""})`:""}{country==="SK"&&u.bbch_min!=null?` · BBCH ${u.bbch_min}${u.bbch_max!=null?`–${u.bbch_max}`:""}`:""}</option>)}</select></label>}
-   {((!products.length&&!loadingCatalog)||(productId&&!hasUseCatalog))&&<><label>Kultúra<input name="crop" required={!!productId} placeholder="A ténylegesen kezelt kultúra"/></label><label>Célkárosító / cél<input name="target" placeholder="Gyom, kártevő, betegség vagy egyéb cél"/></label></>}
    <label>Hatóanyag(ok){productId?<input name="active_ingredient" value={activeIngredient} readOnly/>:<input name="active_ingredient"/>}</label>
    {selectedUse&&<PlantProtectionUseDetails use={selectedUse} country={country}/>} 
   </>:type==="sowing"?<label>Vetőmag / fajta<input name="product" value={product} onChange={e=>setProduct(e.target.value)}/></label>:null}

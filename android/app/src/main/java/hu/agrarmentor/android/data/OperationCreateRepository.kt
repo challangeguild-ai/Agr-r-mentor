@@ -17,11 +17,12 @@ data class OperationField(val id:String,val name:String,val farmId:String,val fa
 data class OperationCreateInput(
  val fieldId:String,val date:String,val type:String,val subtype:String,val product:String,
  val treatedArea:String,val dose:String,val doseUnit:String,val quantity:String,val quantityUnit:String,
- val machine:String,val operator:String,val weather:String,val notes:String
+ val machine:String,val operator:String,val weather:String,val notes:String,
+ val productId:String?=null,val useId:String?=null,val doseMode:String="custom",val requestedApproverId:String?=null
 )
 data class OperationCreateResult(val id:String,val alreadyExists:Boolean,val warning:String?)
 
-/** Explicitly limited to ordinary operations; plant-protection requires permit-based catalogue validation. */
+/** Owner operations, including permit-verified plant protection; server RLS/triggers remain authoritative. */
 class OperationCreateRepository(private val baseUrl:String,private val publishableKey:String){
  private data class Pending(val id:String,val input:OperationCreateInput)
  private var pending:Pending?=null
@@ -50,10 +51,12 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   require(input.doseUnit.length<=30&&input.quantityUnit.length<=30&&input.machine.length<=150&&
    input.operator.length<=120&&input.weather.length<=180){"Túl hosszú szöveges mező."}
   val area=OperationCreateRules.parseAmount(input.treatedArea)
-  val dose=OperationCreateRules.parseAmount(input.dose)
+  val chemical=input.type=="spraying"||input.type=="plant_protection"
+  val dose=if(chemical&&input.doseMode=="official_max")null else OperationCreateRules.parseAmount(input.dose)
   val quantity=OperationCreateRules.parseAmount(input.quantity)
   val field=ownedFields(session).find{it.id==uuid(input.fieldId)}
    ?:error("Csak a saját gazdaságod földtábláján rögzíthetsz műveletet.")
+  val verified=if(chemical)PlantProtectionCatalogRepository(baseUrl,publishableKey).verify(session,field,input)else null
   require(OperationCreateRules.validNumbers(area,field.areaHa,dose,quantity)){
    "A terület legfeljebb a tábla mérete lehet, a dózis és a mennyiség nem lehet negatív."
   }
@@ -64,14 +67,25 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   val body=JSONObject().put("id",draft.id).put("farm_id",field.farmId).put("field_id",field.id)
    .put("operation_date",input.date).put("operation_type",input.type).put("country_code",field.countryCode)
    .put("subtype",input.subtype.trim().ifBlank{null})
-   .put("product_name",input.product.trim().ifBlank{null})
-   .put("dose",dose?:JSONObject.NULL).put("dose_unit",input.doseUnit.trim().ifBlank{null})
+   .put("product_name",verified?.productName?:input.product.trim().ifBlank{null})
+   .put("product_id",verified?.productId?:JSONObject.NULL).put("plant_protection_use_id",verified?.useId?:JSONObject.NULL)
+   .put("authorization_number",verified?.authorizationNumber?:JSONObject.NULL)
+   .put("crop",verified?.crop?:JSONObject.NULL).put("target",verified?.target?:JSONObject.NULL)
+   .put("active_ingredient",verified?.activeIngredient?:JSONObject.NULL)
+   .put("dose",verified?.dose?:dose?:JSONObject.NULL).put("dose_unit",verified?.doseUnit?:input.doseUnit.trim().ifBlank{null})
+   .put("dose_mode",verified?.doseMode?:JSONObject.NULL).put("official_dose_max",verified?.officialDoseMax?:JSONObject.NULL)
    .put("quantity",quantity?:JSONObject.NULL).put("quantity_unit",input.quantityUnit.trim().ifBlank{null})
    .put("treated_area",area?:JSONObject.NULL).put("machine_name",input.machine.trim().ifBlank{null})
    .put("operator_name",input.operator.trim().ifBlank{null}).put("weather",input.weather.trim().ifBlank{null})
-   .put("notes",input.notes.trim().ifBlank{null}).put("catalog_mode","manual")
-   .put("approval_required",false).put("approval_status","not_required").put("created_by",session.userId)
-  val lookup="field_operations?select=id,farm_id,field_id,operation_date,operation_type,created_by,product_name,treated_area,dose,quantity&id=eq.${draft.id}&limit=1"
+   .put("notes",input.notes.trim().ifBlank{null}).put("catalog_mode",if(chemical)"official"else"manual")
+   .put("regulatory_category",verified?.regulatoryCategory?:JSONObject.NULL)
+   .put("approval_required",verified?.approvalRequired?:false)
+   .put("approval_status",if(verified?.approvalRequired==true)"pending"else"not_required")
+   .put("requested_approver_id",verified?.approverId?:JSONObject.NULL)
+   .put("approver_name",verified?.approverName?:JSONObject.NULL)
+   .put("approval_basis",if(verified?.approvalRequired==true)"farm_plant_protection_approver"else JSONObject.NULL)
+   .put("created_by",session.userId)
+  val lookup="field_operations?select=id,farm_id,field_id,operation_date,operation_type,created_by,product_name,product_id,plant_protection_use_id,requested_approver_id,treated_area,dose,quantity&id=eq.${draft.id}&limit=1"
   var saved=read(lookup,session).singleOrNull()
   var alreadyExists=saved!=null
   if(saved==null){
@@ -86,23 +100,29 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   require(saved!=null&&saved.optString("id")==draft.id&&saved.optString("farm_id")==field.farmId&&
    saved.optString("field_id")==field.id&&saved.optString("operation_date")==input.date&&
    saved.optString("operation_type")==input.type&&saved.optString("created_by")==session.userId&&
-   saved.optional("product_name")==input.product.trim().ifBlank{null}&&
-   sameAmount(saved,"treated_area",area)&&sameAmount(saved,"dose",dose)&&sameAmount(saved,"quantity",quantity)){
+   saved.optional("product_name")== (verified?.productName?:input.product.trim().ifBlank{null})&&
+   saved.optional("product_id")==verified?.productId&&saved.optional("plant_protection_use_id")==verified?.useId&&
+   saved.optional("requested_approver_id")==verified?.approverId&&
+   sameAmount(saved,"treated_area",area)&&sameAmount(saved,"dose",verified?.dose?:dose)&&sameAmount(saved,"quantity",quantity)){
    "A művelet mentése nem igazolható, vagy a mentési azonosítóhoz eltérő adatok tartoznak."
   }
   pending=null
-  val warning=runCatching{addTimeline(session,field,input,draft.id)}.getOrElse{
+  val warning=runCatching{addTimeline(session,field,input,draft.id,verified)}.getOrElse{
    "A művelet létrejött, de az idővonal frissítését nem sikerült igazolni."
   }
   OperationCreateResult(draft.id,alreadyExists,warning)
  }
 
- private fun addTimeline(session:AuthorizedSession,field:OperationField,input:OperationCreateInput,operationId:String):String?{
+ private fun addTimeline(session:AuthorizedSession,field:OperationField,input:OperationCreateInput,operationId:String,verified:VerifiedPlantProtection?):String?{
   val eventId=UUID.nameUUIDFromBytes("field-operation:$operationId".toByteArray(StandardCharsets.UTF_8)).toString()
   if(read("timeline_events?select=id&id=eq.$eventId&limit=1",session).isNotEmpty())return null
   val summary=JSONObject().put("type",input.type).put("countryCode",field.countryCode)
-   .put("subtype",input.subtype).put("product",input.product).put("dose",OperationCreateRules.parseAmount(input.dose))
-   .put("doseUnit",input.doseUnit).put("quantity",OperationCreateRules.parseAmount(input.quantity))
+   .put("subtype",input.subtype).put("product",verified?.productName?:input.product)
+   .put("productId",verified?.productId).put("useId",verified?.useId)
+   .put("authorizationNumber",verified?.authorizationNumber).put("crop",verified?.crop)
+   .put("target",verified?.target).put("activeIngredient",verified?.activeIngredient)
+   .put("dose",verified?.dose?:OperationCreateRules.parseAmount(input.dose))
+   .put("doseUnit",verified?.doseUnit?:input.doseUnit).put("quantity",OperationCreateRules.parseAmount(input.quantity))
    .put("quantityUnit",input.quantityUnit).put("treatedArea",OperationCreateRules.parseAmount(input.treatedArea))
    .put("machine",input.machine).put("operator",input.operator).put("weather",input.weather).put("notes",input.notes)
   val title="Művelet: ${OperationCreateRules.types.find{it.first==input.type}?.second?:"Gazdálkodási művelet"}"

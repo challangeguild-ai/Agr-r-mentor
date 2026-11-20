@@ -2,7 +2,7 @@
 
 **Egyetlen Android-alkalmazás, egyetlen csomagazonosító:** `hu.agrarmentor.android`.
 
-Ez külön Kotlin / Jetpack Compose projekt. **Nem WebView**, nem a honlap mobilmenüjének átírása, és nem három külön telepítendő alkalmazás. Az Agrár Mentor meglévő Supabase backendjét használja; a Next.js/Vercel projektet változatlanul hagyja.
+Ez külön Kotlin / Jetpack Compose projekt. **Nem WebView**, nem a honlap mobilmenüjének átírása, és nem három külön telepítendő alkalmazás. Az Agrár Mentor meglévő Supabase backendjét és a webes felülettel közös engedélyezési adatforrást használja.
 
 ## Az alkalmazás azonosítója és megjelenése
 
@@ -70,7 +70,9 @@ A gazdálkodó a **Dokumentumok** és a **Számlák** oldalon a rendszer fájlv�
 
 ### Gazdálkodói műveleti napló és jóváhagyások
 
-A natív **Műveleti napló** már háromlépéses, földtáblához kötött rögzítést ad a tulajdonosnak. Jelenleg csak a nem növényvédelmi típusok (tápanyag-utánpótlás, vetés, talajmunka, betakarítás, öntözés, kaszálás és egyéb) érhetők el, terület-, nem jövőbeli dátum-, mennyiség- és mezőhossz-ellenőrzéssel. A rendszer a meglévő RLS-szabályok szerint rögzít, újrapróbálásnál ugyanazt a műveletazonosítót ellenőrzi, és az idővonalat is megpróbálja frissíteni. A speciális növényvédelmi/permetezési folyamatot **szándékosan nem** nyitja meg: a hivatalos szerkatalógus, engedélyezett felhasználás, dóziskorlát és kijelölt jóváhagyó teljes ellenőrzése szükséges hozzá, ezért ez a külön munkafolyamat még hátravan. A gazdasági vezető/munkatárs szerepkörök kliensoldali műveletrögzítése is hátravan, mivel az éles RLS jelenleg tulajdonosi INSERT-et enged.
+A natív **Műveleti napló** háromlépéses, földtáblához kötött rögzítést ad a tulajdonosnak, a nem növényvédelmi típusokra terület-, nem jövőbeli dátum-, mennyiség- és mezőhossz-ellenőrzéssel. A **Permetezés / Növényvédelem** típusban is elkészült a natív hivatalos készítménykereső, a felhasználás és kultúra választása, az engedélyezett maximális vagy egyéni dózis ellenőrzése, a jogosult gazdasági jóváhagyó kiválasztása, valamint a mentés előtti friss szerveroldali adatlekérdezés. A rendszer a meglévő RLS/trigger szabályok szerint rögzít, újrapróbálásnál ugyanazt a műveletazonosítót ellenőrzi, és az idővonalat is megpróbálja frissíteni.
+
+**Magyar katalógus-adathiány:** a NÉBIH visszavont/lejárt készítmény-listájának szinkronja csak a terméktörzset és hatósági státuszokat tölti fel, nem a kultúra–cél–dózis engedélyadatokat. A közös adatbázis ellenőrzésekor 578 aktív HU terméket, de **0 HU felhasználási rekordot** találtunk. Emiatt a magyar növényvédelmi kijuttatás mentése a hiányzó engedélyadatokkal **szándékosan blokkolt**, az app nem talál ki dózisokat. A webes admin-felület és a webes műveletbeviteli felület ugyanezt a hiányt külön jelzi. A hivatalos engedélyokiratok ellenőrzött, dokumentált betöltése és a valódi HU/SK készülékes végponttól végpontig teszt még szükséges. A gazdasági vezető/munkatárs szerepkörök kliensoldali műveletrögzítése is hátravan, mivel az éles RLS jelenleg tulajdonosi INSERT-et enged.
 
 A natív **Jóváhagyások** menüpont a felhasználóhoz rendelt, jóváhagyásra váró vagy már elfogadott növényvédelmi műveleteket mutatja. A felhasználó kifejezett megerősítése után előzetesen ellenőrzi az aktív gazdasági jóváhagyói kijelölést, a személyes érvényes növényvédelmi engedélyt és az I./II. kategóriához szükséges jogosultsági szintet; a szerver RLS/trigger ugyanezt a döntést újra ellenőrzi. A PATCH a művelet előző `updated_at` értékéhez és `pending` állapotához kötött. Valódi jóváhagyói fiókkal végigvezetett E2E teszt még szükséges. A kód és automatizált egységtesztek önmagukban nem helyettesítik ezt.
 

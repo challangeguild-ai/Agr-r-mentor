@@ -5,9 +5,10 @@ import org.junit.Test
 import java.time.LocalDate
 
 class OperationCreateRulesTest {
- @Test fun excludesRegulatedSprayingWithoutOfficialCatalog(){
+ @Test fun regulatedSprayingRequiresProductNameAndSeparatePermitValidation(){
   assertFalse(OperationCreateRules.validDetails("spraying","2026-11-20","","",""))
   assertFalse(OperationCreateRules.validDetails("plant_protection","2026-11-20","","",""))
+  assertTrue(OperationCreateRules.validDetails("spraying","2026-11-20","","Hivatalos szer",""))
   assertTrue(OperationCreateRules.validDetails("harvest","2026-11-20","","",""))
   assertFalse(OperationCreateRules.validDetails("fertilizing","2026-11-20","","",""))
   assertTrue(OperationCreateRules.validDetails("fertilizing","2026-11-20","","NPK",""))

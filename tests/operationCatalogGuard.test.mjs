@@ -7,7 +7,7 @@ test("forged manual entry cannot bypass an available official pesticide catalogu
  assert.match(validateSprayingProductSelection(true,"",""),/hivatalos/);
  assert.equal(validateSprayingProductSelection(true,"official-product-id",""),null);
 });
-test("manual product names are only accepted when no official catalogue products exist",()=>{
- assert.equal(validateSprayingProductSelection(false,"","Helyszíni kézi rögzítés"),null);
- assert.match(validateSprayingProductSelection(false,"","   "),/készítményt/);
+test("manual pesticide names cannot bypass even an unavailable official catalogue",()=>{
+ assert.match(validateSprayingProductSelection(false,"","Helyszíni kézi rögzítés"),/nem rögzíthető/);
+ assert.match(validateSprayingProductSelection(false,"","   "),/nem rögzíthető/);
 });

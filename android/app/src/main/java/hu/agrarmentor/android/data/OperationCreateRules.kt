@@ -3,9 +3,10 @@ package hu.agrarmentor.android.data
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Non-plant-protection operation recording. Chemical use needs the separate official catalogue workflow. */
+/** Shared native operation validation. Chemical uses receive additional official-catalogue verification. */
 internal object OperationCreateRules {
  val types=listOf(
+  "spraying" to "Permetezés", "plant_protection" to "Növényvédelem",
   "fertilizing" to "Tápanyag-utánpótlás", "sowing" to "Vetés",
   "soil_work" to "Talajmunka", "harvest" to "Betakarítás",
   "irrigation" to "Öntözés", "mowing" to "Kaszálás", "other" to "Egyéb művelet"
@@ -27,5 +28,5 @@ internal object OperationCreateRules {
 
  fun validDetails(type:String,date:String,subtype:String,product:String,notes:String):Boolean =
   types.any{it.first==type}&&validDate(date)&&subtype.length<=120&&product.length<=180&&notes.length<=1000&&
-   (type!="fertilizing"||product.isNotBlank())
+   (type !in setOf("fertilizing","spraying","plant_protection")||product.isNotBlank())
 }
