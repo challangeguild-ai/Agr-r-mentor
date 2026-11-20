@@ -207,3 +207,12 @@ end $$;
 
 revoke all on function public.submit_verified_task_execution(uuid,text,date,numeric,text,numeric,numeric,text,text,text,numeric,numeric) from public,anon,authenticated;
 grant execute on function public.submit_verified_task_execution(uuid,text,date,numeric,text,numeric,numeric,text,text,text,numeric,numeric) to authenticated;
+
+-- Android must fail closed until the hardened RPC above is deployed.
+-- Keep this marker in the SAME migration as the hardened function.
+create or replace function public.verified_task_proof_policy_version()
+returns integer language sql stable security invoker set search_path='' as $$
+  select 1;
+$$;
+revoke all on function public.verified_task_proof_policy_version() from public,anon,authenticated;
+grant execute on function public.verified_task_proof_policy_version() to authenticated;

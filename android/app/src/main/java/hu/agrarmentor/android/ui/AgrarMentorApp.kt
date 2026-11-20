@@ -37,6 +37,7 @@ import hu.agrarmentor.android.auth.SupabaseAuthGateway
 import hu.agrarmentor.android.data.FieldRepository
 import hu.agrarmentor.android.data.FieldSummary
 import hu.agrarmentor.android.data.FarmerWorkspaceRepository
+import hu.agrarmentor.android.data.FieldTaskCompletion
 import hu.agrarmentor.android.data.GeneralTaskCompletion
 import hu.agrarmentor.android.data.MobileFieldDetail
 import hu.agrarmentor.android.data.MobileOperation
@@ -432,6 +433,7 @@ private enum class TaskListMode{ALL,DUE,MINE}
 private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val completion=remember{GeneralTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val fieldCompletion=remember{FieldTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val scope=rememberCoroutineScope()
  var tasks by remember{mutableStateOf<List<MobileTask>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
@@ -439,6 +441,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
  var revision by remember{mutableIntStateOf(0)}
  var filter by rememberSaveable{mutableStateOf("Nyitott")}
  var selectedCompletion by remember{mutableStateOf<MobileTask?>(null)}
+ var selectedFieldCompletion by remember{mutableStateOf<MobileTask?>(null)}
  var completionNote by remember{mutableStateOf("")}
  var sending by remember{mutableStateOf(false)}
  var completionMessage by remember{mutableStateOf<String?>(null)}
@@ -462,8 +465,8 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
  }}
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
   Text(when(mode){
-   TaskListMode.ALL->"A gazdaság teendői. Az általános, saját feladat igazolható; a táblához kötött munkákhoz GPS-ellenőrzés kell."
-   TaskListMode.MINE->"A hozzád rendelt munkák. Általános munkát innen is beküldhetsz ellenőrzésre."
+   TaskListMode.ALL->"A gazdaság teendői. Saját munkád ellenőrzésre küldhető: a földtáblás feladathoz GPS és helyszíni fotó kell."
+   TaskListMode.MINE->"A hozzád rendelt munkák GPS-es vagy szöveges igazolással küldhetők ellenőrzésre."
    TaskListMode.DUE->"A máig esedékes és magas prioritású feladatok."
   },fontSize=13.sp,color=MutedText)
   if(completionMessage!=null)Text(completionMessage!!,fontSize=13.sp,color=colors.accent)
@@ -495,6 +498,11 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
       Text("Elvégzés beküldése ellenőrzésre",color=colors.accent)
      }
     }
+    if(task.fieldId!=null&&task.assignedTo==session.userId&&task.status in listOf("open","in_progress")){
+     OutlinedButton(onClick={selectedFieldCompletion=task},shape=RoundedCornerShape(10.dp)){
+      Text("GPS + fotó: munka igazolása",color=colors.accent)
+     }
+    }
    }
   }
  }
@@ -524,6 +532,13 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
    },
    dismissButton={TextButton(onClick={selectedCompletion=null},enabled=!sending){Text("Mégsem")}}
   )
+ }
+ selectedFieldCompletion?.let{task->
+  FieldTaskProofDialog(session,task,fieldCompletion,onDismiss={selectedFieldCompletion=null},onSubmitted={
+   selectedFieldCompletion=null
+   completionMessage="A munkát GPS-szel és fotóval ellenőrzésre küldtük."
+   revision++
+  })
  }
 }
 

@@ -46,6 +46,12 @@ A menünek 18 gazdálkodói, 23 szaktanácsadói és 6 admin első szintű célp
 
 A bemutató mód kizárólag **nem konfigurált debug** buildben érhető el, benne kizárólag kitalált mintaadatokkal. Konfigurált debug és release build mindig a valódi bejelentkezést használja.
 
+## Fejlesztés alatt: földtáblás feladat GPS-es igazolása
+
+A natív képernyő a saját földtáblás feladathoz friss GPS-mérést kér (legfeljebb 15 perc, legfeljebb 200 méteres pontatlanság), teljes felbontású helyszíni JPEG-fotót készít, majd tényleges dózis, terület, mennyiség, időjárás, megjegyzés és opcionális gépüzemóra rögzítését teszi lehetővé. Előzetesen ellenőrzi a táblapoligont és a kizárt belső területeket; a fotó a meglévő, jogosultságvédett Supabase Storage-ba kerül. A végső validáció a szerver feladata.
+
+**Biztonsági élesítési feltétel:** a `supabase/migrations/20261119110000_verified_task_proof_rpc_guard.sql` migráció még csak előkészített, éles alkalmazása külön ellenőrzést igényel. Az Android a vele együtt települő `verified_task_proof_policy_version()` jelzőt ellenőrzi. A jelző hiányában nem tölti fel a fényképet, nem hívja a korábban kevésbé szigorú RPC-t, és egyértelmű hibaüzenettel leáll. Az új RPC a GPS/idő/koordináta, a Storage-fotó, a geometriák, a jogosultság és a növényvédelmi megfelelőség ellenőrzését is szerveroldalon megismétli. Valódi készülékes, jogosultságos és fényképes teszt még szükséges; nincs kész végleges APK.
+
 ## Fordítás Android Studióban
 
 Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függőségek első letöltéséhez.
@@ -68,4 +74,4 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 
 4. A debug APK várt útvonala: `app/build/outputs/apk/debug/app-debug.apk`.
 
-**Jelen környezetben nincs telepített Android SDK vagy Gradle-disztribúció, ezért a natív kód még nincs lefordítva és APK sincs ellenőrizve.** A forrás csak a fordítás és készülékpróba után tekinthető telepíthető kiadásnak.
+**A helyi környezetben nincs telepített Android SDK vagy Gradle-disztribúció.** A meglévő GitHub Actions fejlesztői ágán automatizált teszt és konfigurálatlan debug APK-fordítás fut. A demó APK nem végleges kiadás; a tényleges kiadáshoz konfigurált build és készülékpróba szükséges.
