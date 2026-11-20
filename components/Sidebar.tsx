@@ -42,7 +42,11 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
    </nav>
    <div className={styles.promo}><span>◒</span><strong>Hatékonyabb gazdálkodás<br/>egy fenntarthatóbb<br/>jövőért.</strong></div>
    <div className={styles.help}><strong>Segítség</strong><small>Gyors elérés az útmutatóhoz és a szakmai kapcsolathoz.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolat</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
-   
+   <div className={styles.landscape} aria-hidden="true"/>
+   <Link className={styles.userFooter} href="/profile" onClick={()=>setOpen(false)} aria-label={`${userName} – profil megnyitása`}>
+    <span className={styles.userFooterAvatar}>{userName.trim().slice(0,1).toLocaleUpperCase("hu-HU")||"G"}</span>
+    <span><strong>{userName}</strong><small>Profil és fiókbeállítások</small></span>
+   </Link>
   </aside>
  </>;
 }

@@ -6,3 +6,30 @@
 @media(max-width:767px){.summary{grid-template-columns:1fr 1fr;gap:7px}.summary article{grid-template-columns:32px 1fr;min-height:68px;padding:8px}.summary article>span{width:31px;height:31px;font-size:12px}.summary strong{font-size:18px}.page{width:100%;padding:0 12px 24px!important}.titleRow{align-items:flex-start}.titleRow h1{font-size:25px}.titleRow p{font-size:9px;line-height:1.4}.tabs{overflow-x:auto;flex-wrap:nowrap}.tabs a{white-space:nowrap}.listHead{display:none}.listPanel{background:transparent;border:0;box-shadow:none;overflow:visible}.list{gap:8px}.card{grid-template-columns:minmax(0,1fr) auto;gap:8px;min-height:0;padding:10px;border:1px solid #e2dfd4;border-radius:10px;background:#fffdf8}.taskInfo{grid-column:1/-1}.deadline{grid-column:1;font-size:7px}.priority{grid-column:2;grid-row:2}.actions{grid-column:1/-1;justify-content:flex-start}.details{grid-column:1/-1;margin:0;padding:8px}.taskInfo strong{font-size:9px}.taskInfo small{font-size:7px}}
 /* === FINAL POLISH 2026-10-04 === */
 .titleRow h1{font-size:34px}.titleRow p{font-size:13px;line-height:1.45}.summary small{font-size:10.5px}.summary strong{font-size:24px}.tabs a{font-size:10.5px;min-height:35px}.tabs a span{font-size:9px}.listHead{font-size:9.5px}.taskInfo strong{font-size:12.5px}.taskInfo small{font-size:10.5px}.deadline{font-size:10.5px}.priority{font-size:9.5px}.linkButton,.waiting,.done{font-size:10px}.details p{font-size:11px}.plan b{font-size:10.5px}.plan span{font-size:10px}.rejected{font-size:10.5px}@media(max-width:767px){.titleRow h1{font-size:28px}.titleRow p{font-size:12px}.summary small{font-size:9.5px}.summary strong{font-size:21px}.tabs a{font-size:10px}.taskInfo strong{font-size:12px}.taskInfo small,.deadline{font-size:10px}}
+
+/* Accepted 05 reference: task list and creation action share the portal hierarchy. */
+.titleActions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.primary{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:9px;background:#07593a;color:#fff;font-size:12px;font-weight:850;white-space:nowrap}
+.primary:hover{background:#06492f}
+.primary:focus-visible,.tabs a:focus-visible,.linkButton:focus-visible{outline:3px solid #55a271;outline-offset:2px}
+.summary article,.listPanel{background:#fff;border-color:#e0e7dd}
+.taskInfo strong{font-size:14px;line-height:1.35}
+.taskInfo small,.deadline{font-size:12px;line-height:1.4}
+.priority,.waiting,.done{font-size:11px}
+.tabs a{font-size:12px;min-height:40px}
+.linkButton{min-height:39px;font-size:11.5px}
+.details p,.plan span{font-size:12px;line-height:1.5}
+@media(max-width:767px){
+ .titleRow{align-items:flex-start;flex-wrap:wrap;gap:9px}
+ .titleActions{width:100%;justify-content:space-between}
+ .primary{min-height:43px;font-size:12px}
+ .summary article{min-height:70px}
+ .summary small{font-size:11px}
+ .tabs{padding:7px}
+ .tabs a{min-height:41px;font-size:12px}
+ .taskInfo strong{font-size:13.5px}
+ .taskInfo small,.deadline{font-size:11.5px}
+ .priority,.waiting,.done{font-size:11px}
+ .linkButton{min-height:40px;font-size:11.5px}
+ .details p,.plan span{font-size:12px}
+}

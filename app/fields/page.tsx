@@ -10,10 +10,11 @@ import styles from "./fields.module.css";
 
 function statusLabel(status:string|null){if(status==="inactive")return"Inaktív";if(status==="archived")return"Archivált";return"Aktív"}
 function inspectionLabel(v:string|null|undefined){if(v==="good")return"Jó";if(v==="attention")return"Figyelmet igényel";if(v==="critical")return"Kritikus";return"Nincs szemle"}
-type SearchParams=Promise<{view?:string}>;
+type SearchParams=Promise<{view?:string;mode?:string}>;
 
 export default async function FieldsPage({searchParams}:{searchParams:SearchParams}){
- const{view="active"}=await searchParams;
+ const{view="active",mode:requestedMode}=await searchParams;
+ const mode=requestedMode==="map"||requestedMode==="list"?requestedMode:"auto";
  const supabase=await createClient();
  const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");
  const{data:profile}=await supabase.from("profiles").select("role,system_role,full_name").eq("id",user.id).maybeSingle();
@@ -49,15 +50,21 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
    </section>
 
    <section className={styles.toolbar}>
-    <div className={styles.filters}>{tabs.map(([key,label])=><Link key={key} className={view===key?styles.active:""} href={`/fields?view=${key}`}>{label}</Link>)}</div>
-    <div className={styles.toolbarActions}><Link className={styles.mapButton} href="/map">Térkép</Link><BlockHelpButton label="A táblajegyzék magyarázata" content={{title:"Táblák",body:"A bal oldali listában a földtáblák fő adatait, a jobb oldalon pedig az elhelyezkedésüket látod. A státuszok a legfrissebb szakmai állapot alapján segítenek priorizálni.",important:"A térképi és állapotjelzés döntéstámogatás; nem önálló szakmai diagnózis."}}/></div>
+    <div className={styles.filters}>{tabs.map(([key,label])=><Link key={key} className={view===key?styles.active:""} href={`/fields?view=${key}${mode==="auto"?"":`&mode=${mode}`}`}>{label}</Link>)}</div>
+    <div className={styles.toolbarActions}>
+     <nav className={styles.viewSwitch} aria-label="Táblanézet választása">
+      <Link href={`/fields?view=${encodeURIComponent(view)}&mode=map`} className={`${styles.viewOption} ${mode==="map"?styles.viewActive:mode==="auto"?styles.autoMap:""}`} aria-current={mode==="map"?"page":undefined}>▧ Térkép</Link>
+      <Link href={`/fields?view=${encodeURIComponent(view)}&mode=list`} className={`${styles.viewOption} ${mode==="list"?styles.viewActive:mode==="auto"?styles.autoList:""}`} aria-current={mode==="list"?"page":undefined}>☷ Lista</Link>
+     </nav>
+     <BlockHelpButton label="A táblajegyzék magyarázata" content={{title:"Táblák",body:"A listából megnyithatod a földtáblát. A Térkép és Lista kapcsolóval mobilon is válthatsz a nézetek között.",important:"A térképi és állapotjelzés döntéstámogatás; nem önálló szakmai diagnózis."}}/>
+    </div>
    </section>
 
-   <section className={styles.workspace}>
+   <section className={styles.workspace} data-mode={mode}>
     <div className={styles.list}>
      {visibleFields.length?visibleFields.map((field,index)=>{const farm=farmMap.get(field.farm_id);const ins=latestInspection.get(field.id);const fieldTasks=(tasks??[]).filter(t=>t.field_id===field.id&&t.status!=="done");const state=ins?.condition||"none";return <Link className={styles.fieldCard} href={`/fields/${field.id}`} key={field.id}>
       <FieldMiniMap className={styles.thumb} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/>
-      <div className={styles.fieldMain}><div className={styles.fieldHead}><div><strong>{field.name}</strong><small>{field.area_ha?`${field.area_ha} ha`:"—"} · {field.current_crop||"Nincs kultúra"}</small></div><span className={`${styles.status} ${state==="critical"?styles.critical:state==="attention"?styles.attention:state==="good"?styles.good:styles.neutral}`}>{inspectionLabel(state)}</span></div>
+      <div className={styles.fieldMain}><div className={styles.fieldHead}><div><strong>{field.name}</strong><small>{field.area_ha?`${field.area_ha} ha`:"—"} · {field.current_crop||"Nincs kultúra"}</small></div><span className={`${styles.status} ${state==="critical"?styles.critical:state==="attention"?styles.attention:field.status==="inactive"||field.status==="archived"?styles.neutral:styles.good}`}>{state==="none"?statusLabel(field.status):inspectionLabel(state)}</span></div>
        <div className={styles.fieldMeta}><span>{farm?.name||"Gazdaság"}</span><span>{fieldTasks.length} nyitott teendő</span><span>{ins?.inspected_at?new Date(ins.inspected_at).toLocaleDateString("hu-HU"):"Nincs szemle"}</span></div>
       </div><b className={styles.chevron}>›</b>
      </Link>}):<div className={styles.empty}>Ebben a nézetben nincs földtábla.</div>}

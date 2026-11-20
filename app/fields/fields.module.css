@@ -12,3 +12,42 @@
 /* === REAL FIELD MAP THUMB 2026-10-04 === */
 .thumb:before,.thumb:after{display:none!important}
 .thumb svg{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+
+/* Accepted 02 reference: map/list switch, card hierarchy and real small-screen views. */
+.viewSwitch{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid #d9e1d8;border-radius:10px;background:#f3f6f0}
+.viewOption{display:inline-flex;align-items:center;justify-content:center;min-height:36px;gap:5px;padding:0 13px;border-radius:7px;font-size:12px;font-weight:750;color:#466452;white-space:nowrap}
+.viewOption:hover{color:#0c5236;background:#e6f0e5}
+.viewOption.viewActive,.viewOption.autoMap{color:#fff;background:#0c593a;box-shadow:0 2px 5px rgba(18,65,40,.12)}
+.workspace[data-mode="list"]{grid-template-columns:minmax(0,1fr)}
+.workspace[data-mode="list"] .map{display:none}
+.workspace[data-mode="list"] .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fieldCard{border-color:#e0e7dd;background:#fff;box-shadow:0 3px 11px rgba(15,57,33,.045)}
+.fieldCard:focus-visible,.viewOption:focus-visible{outline:3px solid #55a271;outline-offset:2px}
+.fieldHead strong{font-size:15px;line-height:1.35}
+.fieldHead small{font-size:12px;line-height:1.4}
+.fieldMeta span{font-size:11.5px;line-height:1.35}
+.map{background:#fff;border-color:#e0e7dd}
+@media(min-width:768px) and (max-width:1199px){
+ .workspace[data-mode="list"] .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:767px){
+ .titleRow{gap:10px;flex-wrap:wrap}
+ .titleRow .primary{min-height:40px;font-size:12px}
+ .toolbar{display:flex;align-items:stretch;flex-direction:column;gap:9px;padding:10px}
+ .toolbarActions{margin-top:0;justify-content:space-between}
+ .viewSwitch{flex:1}
+ .viewOption{flex:1;min-height:43px;font-size:12px}
+ .viewOption.autoMap{color:#466452;background:transparent;box-shadow:none}
+ .viewOption.autoList{color:#fff;background:#0c593a;box-shadow:0 2px 5px rgba(18,65,40,.12)}
+ .workspace[data-mode="auto"] .map,.workspace[data-mode="list"] .map{display:none}
+ .workspace[data-mode="map"] .list{display:none}
+ .workspace[data-mode="auto"] .list,.workspace[data-mode="list"] .list{display:grid;grid-template-columns:minmax(0,1fr)}
+ .workspace[data-mode="map"] .map{display:block;min-height:390px;order:0}
+ .workspace[data-mode="map"] .map :global(.field-map-compact){min-height:372px}
+ .fieldCard{min-height:96px;grid-template-columns:78px minmax(0,1fr) 14px;gap:10px;padding:9px}
+ .thumb{height:74px}
+ .fieldHead strong{font-size:14px}
+ .fieldHead small{font-size:12px}
+ .fieldMeta span{font-size:11px}
+ .status{font-size:10.5px}
+}

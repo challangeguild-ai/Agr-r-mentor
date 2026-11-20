@@ -45,7 +45,7 @@ export default async function TasksPage({searchParams}:{searchParams:SearchParam
   <Sidebar active="tasks" userName={profile?.full_name||"Gazdálkodó"}/>
   <main className={`dashboard ${styles.page}`}>
    <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés teendők, határidők vagy táblák között…"/>
-   <section className={styles.titleRow}><div><h1>Teendők</h1><p>Kövesd a feladataidat és a megoldási folyamatot.</p></div><BlockHelpButton label="A teendők magyarázata" content={{title:"Teendők és műveleti tervek",body:"A feladatok a szakmai tervtől a végrehajtáson át a visszaigazolásig követhetők.",important:"Az ellenőrzésre váró tétel még nem végleges naplóbejegyzés."}}/></section>
+   <section className={styles.titleRow}><div><h1>Teendők</h1><p>Kövesd a feladataidat és a megoldási folyamatot.</p></div><div className={styles.titleActions}><BlockHelpButton label="A teendők magyarázata" content={{title:"Teendők és műveleti tervek",body:"A feladatok a szakmai tervtől a végrehajtáson át a visszaigazolásig követhetők.",important:"Az ellenőrzésre váró tétel még nem végleges naplóbejegyzés."}}/><Link className={styles.primary} href="/dispatch">+ Új teendő</Link></div></section>
 
    <section className={styles.summary}>
     <article><span className={styles.sumGreen}>✓</span><div><small>Összes teendő</small><strong>{tasks?.length??0}</strong></div></article>

@@ -7,3 +7,29 @@
 @media(max-width:767px){.titleActions>:first-child{display:none}.page{width:100%;padding:0 12px 24px!important}.titleRow{align-items:flex-start}.titleRow h1{font-size:25px}.titleRow p{font-size:9px;line-height:1.4}.titleActions{flex-direction:column;align-items:stretch}.primary{min-height:34px;padding:0 10px;font-size:8px}.toolbar{display:block;padding:8px}.filters{overflow-x:auto;flex-wrap:nowrap}.filters a{white-space:nowrap}.toolbarMeta{margin-top:7px;justify-content:flex-end}.tableHead{display:none}.tablePanel{background:transparent;border:0;box-shadow:none;overflow:visible}.tableBody{gap:8px}.row{grid-template-columns:36px minmax(0,1fr) auto;gap:8px;min-height:0;padding:10px;border:1px solid #e2dfd4;border-radius:10px;background:#fffdf8}.row time{grid-column:2;font-size:7px}.row>a{grid-column:2}.op{grid-column:1;grid-row:1/4;align-self:start}.op>span{width:32px;height:32px}.op strong{display:none}.input,.amount,.note{grid-column:2;font-size:7px}.note{display:block;white-space:normal}.status{grid-column:3;grid-row:1;font-size:7px}.more{grid-column:3;grid-row:2/4;align-self:end}.formPanel{padding:11px}.formHead h2{font-size:14px}}
 /* === FINAL POLISH 2026-10-04 === */
 .titleRow h1{font-size:34px}.titleRow p{font-size:13px;line-height:1.45}.titleActions>*{font-size:11px}.primary{min-height:38px;font-size:11.5px}.filters a{font-size:10.5px;min-height:35px}.toolbarMeta{font-size:10.5px}.tableHead{font-size:10px}.row{font-size:11.5px}.row strong{font-size:12.5px}.row small{font-size:10px}.input,.amount,.note{font-size:11px}.status{font-size:10px}.more a,.more button{font-size:10px}.formHead span{font-size:9.5px}.formHead h2{font-size:19px}@media(max-width:767px){.titleRow h1{font-size:28px}.titleRow p{font-size:12px}.filters a{font-size:10px}.row{font-size:11px}.row strong{font-size:12px}.status{font-size:9.5px}}
+
+/* Accepted 04 reference: clean operation history, legible compact cards on phones. */
+.tablePanel,.formPanel{background:#fff;border-color:#e0e7dd}
+.row{min-height:62px}
+.row time,.input,.amount,.note{font-size:12px}
+.row>a strong,.op strong{font-size:13px}
+.row>a small{font-size:11px}
+.status{font-size:10.5px}
+.filters a{min-height:40px;font-size:12px}
+.primary{min-height:42px;font-size:12px}
+.more a,.more button{min-width:32px;min-height:32px}
+.filters a:focus-visible,.primary:focus-visible,.more a:focus-visible{outline:3px solid #55a271;outline-offset:2px}
+@media(max-width:767px){
+ .titleRow{flex-wrap:wrap;gap:10px}
+ .titleActions{flex-direction:row;align-items:center}
+ .titleActions>.primary{min-height:43px;font-size:12px}
+ .filters a{min-height:42px;font-size:12px}
+ .row{background:#fff;gap:7px;padding:13px}
+ .op{grid-column:1/3;grid-row:1;align-self:center}
+ .op strong{display:block;font-size:13px}
+ .row>a{grid-column:2;grid-row:2}
+ .row time{grid-column:2;grid-row:3;font-size:11.5px}
+ .input,.amount,.note{font-size:11.5px;white-space:normal}
+ .status{font-size:11px}
+ .formHead h2{font-size:18px}
+}

@@ -8,3 +8,43 @@
 @media(max-width:767px){.page{width:100%;padding:0 12px 24px!important}.fieldHero{display:block;min-height:145px;padding:18px 15px}.fieldHeroMain h1{font-size:25px}.fieldHeroState{margin-top:12px;justify-items:start}.tabs{padding:0 6px}.stats{grid-template-columns:1fr 1fr;gap:7px}.stats article{grid-template-columns:30px 1fr;min-height:64px;padding:8px}.stats article>span{width:29px;height:29px}.stats strong{font-size:10px}.overviewGrid{grid-template-columns:1fr}.infoCard,.mapCard,.healthCard{padding:10px}.mapCard{order:2}.healthCard{order:1;grid-template-columns:110px 1fr;gap:8px}.healthRing{width:78px;height:78px}.healthRing strong{font-size:16px}.infoCard dl div,.healthCard dl div{grid-template-columns:95px 1fr}.mapWrap :global(.field-map-panel){padding:10px!important}}
 /* === FINAL POLISH 2026-10-04 === */
 .fieldHeroMain>a,.fieldHeroMain>span{font-size:11px}.fieldHeroMain h1{font-size:38px}.fieldHeroMain p{font-size:13px}.fieldHeroState span,.fieldHeroState a{font-size:11px}.tabs a{font-size:11px;min-height:36px}.stats article strong{font-size:19px}.stats article small{font-size:10.5px}.cardTitle{font-size:17px}.infoCard p,.mapCard p,.healthCard p{font-size:12px;line-height:1.5}@media(max-width:767px){.fieldHeroMain h1{font-size:31px}.fieldHeroMain p{font-size:12px}.tabs a{font-size:10.5px}.stats article strong{font-size:17px}}
+
+/* Accepted 03 reference: clear status, readable cards, never invent a health percentage. */
+.fieldHero{border-radius:15px 15px 0 0;background:linear-gradient(90deg,rgba(6,55,34,.92),rgba(7,60,36,.55) 68%,rgba(16,76,44,.16)),linear-gradient(155deg,#547b36 0 27%,#8aa65c 27% 49%,#426e38 49% 67%,#b6b36b 67% 100%)}
+.fieldHeroState>a{min-height:40px;padding:0 14px;font-size:12px}
+.tabs{scrollbar-width:thin;scroll-margin-top:75px}
+.tabs a{min-height:43px;font-size:12px}
+.tabs a:focus-visible,.fieldHeroState>a:focus-visible{outline:3px solid #55a271;outline-offset:2px}
+.stats article{min-height:80px;background:#fff;border-color:#e0e7dd}
+.stats article strong{font-size:17px;overflow-wrap:anywhere}
+.stats article small{font-size:12px}
+.infoCard,.mapCard,.healthCard{background:#fff;border-color:#e0e7dd}
+.infoCard h2,.mapCard h2,.healthCard h2{font-size:17px}
+.infoCard dt,.healthCard dt{font-size:12px;line-height:1.4}
+.infoCard dd,.healthCard dd{font-size:12.5px;line-height:1.4;overflow-wrap:anywhere}
+.healthCard{scroll-margin-top:84px}
+.healthRing{background:#59a66d}
+.healthRing:before{background:#fff}
+.healthRing strong{font-size:15px;line-height:1.1;text-align:center;overflow-wrap:anywhere}
+.healthRing.healthGood{background:#4a9f65}
+.healthRing.healthAttention{background:#d6a349}
+.healthRing.healthAttention strong{color:#936208}
+.healthRing.healthCritical{background:#c65c55}
+.healthRing.healthCritical strong{color:#a33831;font-size:12px}
+.healthRing.healthUnknown{background:#b7c7ba}
+.healthRing.healthUnknown strong{color:#68766c}
+@media(max-width:767px){
+ .fieldHero{padding:19px 16px;min-height:152px}
+ .fieldHeroMain h1{font-size:30px}
+ .fieldHeroMain p{font-size:13px;line-height:1.5}
+ .fieldHeroState{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+ .fieldHeroState>a{font-size:11.5px}
+ .tabs a{font-size:12px;min-height:43px;padding:0 12px}
+ .stats article{min-height:77px;gap:9px}
+ .stats article strong{font-size:14px}
+ .stats article small{font-size:11px}
+ .infoCard h2,.mapCard h2,.healthCard h2{font-size:16px}
+ .infoCard dt,.healthCard dt{font-size:11.5px}
+ .infoCard dd,.healthCard dd{font-size:12px}
+ .healthRing strong{font-size:14px}
+}
