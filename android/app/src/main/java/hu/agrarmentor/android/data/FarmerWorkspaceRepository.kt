@@ -126,5 +126,5 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
  }
 }
 
-private fun JSONArray.objects():List<JSONObject>=(0 until length()).map{getJSONObject(it)}
+private fun JSONArray.objects():List<JSONObject> = (0 until length()).map{getJSONObject(it)}
 private fun JSONObject.optNullable(key:String):String? = if(isNull(key))null else optString(key).ifBlank{null}
