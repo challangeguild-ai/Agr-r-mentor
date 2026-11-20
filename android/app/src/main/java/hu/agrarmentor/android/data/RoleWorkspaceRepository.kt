@@ -61,6 +61,17 @@ data class AdvisorContact(val label:String,val value:String,val type:String,val 
 data class AdvisorFarmContacts(val name:String,val settlement:String?,val contacts:List<AdvisorContact>)
 data class AdvisorContactDirectory(val own:List<AdvisorContact>,val farms:List<AdvisorFarmContacts>)
 
+data class AdvisorTeamMember(val name:String,val phone:String?,val farmName:String,val memberRole:String,val active:Boolean)
+
+internal fun teamRoleLabel(role:String):String=when(role){
+ "agronomist"->"Agronómus"
+ "manager"->"Gazdaságvezető"
+ "operator"->"Traktoros / gépkezelő"
+ "harvester"->"Kombájnos"
+ "worker"->"Munkatárs"
+ else->"Munkatárs"
+}
+
 data class AdvisorDossierField(
  val id:String,
  val name:String,
@@ -133,6 +144,28 @@ data class AdminWorkspace(
  * A missing grant or RLS policy is surfaced as a fetch failure, not bypassed.
  */
 class RoleWorkspaceRepository(private val baseUrl:String,private val publishableKey:String){
+ /** RLS-backed view of farm members; never changes assignments or user roles. */
+ suspend fun advisorTeam(session:AuthorizedSession):List<AdvisorTeamMember> = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.ADVISOR){"Ügyfélcsapatokat csak szaktanácsadó tekinthet meg."}
+  val farms=read("farms?select=id,name&limit=1000",session).objects()
+  val members=read("farm_members?select=farm_id,user_id,member_role,active&order=created_at.desc&limit=2000",session).objects()
+  val ids=members.mapNotNull{it.optional("user_id")}.distinct()
+  val people=ids.chunked(100).flatMap{batch->
+   read("profiles?select=id,full_name,phone&id=in.(${batch.joinToString(",")})&limit=100",session).objects()
+  }
+  val personById=people.associateBy{it.getString("id")}
+  val farmById=farms.associateBy{it.getString("id")}
+  members.map{member->
+   val person=personById[member.optString("user_id")]
+   AdvisorTeamMember(
+    name=person?.optString("full_name")?.ifBlank{"Munkatárs"}?:"Munkatárs",
+    phone=person?.optional("phone"),
+    farmName=farmById[member.optString("farm_id")]?.optString("name")?:"Gazdaság",
+    memberRole=member.optString("member_role"),active=member.optBoolean("active")
+   )
+  }
+ }
+
  /** The same RLS-protected contacts that the web advisor maintains; no write authority is added. */
  suspend fun advisorContacts(session:AuthorizedSession):AdvisorContactDirectory = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR){"Elérhetőségeket csak szaktanácsadó nyithat meg."}

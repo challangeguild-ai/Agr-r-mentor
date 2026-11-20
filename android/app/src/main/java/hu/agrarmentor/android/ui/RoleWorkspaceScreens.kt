@@ -33,9 +33,11 @@ import hu.agrarmentor.android.data.AdvisorContact
 import hu.agrarmentor.android.data.AdvisorContactDirectory
 import hu.agrarmentor.android.data.AdvisorTask
 import hu.agrarmentor.android.data.AdvisorTaskReview
+import hu.agrarmentor.android.data.AdvisorTeamMember
 import hu.agrarmentor.android.data.AdvisorWorkspace
 import hu.agrarmentor.android.data.RoleWorkspaceRepository
 import hu.agrarmentor.android.data.priorityAdvisorTasks
+import hu.agrarmentor.android.data.teamRoleLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -223,6 +225,52 @@ private fun AdvisorContactLine(contact:AdvisorContact,colors:PortalPalette){
     val intent=Intent(if(email)Intent.ACTION_SENDTO else Intent.ACTION_DIAL,Uri.fromParts(if(email)"mailto" else "tel",contact.value,null))
     runCatching{context.startActivity(intent)}
    }){Text(if(contact.type=="email")"E-mail" else "Hívás",color=colors.accent)}
+  }
+ }
+}
+
+@Composable
+internal fun AdvisorTeamScreen(session:AuthorizedSession,colors:PortalPalette){
+ val repo=remember{RoleWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ var team by remember(session.accessToken){mutableStateOf<List<AdvisorTeamMember>?>(null)}
+ var busy by remember(session.accessToken){mutableStateOf(true)}
+ var error by remember(session.accessToken){mutableStateOf<String?>(null)}
+ var revision by remember{mutableIntStateOf(0)}
+ LaunchedEffect(session.accessToken,revision){
+  busy=true;error=null
+  try{team=repo.advisorTeam(session)}
+  catch(e:CancellationException){throw e}
+  catch(e:Exception){error=e.message?:"A csapatlista nem tölthető be."}
+  finally{busy=false}
+ }
+ Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Text("Ügyfélgazdaságok munkatársai és munkakiosztási szerepkörei",color=SoftInk,fontSize=14.sp)
+  if(busy)CircularProgressIndicator(color=colors.accent)
+  else if(error!=null){
+   Text(error!!,color=Critical,fontSize=13.sp)
+   TextButton(onClick={revision++}){Text("Újrapróbálás")}
+  }else team?.let{members->
+   val active=members.filter{it.active}
+   Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    Box(Modifier.weight(1f)){Metric("Aktív munkatárs",active.size,colors)}
+    Box(Modifier.weight(1f)){Metric("Vezető / agronómus",active.count{it.memberRole in listOf("manager","agronomist")},colors)}
+   }
+   Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    Box(Modifier.weight(1f)){Metric("Gépkezelő",active.count{it.memberRole=="operator"},colors)}
+    Box(Modifier.weight(1f)){Metric("Kombájnos",active.count{it.memberRole=="harvester"},colors)}
+   }
+   if(members.isEmpty())Text("Még nincs ügyfélgazdasághoz rendelt munkatárs.",color=SoftInk,fontSize=13.sp)
+   members.forEach{member->
+    Card(colors,border=if(member.active)colors.border else Attention){
+     Row(verticalAlignment=Alignment.CenterVertically){
+      Text(member.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+      Text(if(member.active)"Aktív" else "Felfüggesztve",color=if(member.active)colors.accent else Critical,fontSize=12.sp)
+     }
+     Text("${member.farmName} · ${teamRoleLabel(member.memberRole)}",color=SoftInk,fontSize=13.sp)
+     member.phone?.let{Text(it,color=SoftInk,fontSize=12.sp)}
+    }
+   }
+   Text("A munkatársi szerepkör nem helyettesíti a növényvédelmi jogosultság igazolását. A csapattagság szerkesztése a webes felületen történik.",fontSize=12.sp,color=SoftInk)
   }
  }
 }

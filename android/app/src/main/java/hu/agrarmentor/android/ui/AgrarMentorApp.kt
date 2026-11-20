@@ -385,6 +385,8 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveFarmExtrasScreen(if(route=="/admin/timeline")"/timeline" else "/machines",session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/contacts"&&session!=null){
     item{AdvisorContactsScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/team"&&session!=null){
+    item{AdvisorTeamScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/portfolio","/admin/tasks","/admin/daily-work","/admin/priorities")&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){

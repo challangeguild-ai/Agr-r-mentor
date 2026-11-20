@@ -56,4 +56,14 @@ class AdvisorDossierRulesTest {
    repository.advisorContacts(farmer.copy(role=PortalRole.ADVISOR,userId="invalid&id=eq.other"))
   }}
  }
+
+ @Test fun teamDirectoryRequiresAdvisorBeforeAnyRequest(){
+  val repository=RoleWorkspaceRepository("https://example.supabase.co","public-test-key")
+  val farmer=AuthorizedSession(PortalRole.FARMER,"test","11111111-1111-1111-1111-111111111111","",0L)
+  assertThrows(IllegalArgumentException::class.java){runBlocking{repository.advisorTeam(farmer)}}
+  assertEquals("Agronómus",teamRoleLabel("agronomist"))
+  assertEquals("Gazdaságvezető",teamRoleLabel("manager"))
+  assertEquals("Traktoros / gépkezelő",teamRoleLabel("operator"))
+  assertEquals("Kombájnos",teamRoleLabel("harvester"))
+ }
 }
