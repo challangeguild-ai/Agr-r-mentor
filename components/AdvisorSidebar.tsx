@@ -66,6 +66,7 @@ export function AdvisorSidebar(){
      steps:["Nézd át az összesítő kártyákat és a figyelmet igénylő ügyeket.","A gyorsgombokkal indíts szemlét, feladatot vagy látogatást.","Válaszd ki a megfelelő gazdaságot és földtáblát.","Ellenőrizd a szemléket, feladatokat és kommunikációt.","A műveletek, dokumentumok és idővonal alapján nézd át az előzményeket."]
     }}/>}
    </div>
+   <div className={styles.landscape} aria-hidden="true"/>
    <div className={styles.account}>
     <div className={styles.user}><span className={styles.avatar}>SA</span><div><strong>Szaktanácsadó</strong><small>Szakmai fiók</small></div></div>
     <LogoutButton className={styles.logout}/>

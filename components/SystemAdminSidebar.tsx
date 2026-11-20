@@ -44,6 +44,7 @@ export function SystemAdminSidebar(){
     <small>Admin beavatkozás csak indokkal történjen. Kritikus műveletnél friss MFA szükséges.</small>
     <ComprehensiveTourRestart role="system-admin"/>
    </div>
+   <div className={styles.landscape} aria-hidden="true"/>
    <div className={styles.account}>
     <div className={styles.user}><span className={styles.avatar}>RA</span><div><strong>Rendszeradmin</strong><small>Emelt jogosultság</small></div></div>
     <LogoutButton className={styles.logout}/>
