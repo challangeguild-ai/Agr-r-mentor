@@ -25,10 +25,14 @@ data class AdvisorTask(
  val status:String,
  val priority:String,
  val dueDate:String?,
+ val assignedTo:String?=null,
  val taskKind:String="general",
  val fieldId:String?=null,
  val reportNotes:String?=null,
- val reportDate:String?=null
+ val reportDate:String?=null,
+ val reportReviewStatus:String?=null,
+ val evidence:AdvisorTaskEvidence?=null,
+ val plan:AdvisorTaskPlan?=null
 )
 
 data class AdvisorWorkspace(
@@ -83,9 +87,11 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
   val farms=read("farms?select=id,name,owner_id&limit=1000",session)
   val fields=read("fields?select=id,name,farm_id,status&limit=1000",session)
   val inspections=read("inspections?select=field_id,condition,inspected_at&order=inspected_at.desc&limit=1000",session)
-  val tasks=read("tasks?select=id,title,field_id,status,priority,due_date,task_kind&order=updated_at.desc&limit=300",session)
+  val tasks=read("tasks?select=id,title,field_id,assigned_to,status,priority,due_date,task_kind&order=updated_at.desc&limit=300",session)
   // Only reports returned through RLS can be reviewed; never approve blind.
-  val executionReports=runCatching{read("task_execution_reports?select=task_id,notes,operation_date&order=reported_at.desc&limit=500",session)}
+  val executionReports=runCatching{read("task_execution_reports?select=task_id,notes,operation_date,review_status,proof,actual_dose,dose_unit,actual_area,actual_quantity,quantity_unit,weather,finished_hours,worked_hectares&order=reported_at.desc&limit=500",session)}
+   .getOrNull()?.objects()?.associateBy{it.optString("task_id")}.orEmpty()
+  val operationPlans=runCatching{read("task_operation_plans?select=task_id,operation_type,product_name,crop,target,planned_dose,dose_unit,dose_min,dose_max,planned_area,planned_quantity&limit=500",session)}
    .getOrNull()?.objects()?.associateBy{it.optString("task_id")}.orEmpty()
   val reports=read("farmer_reports?select=id,status&status=neq.closed&limit=1000",session)
 
@@ -114,6 +120,9 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
   AdvisorWorkspace(
    clients=farmers,
    tasks=tasks.objects().map{entry->
+    val taskId=entry.getString("id")
+    val report=executionReports[taskId]
+    val rawPlan=operationPlans[taskId]
     AdvisorTask(
      id=entry.getString("id"),
      title=entry.optString("title","Teendő"),
@@ -121,10 +130,18 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
      status=entry.optString("status","open"),
      priority=entry.optString("priority","normal"),
      dueDate=entry.optional("due_date"),
+     assignedTo=entry.optional("assigned_to"),
      taskKind=entry.optString("task_kind","general"),
      fieldId=entry.optional("field_id"),
-     reportNotes=executionReports[entry.optString("id")]?.optional("notes"),
-     reportDate=executionReports[entry.optString("id")]?.optional("operation_date")
+     reportNotes=report?.optional("notes"),
+     reportDate=report?.optional("operation_date"),
+     reportReviewStatus=report?.optional("review_status"),
+     evidence=if(entry.optional("field_id")!=null&&report!=null)
+      AdvisorTaskEvidence.parse(report.optional("proof"),report,taskId,entry.optional("assigned_to")) else null,
+     plan=rawPlan?.let{AdvisorTaskPlan(
+      it.optional("operation_type"),it.optional("product_name"),it.optional("crop"),it.optional("target"),
+      it.optional("planned_dose"),it.optional("dose_unit"),it.optional("dose_min"),it.optional("dose_max"),
+      it.optional("planned_area"),it.optional("planned_quantity"))}
     )
    },
    openReports=reports.length(),

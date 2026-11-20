@@ -1,6 +1,10 @@
 package hu.agrarmentor.android.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -10,11 +14,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -119,9 +125,13 @@ private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette){
 @Composable
 private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onReviewed:()->Unit){
  val reviewGateway=remember{AdvisorTaskReview(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var reviewing by remember{mutableStateOf<Pair<AdvisorTask,Boolean>?>(null)}
  var note by remember{mutableStateOf("")}
+ var evidenceConfirmed by remember{mutableStateOf(false)}
+ val openedProofs=remember{mutableStateListOf<String>()}
+ var openingPhoto by remember{mutableStateOf<String?>(null)}
  var sending by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
  val tasks=data.tasks.filter{!onlyOpen||(it.status!="done"&&it.status!="cancelled")}
@@ -138,14 +148,44 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
     Text(huDate(task.dueDate),color=if(attention)Critical else SoftInk,fontSize=12.sp)
    }
    if(task.status=="submitted"){
-    if(task.reportDate!=null&&task.taskKind=="general"&&task.fieldId==null){
+    if(task.reportDate!=null&&task.reportReviewStatus=="pending"){
      Text("Teljesítés: ${huDate(task.reportDate)}",color=SoftInk,fontSize=12.sp)
-     if(!task.reportNotes.isNullOrBlank())Text("Végrehajtó megjegyzése: ${task.reportNotes}",color=Ink,fontSize=13.sp)
-     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-      TextButton(onClick={reviewing=task to true;note=""}){Text("Jóváhagyom",color=colors.accent)}
-      TextButton(onClick={reviewing=task to false;note=""}){Text("Visszaküldöm",color=Critical)}
+     task.plan?.let{plan->
+      if(plan.productName!=null)Text("Tervezett szer: ${plan.productName}",color=Ink,fontSize=12.sp)
+      if(plan.crop!=null)Text("Kultúra: ${plan.crop}",color=SoftInk,fontSize=12.sp)
+      if(plan.plannedDose!=null)Text("Tervezett dózis: ${plan.plannedDose} ${plan.doseUnit?:""}",color=SoftInk,fontSize=12.sp)
+      if(plan.doseMin!=null||plan.doseMax!=null)Text("Tervezett hivatalos határ: ${plan.doseMin?:"—"}–${plan.doseMax?:"—"} ${plan.doseUnit?:""}",color=SoftInk,fontSize=12.sp)
      }
-    }else Text("Az összetett vagy táblához kötött munkák jóváhagyása a teljes szakmai dossziéval, a webes felületen történik.",color=Critical,fontSize=12.sp)
+     if(!task.reportNotes.isNullOrBlank())Text("Végrehajtó megjegyzése: ${task.reportNotes}",color=Ink,fontSize=13.sp)
+     if(task.fieldId!=null){
+      task.evidence?.let{proof->
+       Text("GPS: ${when(proof.validation){"inside_boundary"->"a táblahatáron belül";"near_boundary"->"a tábla közelében";else->"a táblaközpont közelében"}} · ±${proof.accuracyMeters.toInt()} m",color=colors.accent,fontSize=13.sp,fontWeight=FontWeight.Bold)
+       Text("Pozíció: ${proof.latitude}, ${proof.longitude} · mérés: ${proof.capturedAt}",color=SoftInk,fontSize=11.sp)
+       if(proof.distanceMeters!=null)Text("Határtól/középponttól: kb. ${proof.distanceMeters.toInt()} m",color=SoftInk,fontSize=11.sp)
+       if(proof.actualDose!=null)Text("Tényleges dózis: ${proof.actualDose} ${proof.doseUnit?:""}",color=Ink,fontSize=12.sp)
+       if(proof.actualArea!=null)Text("Tényleges terület: ${proof.actualArea} ha",color=Ink,fontSize=12.sp)
+       if(proof.actualQuantity!=null)Text("Tényleges mennyiség: ${proof.actualQuantity} ${proof.quantityUnit?:""}",color=Ink,fontSize=12.sp)
+       if(proof.weather!=null)Text("Időjárás: ${proof.weather}",color=Ink,fontSize=12.sp)
+       if(proof.finishedHours!=null)Text("Záró üzemóra: ${proof.finishedHours}",color=Ink,fontSize=12.sp)
+       if(proof.workedHectares!=null)Text("Megművelt hektár: ${proof.workedHectares}",color=Ink,fontSize=12.sp)
+       TextButton(onClick={
+        openingPhoto=task.id
+        scope.launch{
+         try{
+          val url=reviewGateway.photoUrl(session,task)
+          context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+          if(proof.photoPath !in openedProofs)openedProofs.add(proof.photoPath)
+         }catch(e:Exception){error="A bizonyító fotó nem nyitható meg: ${e.message?:"ismeretlen hiba"}"}
+         finally{openingPhoto=null}
+        }
+       },enabled=openingPhoto==null){Text(if(openingPhoto==task.id)"Fotó megnyitása…" else "Helyszíni fénykép ellenőrzése",color=colors.accent)}
+      }?:Text("A GPS- és fotóigazolás hiányzik vagy hibás; jóváhagyás nem engedélyezett.",color=Critical,fontSize=12.sp)
+     }
+     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+      if(task.fieldId==null||task.evidence!=null)TextButton(onClick={reviewing=task to true;note="";evidenceConfirmed=false}){Text("Jóváhagyom",color=colors.accent)}
+      TextButton(onClick={reviewing=task to false;note="";evidenceConfirmed=false}){Text("Visszaküldöm",color=Critical)}
+     }
+    }else Text("A feladathoz tartozó ellenőrizhető teljesítési riport nem érhető el.",color=Critical,fontSize=12.sp)
    }
   }
  }
@@ -154,10 +194,22 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
    onDismissRequest={if(!sending)reviewing=null},
    title={Text(if(approve)"Teljesítés jóváhagyása" else "Visszaküldés javításra")},
    text={
-    Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
      Text(task.title,color=Ink,fontWeight=FontWeight.Bold)
      Text("${task.fieldName} · ${huDate(task.reportDate)}",fontSize=12.sp,color=SoftInk)
      if(task.reportNotes!=null)Text(task.reportNotes,fontSize=13.sp,color=Ink)
+     if(approve&&task.fieldId!=null){
+      val proof=task.evidence
+      if(proof==null)Text("Hiányzó GPS-bizonyíték.",color=Critical)
+      else{
+       Text("GPS: ±${proof.accuracyMeters.toInt()} m · ${proof.validation}",fontSize=12.sp,color=Ink)
+       if(proof.photoPath !in openedProofs)Text("A döntés előtt nyisd meg a helyszíni fotót a feladatkártyán.",color=Critical,fontSize=12.sp)
+       Row(verticalAlignment=Alignment.CenterVertically){
+        Checkbox(checked=evidenceConfirmed,onCheckedChange={evidenceConfirmed=it},enabled=proof.photoPath in openedProofs)
+        Text("Ellenőriztem a GPS-adatot, a helyszíni fotót és a tényleges munkavégzést.",fontSize=12.sp)
+       }
+      }
+     }
      OutlinedTextField(note,{note=it.take(1500)},label={Text(if(approve)"Ellenőrzési megjegyzés (opcionális)" else "Mit kell javítani? (kötelező)")},modifier=Modifier.fillMaxWidth(),minLines=2)
     }
    },
@@ -165,10 +217,10 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
     sending=true;error=null
     scope.launch{
      try{reviewGateway.review(session,task,approve,note);reviewing=null;onReviewed()}
-     catch(_:Exception){error="Az ellenőrzési döntést nem sikerült menteni. Frissítsd a listát."}
+     catch(e:Exception){error="Az ellenőrzési döntés nem menthető: ${e.message?:"Frissítsd a listát."}"}
      finally{sending=false}
     }
-   },enabled=!sending&&(approve||note.isNotBlank())){Text(if(sending)"Mentés…" else "Döntés mentése")}},
+   },enabled=!sending&&(approve||note.isNotBlank())&&(!approve||task.fieldId==null||(task.evidence!=null&&evidenceConfirmed&&task.evidence.photoPath in openedProofs))){Text(if(sending)"Mentés…" else "Döntés mentése")}},
    dismissButton={TextButton(onClick={reviewing=null},enabled=!sending){Text("Mégsem")}}
   )
  }

@@ -52,6 +52,10 @@ A natív képernyő a saját földtáblás feladathoz friss GPS-mérést kér (l
 
 **Biztonsági élesítési feltétel:** a `supabase/migrations/20261119110000_verified_task_proof_rpc_guard.sql` migráció még csak előkészített, éles alkalmazása külön ellenőrzést igényel. Az Android a vele együtt települő `verified_task_proof_policy_version()` jelzőt ellenőrzi. A jelző hiányában nem tölti fel a fényképet, nem hívja a korábban kevésbé szigorú RPC-t, és egyértelmű hibaüzenettel leáll. Az új RPC a GPS/idő/koordináta, a Storage-fotó, a geometriák, a jogosultság és a növényvédelmi megfelelőség ellenőrzését is szerveroldalon megismétli. Valódi készülékes, jogosultságos és fényképes teszt még szükséges; nincs kész végleges APK.
 
+### Szaktanácsadói feladat-ellenőrzés
+
+A meglévő szaktanácsadói munkalista most már az RLS szerint megtekinthető földtáblás teljesítések részletes adatait is betölti: GPS-fix (koordináta, mérési idő, pontosság, táblahatár-validáció), terv, tényleges dózis/terület/mennyiség, időjárás, üzemóra és megjegyzés. A helyszíni fotóhoz a szerver legfeljebb 60 másodperces aláírt hivatkozást ad, amely kizárólag a jogosult felhasználó nevében kérhető. Jóváhagyás csak valóban tárolt, helyes feladathoz/végrehajtóhoz kötött igazolással, a fotó megnyitása és a felhasználó kifejezett ellenőrzési megerősítése után érhető el. Hiányzó/beteg GPS-fotó igazolásnál az app csak javításra visszaküldést tesz lehetővé. A tényleges jóváhagyás a szerver jogosultságellenőrző `review_task_execution` RPC-jén történik, és az elfogadott strukturált műveletet a szerver írja a műveleti naplóba. A végrehajtónak az adatbázis által engedélyezett értesítést próbál küldeni; az értesítés hibája nem állítja vissza a már mentett döntést. Éles szerepkörös ellenőrzés még szükséges.
+
 ## Fordítás Android Studióban
 
 Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függőségek első letöltéséhez.
