@@ -246,7 +246,9 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
    Text(if(demoMode)"Natív Android-előnézet · mintaadatok" else "Agrár Mentor mobilalkalmazás",color=MutedText,fontSize=12.sp)
   }
   if(!demoMode){
-   if(role==PortalRole.FARMER&&route=="/fields"&&session!=null){
+   if(role==PortalRole.FARMER&&route=="/dashboard"&&session!=null){
+    item{FarmerDashboardScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.FARMER&&route=="/fields"&&session!=null){
     item{LiveFieldsScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route.startsWith("/fields/")&&session!=null){
     item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
@@ -323,7 +325,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
   else->true
  }}
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  Text("Saját teendőid · csak olvasási nézet",fontSize=13.sp,color=MutedText)
+  Text("A gazdaság teendői · csak olvasási nézet",fontSize=13.sp,color=MutedText)
   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("Nyitott","Ellenőrzésre vár","Befejezett","Mind").forEach{option->
     FilterChip(selected=filter==option,onClick={filter=option},label={Text(option,fontSize=11.sp)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=colors.tint,selectedLabelColor=colors.accent))

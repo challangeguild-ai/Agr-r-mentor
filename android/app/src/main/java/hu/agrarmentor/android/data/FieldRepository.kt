@@ -34,14 +34,15 @@ class FieldRepository(private val baseUrl:String,private val publishableKey:Stri
   val fieldIds=(0 until fields.length()).map{fields.getJSONObject(it).getString("id")}
   if(fieldIds.isEmpty())return@withContext emptyList()
   val idFilter=fieldIds.joinToString(",")
-  val tasks=fetch("tasks?select=field_id,status,priority&field_id=in.($idFilter)&assigned_to=eq.${session.userId}",session.accessToken)
+  // All RLS-visible farm tasks count toward the field's warning state.
+  val tasks=fetch("tasks?select=field_id,status,priority&field_id=in.($idFilter)",session.accessToken)
   val inspections=fetch("inspections?select=field_id,condition,inspected_at&field_id=in.($idFilter)&order=inspected_at.desc",session.accessToken)
 
   val openTasks=mutableMapOf<String,Int>()
   val highPriority=mutableSetOf<String>()
   for(i in 0 until tasks.length()){
    val task=tasks.getJSONObject(i)
-   if(task.optString("status")=="done")continue
+   if(task.optString("status") in listOf("done","cancelled"))continue
    val id=task.optString("field_id")
    openTasks[id]=(openTasks[id]?:0)+1
    if(task.optString("priority") in listOf("high","urgent"))highPriority.add(id)

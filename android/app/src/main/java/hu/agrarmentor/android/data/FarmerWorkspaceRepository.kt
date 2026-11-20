@@ -44,7 +44,9 @@ data class MobileFieldDetail(
 /** Read-only native views of the existing farmer schema. All queries carry the user's RLS token. */
 class FarmerWorkspaceRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun tasks(session:AuthorizedSession):List<MobileTask> = withContext(Dispatchers.IO){
-  val rows=fetch("tasks?select=id,title,field_id,due_date,priority,status,description&assigned_to=eq.${session.userId}&order=updated_at.desc&limit=250",session.accessToken)
+  // RLS permits the farm owner to see their farm's tasks, including those
+  // assigned to colleagues. The previous assigned_to filter hid these tasks.
+  val rows=fetch("tasks?select=id,title,field_id,due_date,priority,status,description&order=updated_at.desc&limit=250",session.accessToken)
   val fieldNames=fieldNames(session.accessToken)
   rows.objects().map{row->task(row,fieldNames)}
  }
