@@ -19,11 +19,13 @@ function levelAllows(level:string,category:string|null|undefined){const c=(categ
 async function validatePlantProtection(supabase:any,farmId:string,countryCode:"HU"|"SK",operationDate:string,formData:FormData,rawDose:number|null,doseUnit:string){
  const productId=text(formData.get("product_id"),100),useId=text(formData.get("use_id"),100);
  if(!productId){
+  const{data:policyVersion,error:policyError}=await supabase.rpc("hu_manual_spraying_policy_version");
+  if(policyError||policyVersion!==1)throw new Error("A kézi magyar növényvédelmi naplózás szerveroldali védelme még nincs élesítve.");
   const{data:verifiedUses,error:catalogError}=await supabase.from("plant_protection_uses")
    .select("id,plant_protection_products!inner(country_code)")
    .eq("plant_protection_products.country_code",countryCode).limit(1);
   if(catalogError)throw new Error("A felhasználási katalógus ellenőrzése sikertelen. Próbáld újra később.");
-  const manualError=validateManualPlantProtection({country:countryCode,hasVerifiedUses:!!verifiedUses?.length,
+  const manualError=validateManualPlantProtection({country:countryCode,hasVerifiedUses:!!verifiedUses?.length,policyReady:true,
    productId:"",useId,productName:text(formData.get("product"),180),crop:text(formData.get("crop"),160),
    dose:rawDose,doseUnit,acknowledged:formData.get("manual_permit_checked")==="on"});
   if(manualError)throw new Error(manualError);
