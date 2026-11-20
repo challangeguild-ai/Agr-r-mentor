@@ -7,7 +7,7 @@ import {OperationCompliancePanel} from "@/components/OperationCompliancePanel";
 import {complianceFromOperationSnapshot} from "@/lib/operationComplianceSnapshot";
 import {operationLabel} from "@/lib/operations";
 
-function huDate(v:string|null){return v?new Date(v.includes("T")?v:`${v}T12:00:00`).toLocaleString("hu-HU"):"—"}
+function huDate(v:string|null){return v?new Date(v.includes("T")?v:`${v}T12:00:00`).toLocaleString("hu-HU",{timeZone:"Europe/Budapest"}):"—"}
 function value(v:unknown,unit=""){return v==null||v===""?"—":`${String(v)}${unit?` ${unit}`:""}`}
 function range(a:unknown,b:unknown,unit=""){if(a==null&&b==null)return"—";if(a!=null&&b!=null&&String(a)!==String(b))return`${a}–${b}${unit?` ${unit}`:""}`;return value(b??a,unit)}
 const auditLabel:Record<string,string>={created:"Létrehozva",updated:"Módosítva",approval_requested:"Jóváhagyásra küldve",approved:"Jóváhagyva",approval_invalidated:"Jóváhagyás érvénytelenítve",deleted:"Törölve"};
@@ -42,7 +42,7 @@ export default async function OperationDetailPage({params}:{params:Promise<{id:s
    {op.approval_required&&<p>Gazdasági jóváhagyó: <b>{op.approver_name||"kijelölve"}</b> · állapot: <b>{op.approval_status}</b>{op.approved_at?` · ${huDate(op.approved_at)}`:""}</p>}
   </section>
 
-  {isPlant&&op.catalog_mode!=="official"&&<section className="panel" style={{border:"1px solid #e1b95d",background:"#fffaf0"}}><h2>⚠ Kézzel naplózott, engedélyokirattal nem ellenőrzött művelet</h2><p>A dózis a felhasználó által megadott tényleges kijuttatási adat, nem hatósági dózismaximum. A rögzítés nem igazolja a termék alkalmazhatóságát vagy a szükséges jogosultságot.</p><a href="https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso" target="_blank" rel="noopener noreferrer">Hatályos NÉBIH engedélyokirat keresése</a></section>}
+  {isPlant&&op.catalog_mode!=="official"&&<section className="panel" style={{border:"1px solid #e1b95d",background:"#fffaf0"}}><h2>⚠ Kézzel naplózott, engedélyokirattal nem ellenőrzött művelet</h2><p>A dózis a felhasználó által megadott tényleges kijuttatási adat, nem hatósági dózismaximum. A rögzítés nem igazolja a termék alkalmazhatóságát vagy a szükséges jogosultságot.</p>{reg.permit_check_attested===true?<p><b>Felhasználói megerősítés rögzítve</b>{reg.permit_attested_at?` · ${huDate(reg.permit_attested_at)}`:""}: a rögzítő nyilatkozata szerint ellenőrizte a hatályos engedélyokiratot. Ez nem hatósági validáció.</p>:<p><b>Korábbi bejegyzés:</b> nincs tárolt engedélyokirat-ellenőrzési nyilatkozat.</p>}<a href="https://novenyvedoszer.nebih.gov.hu/Engedelykereso/kereso" target="_blank" rel="noopener noreferrer">Hatályos NÉBIH engedélyokirat keresése</a></section>}
   {isPlant&&<OperationCompliancePanel checks={complianceChecks} title="A rögzített növényvédelmi művelet megfelelősége"/>}
 
   {isPlant&&op.catalog_mode==="official"&&Object.keys(reg).length>0&&<section className="panel"><div className="panel-heading"><div><span className="eyebrow">HIVATALOS PILLANATKÉP</span><h2>{op.country_code==="SK"?"ÚKSÚP":"Magyar"} engedélyezési adatok a rögzítéskor</h2></div><span className="user-pill">{reg.source_name||"Hivatalos katalógus"}</span></div>

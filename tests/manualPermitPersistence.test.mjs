@@ -10,6 +10,9 @@ test("the web UI and action require database policy v2 before manual HU logging"
  assert.match(action,/policyVersion!==2/);
  assert.match(catalog,/policyVersion===2/);
  assert.match(action,/validateManualPlantProtection\(/);
+ const detail=read("app/operations/[id]/page.tsx");
+ assert.match(detail,/reg\.permit_check_attested===true/);
+ assert.match(detail,/nincs tárolt engedélyokirat-ellenőrzési nyilatkozat/);
 });
 
 test("the web insert persists the farmer's permit-check statement only on a manual HU operation",()=>{
