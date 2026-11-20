@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,16 +30,24 @@ import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.R
 import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
+import hu.agrarmentor.android.auth.SecureSessionStore
+import hu.agrarmentor.android.auth.SessionRenewalClock
+import hu.agrarmentor.android.auth.SignInResult
 import hu.agrarmentor.android.auth.SupabaseAuthGateway
 import hu.agrarmentor.android.data.FieldRepository
 import hu.agrarmentor.android.data.FieldSummary
 import hu.agrarmentor.android.data.FarmerWorkspaceRepository
+import hu.agrarmentor.android.data.GeneralTaskCompletion
 import hu.agrarmentor.android.data.MobileFieldDetail
 import hu.agrarmentor.android.data.MobileOperation
 import hu.agrarmentor.android.data.MobileTask
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -63,23 +72,100 @@ private fun palette(role:PortalRole)=when(role){
 fun AgrarMentorApp(demoMode:Boolean){
  var session by remember{mutableStateOf<AuthorizedSession?>(null)}
  val gateway=remember{SupabaseAuthGateway(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val context=LocalContext.current
+ val secureStore=remember{SecureSessionStore(context)}
  val scope=rememberCoroutineScope()
+ var restoring by remember{mutableStateOf(!demoMode)}
+ var reconnectWarning by remember{mutableStateOf(false)}
+ LaunchedEffect(demoMode){
+  if(!demoMode){
+   try{
+    val stored=withContext(Dispatchers.IO){secureStore.loadRefreshToken()}
+    if(stored!=null){
+     when(val result=gateway.refresh(stored)){
+      is SignInResult.Authorized->{
+       withContext(Dispatchers.IO){secureStore.saveRefreshToken(result.session.refreshToken)}
+       session=result.session
+      }
+      is SignInResult.Failed->if(result.reauthenticationRequired){
+       withContext(Dispatchers.IO){secureStore.clear()}
+      }
+      is SignInResult.NeedsMfa->withContext(Dispatchers.IO){secureStore.clear()}
+     }
+    }
+   }catch(e:CancellationException){throw e}
+   catch(_:Exception){/* Device without available keystore can still log in for this run. */}
+   finally{restoring=false}
+  }
+ }
+ LaunchedEffect(session?.accessToken){
+  val current=session?:return@LaunchedEffect
+  while(true){
+   delay(SessionRenewalClock.delayMillis(current.expiresAtEpochSeconds))
+   when(val result=gateway.refresh(current.refreshToken)){
+    is SignInResult.Authorized->{
+     if(result.session.userId!=current.userId||result.session.role!=current.role){
+      withContext(Dispatchers.IO){secureStore.clear()}
+      session=null
+     }else{
+      try{withContext(Dispatchers.IO){secureStore.saveRefreshToken(result.session.refreshToken)}}
+      catch(e:CancellationException){throw e}
+      catch(_:Exception){/* Keep the current session in memory if device storage is unavailable. */}
+      reconnectWarning=false
+      session=result.session
+     }
+     break
+    }
+    is SignInResult.NeedsMfa->{
+     withContext(Dispatchers.IO){secureStore.clear()}
+     session=null
+     break
+    }
+    is SignInResult.Failed->{
+     if(result.reauthenticationRequired){
+      withContext(Dispatchers.IO){secureStore.clear()}
+      session=null
+      break
+     }
+     reconnectWarning=true
+     delay(30_000L)
+    }
+   }
+  }
+ }
+ if(restoring&&!demoMode){
+  Box(Modifier.fillMaxSize().background(CanvasCream),contentAlignment=Alignment.Center){
+   CircularProgressIndicator(color=Color(0xFF0A613C))
+  }
+  return
+ }
  if(!demoMode&&session==null){
-  SignInScreen(gateway,onAuthenticated={session=it})
+  SignInScreen(gateway,onAuthenticated={authenticated->
+   scope.launch{
+    try{withContext(Dispatchers.IO){secureStore.saveRefreshToken(authenticated.refreshToken)}}
+    catch(e:CancellationException){throw e}
+    catch(_:Exception){/* Do not prevent this run's login if Keystore is unavailable. */}
+    session=authenticated
+    reconnectWarning=false
+   }
+  })
   return
  }
  val initialRole=if(demoMode)PortalRole.FARMER else session!!.role
  key(initialRole,demoMode){
-  PortalShell(initialRole,demoMode,session,onSignOut={
+  PortalShell(initialRole,demoMode,session,reconnectWarning,onSignOut={
    val accessToken=session?.accessToken
    session=null
-   if(accessToken!=null)scope.launch{gateway.signOut(accessToken)}
+   scope.launch{
+    withContext(Dispatchers.IO){secureStore.clear()}
+    if(accessToken!=null)gateway.signOut(accessToken)
+   }
   })
  }
 }
 
 @Composable
-private fun PortalShell(initialRole:PortalRole,demoMode:Boolean,session:AuthorizedSession?,onSignOut:()->Unit){
+private fun PortalShell(initialRole:PortalRole,demoMode:Boolean,session:AuthorizedSession?,reconnectWarning:Boolean,onSignOut:()->Unit){
  var roleKey by rememberSaveable{mutableStateOf(initialRole.name)}
  val role=PortalRole.valueOf(roleKey)
  var route by rememberSaveable{mutableStateOf(NavigationCatalog.tabs(role).first().route)}
@@ -113,7 +199,7 @@ private fun PortalShell(initialRole:PortalRole,demoMode:Boolean,session:Authoriz
    })},
    bottomBar={RoleBottomBar(role,route,colors,onNavigate=::navigate,onMenu={scope.launch{drawerState.open()}})}
   ){insets->
-   PortalContent(role,route,colors,demoMode,session,onNavigate=::navigate,modifier=Modifier.padding(insets))
+   PortalContent(role,route,colors,demoMode,session,reconnectWarning,onNavigate=::navigate,modifier=Modifier.padding(insets))
   }
  }
 }
@@ -233,7 +319,7 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
 private fun String.normalizeForSearch()=java.text.Normalizer.normalize(this,java.text.Normalizer.Form.NFD).replace(Regex("[\\u0300-\\u036f]"),"")
 
 @Composable
-private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demoMode:Boolean,session:AuthorizedSession?,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
+private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demoMode:Boolean,session:AuthorizedSession?,reconnectWarning:Boolean,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
  val title=NavigationCatalog.find(role,route)?.title ?: when {
   route.startsWith("/fields/")->"Tábla részletei"
   route.startsWith("/admin/clients/")->"Ügyféldosszié"
@@ -244,6 +330,9 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
    Text(role.title.uppercase(),color=colors.accent,fontSize=11.sp,fontWeight=FontWeight.Bold,letterSpacing=1.4.sp)
    Text(title,color=DarkText,fontSize=28.sp,fontWeight=FontWeight.ExtraBold,lineHeight=33.sp)
    Text(if(demoMode)"Natív Android-előnézet · mintaadatok" else "Agrár Mentor mobilalkalmazás",color=MutedText,fontSize=12.sp)
+  }
+  if(reconnectWarning&&!demoMode)item{
+   Text("A kapcsolat megszakadt. A munkamenet automatikus megújítása folyamatban van.",color=Color(0xFF985414),fontSize=13.sp)
   }
   if(!demoMode){
    if(role==PortalRole.FARMER&&route=="/dashboard"&&session!=null){
@@ -256,6 +345,31 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveTasksScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/operations"&&session!=null){
     item{LiveOperationsScreen(session,colors)}
+   }else if(role==PortalRole.FARMER&&route=="/notifications"&&session!=null){
+    item{LiveNotificationsScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.FARMER&&route=="/messages"&&session!=null){
+    item{LiveMessagesScreen(session,colors)}
+   }else if(role==PortalRole.FARMER&&route=="/documents"&&session!=null){
+    item{LiveDocumentsScreen(session,colors)}
+   }else if(role==PortalRole.FARMER&&route=="/invoices"&&session!=null){
+    item{LiveDocumentsScreen(session,colors,onlyInvoices=true)}
+   }else if(role==PortalRole.FARMER&&route=="/profile"&&session!=null){
+    item{LiveProfileScreen(session,colors)}
+   }else if(role==PortalRole.FARMER&&route in listOf("/farms","/team","/machines","/timeline")&&session!=null){
+    item{LiveFarmExtrasScreen(route,session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/map"&&session!=null){
+    item{Text("Földtáblák és figyelmeztetések – listanézet. A térképi műholdréteg még nincs bekötve.",fontSize=13.sp,color=MutedText)}
+    item{LiveFieldsScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route.startsWith("/fields/")&&session!=null){
+    item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/reports","/admin/visits")&&session!=null){
+    item{AdvisorExtrasScreen(route,session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/operations"&&session!=null){
+    item{LiveOperationsScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/documents"&&session!=null){
+    item{LiveDocumentsScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/timeline","/admin/machines")&&session!=null){
+    item{LiveFarmExtrasScreen(if(route=="/admin/timeline")"/timeline" else "/machines",session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/tasks","/admin/daily-work")&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security")&&session!=null){
@@ -308,11 +422,17 @@ private fun operationLabel(type:String):String=when(type){
 @Composable
 private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val completion=remember{GeneralTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val scope=rememberCoroutineScope()
  var tasks by remember{mutableStateOf<List<MobileTask>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
  var filter by rememberSaveable{mutableStateOf("Nyitott")}
+ var selectedCompletion by remember{mutableStateOf<MobileTask?>(null)}
+ var completionNote by remember{mutableStateOf("")}
+ var sending by remember{mutableStateOf(false)}
+ var completionMessage by remember{mutableStateOf<String?>(null)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
   try{tasks=repository.tasks(session)}catch(_:Exception){error=true}
@@ -325,7 +445,8 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
   else->true
  }}
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  Text("A gazdaság teendői · csak olvasási nézet",fontSize=13.sp,color=MutedText)
+  Text("A gazdaság teendői. Az általános, saját feladat igazolható; a táblához kötött munkákhoz GPS-ellenőrzés kell.",fontSize=13.sp,color=MutedText)
+  if(completionMessage!=null)Text(completionMessage!!,fontSize=13.sp,color=colors.accent)
   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("Nyitott","Ellenőrzésre vár","Befejezett","Mind").forEach{option->
     FilterChip(selected=filter==option,onClick={filter=option},label={Text(option,fontSize=11.sp)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=colors.tint,selectedLabelColor=colors.accent))
@@ -347,8 +468,40 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette){
     }
     Text("Határidő: ${huDate(task.dueDate)}",color=MutedText,fontSize=12.sp)
     if(!task.description.isNullOrBlank())Text(task.description,color=DarkText,fontSize=13.sp)
+    if(task.taskKind=="general"&&task.fieldId==null&&task.assignedTo==session.userId&&task.status in listOf("open","in_progress")){
+     OutlinedButton(onClick={selectedCompletion=task;completionNote=""},shape=RoundedCornerShape(10.dp)){
+      Text("Elvégzés beküldése ellenőrzésre",color=colors.accent)
+     }
+    }
    }
   }
+ }
+ selectedCompletion?.let{task->
+  AlertDialog(
+   onDismissRequest={if(!sending)selectedCompletion=null},
+   title={Text("${task.title} – teljesítés igazolása")},
+   text={
+    Column(verticalArrangement=Arrangement.spacedBy(10.dp)){
+     Text("Az általános teendőt a szerver ellenőrzésre továbbítja; a jóváhagyó később lezárhatja.",fontSize=13.sp)
+     OutlinedTextField(completionNote,{completionNote=it.take(1500)},label={Text("Mit végeztél el?")},minLines=3,modifier=Modifier.fillMaxWidth())
+    }
+   },
+   confirmButton={
+    TextButton(onClick={
+     sending=true
+     scope.launch{
+      try{
+       val created=completion.submit(session,task,completionNote)
+       completionMessage=if(created)"A feladat ellenőrzésre beküldve." else "A feladatot korábban már beküldték."
+       selectedCompletion=null
+       revision++
+      }catch(_:Exception){completionMessage="A beküldés sikertelen. Ellenőrizd a feladatot és próbáld újra."}
+      finally{sending=false}
+     }
+    },enabled=!sending&&completionNote.trim().length in 3..1500){Text(if(sending)"Beküldés…" else "Beküldöm")}
+   },
+   dismissButton={TextButton(onClick={selectedCompletion=null},enabled=!sending){Text("Mégsem")}}
+  )
  }
 }
 

@@ -7,6 +7,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -19,8 +22,11 @@ import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.AdminWorkspace
+import hu.agrarmentor.android.data.AdvisorTask
+import hu.agrarmentor.android.data.AdvisorTaskReview
 import hu.agrarmentor.android.data.AdvisorWorkspace
 import hu.agrarmentor.android.data.RoleWorkspaceRepository
+import kotlinx.coroutines.launch
 
 private val Ink=Color(0xFF24372E)
 private val SoftInk=Color(0xFF718078)
@@ -50,7 +56,7 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
    when(route){
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
     "/admin/clients"->AdvisorClients(data,colors)
-    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,onlyOpen=route=="/admin/daily-work")
+    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onReviewed={revision++})
    }
   }
  }
@@ -111,9 +117,16 @@ private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette){
 }
 
 @Composable
-private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,onlyOpen:Boolean){
+private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onReviewed:()->Unit){
+ val reviewGateway=remember{AdvisorTaskReview(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val scope=rememberCoroutineScope()
+ var reviewing by remember{mutableStateOf<Pair<AdvisorTask,Boolean>?>(null)}
+ var note by remember{mutableStateOf("")}
+ var sending by remember{mutableStateOf(false)}
+ var error by remember{mutableStateOf<String?>(null)}
  val tasks=data.tasks.filter{!onlyOpen||(it.status!="done"&&it.status!="cancelled")}
  Text(if(onlyOpen)"Napi munkalista" else "Szaktanácsadói munkalista",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Ink)
+ if(error!=null)Text(error!!,color=Critical,fontSize=12.sp)
  if(tasks.isEmpty())Text("Ebben a nézetben nincs feladat.",color=SoftInk)
  tasks.forEach{task->
   val attention=task.priority in listOf("high","urgent")&&task.status!="done"
@@ -124,9 +137,41 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,onlyOpen:Boo
     Text(taskStatus(task.status),color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)
     Text(huDate(task.dueDate),color=if(attention)Critical else SoftInk,fontSize=12.sp)
    }
+   if(task.status=="submitted"){
+    if(task.reportDate!=null&&task.taskKind=="general"&&task.fieldId==null){
+     Text("Teljesítés: ${huDate(task.reportDate)}",color=SoftInk,fontSize=12.sp)
+     if(!task.reportNotes.isNullOrBlank())Text("Végrehajtó megjegyzése: ${task.reportNotes}",color=Ink,fontSize=13.sp)
+     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+      TextButton(onClick={reviewing=task to true;note=""}){Text("Jóváhagyom",color=colors.accent)}
+      TextButton(onClick={reviewing=task to false;note=""}){Text("Visszaküldöm",color=Critical)}
+     }
+    }else Text("Az összetett vagy táblához kötött munkák jóváhagyása a teljes szakmai dossziéval, a webes felületen történik.",color=Critical,fontSize=12.sp)
+   }
   }
  }
- Text("Jóváhagyás és feladatkiadás csak a jogosultságvizsgált szerveroldali folyamat bekötése után lesz elérhető.",color=SoftInk,fontSize=12.sp)
+ reviewing?.let{(task,approve)->
+  AlertDialog(
+   onDismissRequest={if(!sending)reviewing=null},
+   title={Text(if(approve)"Teljesítés jóváhagyása" else "Visszaküldés javításra")},
+   text={
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+     Text(task.title,color=Ink,fontWeight=FontWeight.Bold)
+     Text("${task.fieldName} · ${huDate(task.reportDate)}",fontSize=12.sp,color=SoftInk)
+     if(task.reportNotes!=null)Text(task.reportNotes,fontSize=13.sp,color=Ink)
+     OutlinedTextField(note,{note=it.take(1500)},label={Text(if(approve)"Ellenőrzési megjegyzés (opcionális)" else "Mit kell javítani? (kötelező)")},modifier=Modifier.fillMaxWidth(),minLines=2)
+    }
+   },
+   confirmButton={TextButton(onClick={
+    sending=true;error=null
+    scope.launch{
+     try{reviewGateway.review(session,task,approve,note);reviewing=null;onReviewed()}
+     catch(_:Exception){error="Az ellenőrzési döntést nem sikerült menteni. Frissítsd a listát."}
+     finally{sending=false}
+    }
+   },enabled=!sending&&(approve||note.isNotBlank())){Text(if(sending)"Mentés…" else "Döntés mentése")}},
+   dismissButton={TextButton(onClick={reviewing=null},enabled=!sending){Text("Mégsem")}}
+  )
+ }
 }
 
 @Composable

@@ -19,11 +19,16 @@ data class AdvisorClient(
 )
 
 data class AdvisorTask(
+ val id:String,
  val title:String,
  val fieldName:String,
  val status:String,
  val priority:String,
- val dueDate:String?
+ val dueDate:String?,
+ val taskKind:String="general",
+ val fieldId:String?=null,
+ val reportNotes:String?=null,
+ val reportDate:String?=null
 )
 
 data class AdvisorWorkspace(
@@ -78,7 +83,10 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
   val farms=read("farms?select=id,name,owner_id&limit=1000",session)
   val fields=read("fields?select=id,name,farm_id,status&limit=1000",session)
   val inspections=read("inspections?select=field_id,condition,inspected_at&order=inspected_at.desc&limit=1000",session)
-  val tasks=read("tasks?select=id,title,field_id,status,priority,due_date&order=updated_at.desc&limit=300",session)
+  val tasks=read("tasks?select=id,title,field_id,status,priority,due_date,task_kind&order=updated_at.desc&limit=300",session)
+  // Only reports returned through RLS can be reviewed; never approve blind.
+  val executionReports=runCatching{read("task_execution_reports?select=task_id,notes,operation_date&order=reported_at.desc&limit=500",session)}
+   .getOrNull()?.objects()?.associateBy{it.optString("task_id")}.orEmpty()
   val reports=read("farmer_reports?select=id,status&status=neq.closed&limit=1000",session)
 
   val ownerByFarm=farms.objects().associate{it.getString("id") to it.optString("owner_id")}
@@ -107,11 +115,16 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
    clients=farmers,
    tasks=tasks.objects().map{entry->
     AdvisorTask(
+     id=entry.getString("id"),
      title=entry.optString("title","Teendő"),
      fieldName=fieldNames[entry.optString("field_id")]?:"Teljes gazdaság",
      status=entry.optString("status","open"),
      priority=entry.optString("priority","normal"),
-     dueDate=entry.optional("due_date")
+     dueDate=entry.optional("due_date"),
+     taskKind=entry.optString("task_kind","general"),
+     fieldId=entry.optional("field_id"),
+     reportNotes=executionReports[entry.optString("id")]?.optional("notes"),
+     reportDate=executionReports[entry.optString("id")]?.optional("operation_date")
     )
    },
    openReports=reports.length(),

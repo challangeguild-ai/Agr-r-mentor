@@ -15,7 +15,10 @@ data class MobileTask(
  val dueDate:String?,
  val priority:String,
  val status:String,
- val description:String?
+ val description:String?,
+ val taskKind:String="general",
+ val fieldId:String?=null,
+ val assignedTo:String?=null
 )
 
 data class MobileOperation(
@@ -46,7 +49,7 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
  suspend fun tasks(session:AuthorizedSession):List<MobileTask> = withContext(Dispatchers.IO){
   // RLS permits the farm owner to see their farm's tasks, including those
   // assigned to colleagues. The previous assigned_to filter hid these tasks.
-  val rows=fetch("tasks?select=id,title,field_id,due_date,priority,status,description&order=updated_at.desc&limit=250",session.accessToken)
+  val rows=fetch("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&order=updated_at.desc&limit=250",session.accessToken)
   val fieldNames=fieldNames(session.accessToken)
   rows.objects().map{row->task(row,fieldNames)}
  }
@@ -67,7 +70,7 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   val farm=fetch("farms?select=id,name&id=eq.$farmId&limit=1",session.accessToken).optJSONObject(0)
   val latest=fetch("inspections?select=condition,inspected_at,recommendation&field_id=eq.$fieldId&order=inspected_at.desc&limit=1",session.accessToken).optJSONObject(0)
   val names=mapOf(fieldId to field.optString("name","Földtábla"))
-  val tasks=fetch("tasks?select=id,title,field_id,due_date,priority,status,description&field_id=eq.$fieldId&order=created_at.desc&limit=50",session.accessToken)
+  val tasks=fetch("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&field_id=eq.$fieldId&order=created_at.desc&limit=50",session.accessToken)
    .objects().map{row->task(row,names)}
   val operations=fetch("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&field_id=eq.$fieldId&order=operation_date.desc&limit=50",session.accessToken)
    .objects().map{row->operation(row,names)}
@@ -92,7 +95,10 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   dueDate=row.optNullable("due_date"),
   priority=row.optString("priority","normal"),
   status=row.optString("status","open"),
-  description=row.optNullable("description")
+  description=row.optNullable("description"),
+  taskKind=row.optString("task_kind","general"),
+  fieldId=row.optNullable("field_id"),
+  assignedTo=row.optNullable("assigned_to")
  )
 
  private fun operation(row:JSONObject,names:Map<String,String>):MobileOperation{

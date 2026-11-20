@@ -34,6 +34,7 @@ fun SignInScreen(gateway:SupabaseAuthGateway,onAuthenticated:(AuthorizedSession)
  var challenge by remember{mutableStateOf<SignInResult.NeedsMfa?>(null)}
  var waiting by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
+ var resetMessage by remember{mutableStateOf<String?>(null)}
  val scope=rememberCoroutineScope()
 
  fun handle(result:SignInResult){
@@ -58,9 +59,10 @@ fun SignInScreen(gateway:SupabaseAuthGateway,onAuthenticated:(AuthorizedSession)
      OutlinedTextField(value=code,onValueChange={code=it.filter(Char::isDigit).take(6)},label={Text("Hitelesítőkód")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.NumberPassword),modifier=Modifier.fillMaxWidth(),leadingIcon={Icon(Icons.Default.Lock,null)})
     }
     if(error!=null)Text(error!!,color=Color(0xFFB1303E),style=MaterialTheme.typography.bodyMedium)
+    if(resetMessage!=null)Text(resetMessage!!,color=Color(0xFF0A613C),style=MaterialTheme.typography.bodyMedium)
     Button(
      onClick={
-      waiting=true;error=null
+      waiting=true;error=null;resetMessage=null
       scope.launch{
        try{
         handle(if(challenge==null)gateway.signIn(email,password)else gateway.verifyMfa(challenge!!.accessToken,challenge!!.factorId,code))
@@ -71,6 +73,17 @@ fun SignInScreen(gateway:SupabaseAuthGateway,onAuthenticated:(AuthorizedSession)
      colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF0A613C)),
      shape=RoundedCornerShape(12.dp),modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)
     ){Text(if(waiting)"Ellenőrzés…" else if(challenge==null)"Belépés" else "Kód ellenőrzése")}
+    if(challenge==null){
+     TextButton(onClick={
+      waiting=true;error=null;resetMessage=null
+      scope.launch{
+       try{
+        val sent=gateway.requestPasswordReset(email)
+        resetMessage=if(sent)"Ha létezik ez a fiók, a jelszó-helyreállítási levél megérkezik az e-mail-címedre." else "Nem sikerült elindítani a helyreállítást. Ellenőrizd az e-mail-címet és a kapcsolatot."
+       }finally{waiting=false}
+      }
+     },enabled=!waiting&&gateway.isConfigured&&email.contains('@')){Text("Elfelejtettem a jelszavam")}
+    }
     if(challenge!=null)TextButton(onClick={challenge=null;code="";error=null}){Text("Vissza a belépéshez")}
     if(!gateway.isConfigured)Text("A kiadáshoz a Supabase nyilvános kapcsolati adatait még be kell állítani.",color=Color(0xFF866B30),style=MaterialTheme.typography.bodySmall)
    }
