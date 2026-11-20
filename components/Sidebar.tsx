@@ -32,11 +32,11 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
  const[open,setOpen]=useState(false);
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
-  <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} onClick={()=>setOpen(true)}><span/><span/><span/></button>
-  {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
-  <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
+  <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} aria-controls="farmer-navigation-drawer" onClick={()=>setOpen(true)}><span/><span/><span/></button>
+  {open&&<button className={styles.overlay} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
+  <aside id="farmer-navigation-drawer" className={`${styles.sidebar} ${open?styles.open:""}`} onKeyDown={event=>{if(event.key==="Escape")setOpen(false)}}>
    <div className={styles.brand}><div className={styles.brandText}><AgrarMentorLogo className={styles.brandLogo} priority/><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
-   <nav className={styles.nav}>
+   <nav className={styles.nav} aria-label="Gazdálkodói menü">
     <div className={styles.primaryList}>{primary.map(row)}</div>
     <div className={styles.sectionLabel}>GAZDASÁGOM</div>
     <div className={styles.secondaryList}>{secondary.map(row)}</div>

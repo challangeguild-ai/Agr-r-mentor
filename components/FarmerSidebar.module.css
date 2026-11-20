@@ -57,3 +57,11 @@
 @media(max-width:767px){
  :global(.farmer-app) .launch{position:absolute;top:10px;left:12px}
 }
+/* On phones, one drawer scroll reaches every menu item, contextual guide,
+   field artwork and profile. A separately scrolling nav concealed routes. */
+@media(max-width:767px){
+ .sidebar{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ .nav{flex:none;min-height:max-content;overflow:visible}
+ .help{flex:none;max-height:none;overflow:visible}
+ .landscape,.userFooter{flex:none}
+}

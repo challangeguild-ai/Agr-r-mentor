@@ -60,7 +60,7 @@
   color:#fff;
   background:
     linear-gradient(90deg,rgba(6,49,32,.96) 0%,rgba(10,54,36,.88) 40%,rgba(17,62,40,.56) 65%,rgba(18,62,38,.28) 100%),
-    url("https://upload.wikimedia.org/wikipedia/commons/f/f6/Field_in_sunrise_%28Unsplash%29.jpg") center 58%/cover no-repeat,
+    url("/images/agrar-fields-sunrise.webp") center 58%/cover no-repeat,
     linear-gradient(135deg,#17452f,#587345);
   box-shadow:0 15px 38px rgba(13,51,34,.17)
 }

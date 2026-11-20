@@ -37,14 +37,14 @@ export function AdvisorSidebar(){
    </Link>
    <div className={styles.mobileHeaderActions}><NotificationBell/></div>
   </div>
-  <button className={styles.launch} type="button" onClick={()=>setOpen(true)} aria-label="Menü megnyitása"><span/><span/><span/></button>
+  <button className={styles.launch} type="button" onClick={()=>setOpen(true)} aria-label="Menü megnyitása" aria-expanded={open} aria-controls="advisor-navigation-drawer"><span/><span/><span/></button>
   {open&&<button className={styles.overlay} type="button" onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"/>}
-  <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
+  <aside id="advisor-navigation-drawer" className={`${styles.sidebar} ${open?styles.open:""}`} onKeyDown={event=>{if(event.key==="Escape")setOpen(false)}}>
    <div className={styles.brand}>
     <div className={styles.brandIdentity}><AgrarMentorLogo className={styles.brandLogo} priority/><small>SZAKTANÁCSADÓI PORTÁL</small></div>
     <button className={styles.close} type="button" onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"><span/><span/><span/></button>
    </div>
-   <nav className={styles.nav}>{items.map(([href,icon,label,tour])=>{
+   <nav className={styles.nav} aria-label="Szaktanácsadói menü">{items.map(([href,icon,label,tour])=>{
     const active=href==="/admin"?pathname===href:pathname.startsWith(href);
     return <Link data-tour={tour} onClick={()=>setOpen(false)} key={href} className={active?styles.active:""} href={href}><span>{icon}</span><b>{label}</b></Link>
    })}</nav>

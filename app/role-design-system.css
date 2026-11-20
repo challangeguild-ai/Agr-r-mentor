@@ -65,3 +65,11 @@
  :is(.farmer-app,.agrar-role-ui) :is(.btn,.ghost-btn,.btn-primary,.btn-secondary){min-height:44px;font-size:13px}
  :is(.farmer-app,.agrar-role-ui) :is(.client-row,.admin-row,.task-admin-row,.task-row){min-height:48px}
 }
+/* The field-worker view has its own page shell and shares mobile touch rules. */
+.worker-page-header>div:first-child,.worker-summary-stats .stat-card{min-width:0}
+@media(max-width:767px){
+ .worker-page-header{flex-wrap:wrap;align-items:flex-start!important}
+ .worker-page-header>div:last-child{flex-wrap:wrap;min-width:0}
+ .worker-summary-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .worker-summary-stats .stat-card{padding:13px;overflow-wrap:anywhere}
+}
