@@ -88,3 +88,12 @@ end $$;
 
 -- Keep the existing trigger and its name-based checks; replace only the function.
 revoke all on function public.guard_hu_plant_protection_regulatory_status() from public,anon,authenticated;
+
+-- Clients must fail closed until the guarded trigger is actually installed.
+-- This capability marker is not an authorization decision; INSERT RLS and the
+-- trigger above still enforce every operation after the marker is present.
+create or replace function public.hu_manual_spraying_policy_version()
+returns integer language sql stable security invoker set search_path=public,pg_temp
+as $$ select 1 $$;
+revoke all on function public.hu_manual_spraying_policy_version() from public,anon;
+grant execute on function public.hu_manual_spraying_policy_version() to authenticated;

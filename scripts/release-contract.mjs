@@ -12,6 +12,7 @@ export const migrationFiles=[
  "20261119110000_verified_task_proof_rpc_guard.sql",
  "20261119123000_field_boundary_proposals.sql",
  "20261119211340_notification_email_send_quota.sql",
+ "20261120110000_manual_hu_spraying_log_guard.sql",
 ];
 export const edgeNames=["invite-farmer","invite-advisor","send-notification-email"];
 
@@ -64,6 +65,10 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
   if(!powershell.includes(`'${filename}'`))problems.push(`A PowerShell-próbából hiányzik: ${filename}`);
   const sql=get(`supabase/migrations/${filename}`);
   if(/^\s*(BEGIN|COMMIT|ROLLBACK)\s*;/im.test(sql))problems.push(`Beágyazott tranzakció a migrációban: ${filename}`);
+  if(filename.includes("manual_hu_spraying_log_guard")&&
+    (!sql.includes("hu_manual_spraying_policy_version")||!sql.includes("verification_status','not_verified'")
+      ||sql.includes("new.product_id := p.id")))
+   problems.push("A kézi HU növényvédelmi migráció hiányosan vagy veszélyesen jelöli a hivatalos termékazonosságot.");
  }
  const edgeSources={};
  for(const slug of edgeNames){
@@ -99,7 +104,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  else{
   process.stdout.write(`${result.ok?"KIADÁSI FORRÁSCSOMAG: RENDBEN":"KIADÁSI FORRÁSCSOMAG: HIBÁS"}\n`);
   process.stdout.write(`Projekt: ${result.targets.repository??"ismeretlen"} | Vercel: ${result.targets.vercelProjectId??"?"} | Supabase: ${result.targets.supabaseProjectId??"?"}\n`);
-  process.stdout.write(`Öt SQL-migráció, három Edge Function, két közös modul: ${result.documents.length} fájl ellenőrizve.\n`);
+  process.stdout.write(`${migrationFiles.length} SQL-migráció, három Edge Function, két közös modul: ${result.documents.length} fájl ellenőrizve.\n`);
   for(const problem of result.problems)process.stderr.write(`HIBA: ${problem}\n`);
   process.stdout.write("Ez nem élesítési teszt: a távoli beállításokat és az SMTP-kézbesítést külön kell igazolni.\n");
  }

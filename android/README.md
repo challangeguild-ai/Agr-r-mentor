@@ -99,3 +99,5 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 4. A debug APK várt útvonala: `app/build/outputs/apk/debug/app-debug.apk`.
 
 **A helyi környezetben nincs telepített Android SDK vagy Gradle-disztribúció.** A meglévő GitHub Actions fejlesztői ágán automatizált teszt és konfigurálatlan debug APK-fordítás fut. A demó APK nem végleges kiadás; a tényleges kiadáshoz konfigurált build és készülékpróba szükséges.
+
+**Kézi HU naplózás kiadási zár:** a natív és webes kliens a `hu_manual_spraying_policy_version()` szerveroldali jelzőt ellenőrzi. A `20261120110000_manual_hu_spraying_log_guard.sql` migráció telepítéséig a kézi naplózás letiltva marad, még akkor is, ha a HU engedélyezett felhasználási adatbázis üres. Az adatbázis-migráció éles alkalmazása után is kötelező a jogosultságos, teljes folyamatú próba.

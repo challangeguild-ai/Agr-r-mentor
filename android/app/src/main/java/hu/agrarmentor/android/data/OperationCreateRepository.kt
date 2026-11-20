@@ -31,6 +31,8 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
  fun pendingInput():OperationCreateInput?=pending?.input
 
  suspend fun huManualAvailable(session:AuthorizedSession):Boolean=withContext(Dispatchers.IO){
+  // Without the migrated database guard, previews must not silently save an unverified chemical.
+  if(request("POST","rpc/hu_manual_spraying_policy_version",session,JSONObject()).trim()!="1")return@withContext false
   read("plant_protection_uses?select=id,plant_protection_products!inner(country_code)&plant_protection_products.country_code=eq.HU&limit=1",session).isEmpty()
  }
 

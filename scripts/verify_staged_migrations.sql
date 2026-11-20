@@ -1,11 +1,12 @@
 \set ON_ERROR_STOP on
-\echo === AgrarMentor: ot fuggoben levo migracio – csak HELYI, ROLLBACK ===
+\echo === AgrarMentor: hat fuggoben levo migracio – csak HELYI, ROLLBACK ===
 BEGIN;
 \i /tmp/agrar_release_migration_check_20261119/20261119080000_general_task_attestation_review.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119093000_authorized_advisor_notifications.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119110000_verified_task_proof_rpc_guard.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119123000_field_boundary_proposals.sql
 \i /tmp/agrar_release_migration_check_20261119/20261119211340_notification_email_send_quota.sql
+\i /tmp/agrar_release_migration_check_20261119/20261120110000_manual_hu_spraying_log_guard.sql
 
 DO $verify$
 DECLARE
@@ -67,6 +68,20 @@ BEGIN
      OR has_function_privilege('anon','public.claim_invitation_email_send_quota(uuid)','EXECUTE')
      OR NOT has_function_privilege('service_role','public.claim_invitation_email_send_quota(uuid)','EXECUTE') THEN
     RAISE EXCEPTION 'A meghivasi kvota RPC jogosultsagai hibasak';
+  END IF;
+
+  IF to_regprocedure('public.hu_manual_spraying_policy_version()') IS NULL
+     OR public.hu_manual_spraying_policy_version() <> 1
+     OR has_function_privilege('anon','public.hu_manual_spraying_policy_version()','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.hu_manual_spraying_policy_version()','EXECUTE') THEN
+    RAISE EXCEPTION 'A magyar kézi permetezési napló védelmi verziója vagy jogosultsága hiányzik';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    WHERE p.oid='public.guard_hu_plant_protection_regulatory_status()'::regprocedure
+      AND position('new.product_id := p.id' in pg_get_functiondef(p.oid))>0
+  ) THEN
+    RAISE EXCEPTION 'A kézi napló továbbra is automatikusan hivatalos termékazonosítót rendel';
   END IF;
 END;
 $verify$;
