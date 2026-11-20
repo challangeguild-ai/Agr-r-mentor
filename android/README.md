@@ -68,6 +68,12 @@ A szaktanácsadó a natív **Bejelentések** oldalon szűrheti, olvashatja, megv
 
 A gazdálkodó a **Dokumentumok** és a **Számlák** oldalon a rendszer fájlválasztójával tölthet fel iratot a saját gazdaságához, opcionálisan földtáblához rendelve. A kategóriák, a PDF/JPG/PNG/WebP/DOC/DOCX MIME-lista és a 20 MB-os fájlméretkorlát megegyezik a webes dokumentumtárral és a már meglévő privát `documents` Storage-vödörrel. A kliens a feltöltés előtt és a szerver az RLS szabályokkal is ellenőrzi a tulajdonjogot. Egy futó alkalmazáspéldányon belül megőrzött dokumentumazonosító és Storage-útvonal teszi lehetővé a bizonytalan mentés biztonságos újrapróbálását, anélkül hogy a kliens új dokumentumot találna ki. Valódi fájlválasztós készülékteszt, megszakított feltöltés és folyamat-újraindítás utáni helyreállítás még hiányzik. A szaktanácsadói dokumentumfeltöltés és a törlési munkafolyamat nincs natívan implementálva.
 
+### Gazdálkodói műveleti napló és jóváhagyások
+
+A natív **Műveleti napló** már háromlépéses, földtáblához kötött rögzítést ad a tulajdonosnak. Jelenleg csak a nem növényvédelmi típusok (tápanyag-utánpótlás, vetés, talajmunka, betakarítás, öntözés, kaszálás és egyéb) érhetők el, terület-, dátum-, mennyiség- és mezőhossz-ellenőrzéssel. A rendszer a meglévő RLS-szabályok szerint rögzít, újrapróbálásnál ugyanazt a műveletazonosítót ellenőrzi, és az idővonalat is megpróbálja frissíteni. A speciális növényvédelmi/permetezési folyamatot **szándékosan nem** nyitja meg: a hivatalos szerkatalógus, engedélyezett felhasználás, dóziskorlát és kijelölt jóváhagyó teljes ellenőrzése szükséges hozzá, ezért ez a külön munkafolyamat még hátravan. A gazdasági vezető/munkatárs szerepkörök kliensoldali műveletrögzítése is hátravan, mivel az éles RLS jelenleg tulajdonosi INSERT-et enged.
+
+A natív **Jóváhagyások** menüpont a felhasználóhoz rendelt, jóváhagyásra váró vagy már elfogadott növényvédelmi műveleteket mutatja. A felhasználó kifejezett megerősítése után előzetesen ellenőrzi az aktív gazdasági jóváhagyói kijelölést, a személyes érvényes növényvédelmi engedélyt és az I./II. kategóriához szükséges jogosultsági szintet; a szerver RLS/trigger ugyanezt a döntést újra ellenőrzi. A PATCH a művelet előző `updated_at` értékéhez és `pending` állapotához kötött. Valódi jóváhagyói fiókkal végigvezetett E2E teszt még szükséges. A kód és automatizált egységtesztek önmagukban nem helyettesítik ezt.
+
 ## Fordítás Android Studióban
 
 Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függőségek első letöltéséhez.

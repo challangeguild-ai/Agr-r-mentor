@@ -42,6 +42,7 @@ import hu.agrarmentor.android.data.GeneralTaskCompletion
 import hu.agrarmentor.android.data.MobileFieldDetail
 import hu.agrarmentor.android.data.MobileOperation
 import hu.agrarmentor.android.data.MobileTask
+import hu.agrarmentor.android.data.OperationCreateRepository
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.Dispatchers
@@ -350,6 +351,8 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveTasksScreen(session,colors,mode=TaskListMode.MINE)}
    }else if(role==PortalRole.FARMER&&route=="/dispatch"&&session!=null){
     item{TaskDispatchScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.FARMER&&route=="/operations/approvals"&&session!=null){
+    item{LiveOperationApprovalsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/operations"&&session!=null){
     item{LiveOperationsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/notifications"&&session!=null){
@@ -547,17 +550,26 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
 @Composable
 private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val createRepository=remember{OperationCreateRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var operations by remember{mutableStateOf<List<MobileOperation>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
+ var showCreate by remember{mutableStateOf(false)}
+ var notice by remember{mutableStateOf<String?>(null)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
   try{operations=repository.operations(session)}catch(_:Exception){error=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  Text("Gazdálkodási műveletek · csak olvasási nézet",fontSize=13.sp,color=MutedText)
+  Text("Gazdálkodási műveletek és jóváhagyási állapotok",fontSize=13.sp,color=MutedText)
+  if(notice!=null)Text(notice!!,fontSize=13.sp,color=colors.accent)
+  if(session.role==PortalRole.FARMER){
+   Button(onClick={showCreate=true},enabled=!loading,colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
+    Text("Új művelet rögzítése")
+   }
+  }
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else if(operations.isEmpty())Text("Még nincs rögzített művelet.",color=MutedText)
@@ -576,6 +588,12 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
     Text(when(op.approvalStatus){"pending"->"Jóváhagyásra vár";"approved"->"Jóváhagyva";else->"Bejegyezve"},color=colors.accent,fontWeight=FontWeight.Bold,fontSize=12.sp)
    }
   }
+ }
+ if(showCreate&&session.role==PortalRole.FARMER){
+  OperationCreateDialog(session,colors,createRepository,onDismiss={showCreate=false},onSaved={warning->
+   notice=warning?:"A művelet sikeresen bekerült a naplóba."
+   showCreate=false;revision++
+  })
  }
 }
 
