@@ -29,6 +29,8 @@ import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.AdminWorkspace
 import hu.agrarmentor.android.data.AdvisorClientDossier
+import hu.agrarmentor.android.data.AdvisorContact
+import hu.agrarmentor.android.data.AdvisorContactDirectory
 import hu.agrarmentor.android.data.AdvisorTask
 import hu.agrarmentor.android.data.AdvisorTaskReview
 import hu.agrarmentor.android.data.AdvisorWorkspace
@@ -64,7 +66,7 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
   else snapshot?.let{data->
    when(route){
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
-    "/admin/clients"->AdvisorClients(data,colors,onNavigate)
+    "/admin/clients","/admin/portfolio"->AdvisorClients(data,colors,onNavigate)
     "/admin/priorities"->AdvisorPriorities(data,colors,onNavigate)
     "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onReviewed={revision++})
    }
@@ -161,6 +163,66 @@ private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette,onNavigate
    Text("${client.farms} gazdaság · ${client.fields} tábla",color=SoftInk,fontSize=13.sp)
    if(client.critical+client.attention>0)Text("${client.critical} kritikus · ${client.attention} figyelmeztetés",color=Ink,fontSize=12.sp)
    Text("Ügyféldosszié megnyitása ›",color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
+  }
+ }
+}
+
+@Composable
+internal fun AdvisorContactsScreen(session:AuthorizedSession,colors:PortalPalette){
+ val repo=remember{RoleWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ var contacts by remember(session.accessToken){mutableStateOf<AdvisorContactDirectory?>(null)}
+ var busy by remember(session.accessToken){mutableStateOf(true)}
+ var error by remember(session.accessToken){mutableStateOf<String?>(null)}
+ var revision by remember{mutableIntStateOf(0)}
+ LaunchedEffect(session.accessToken,revision){
+  busy=true;error=null
+  try{contacts=repo.advisorContacts(session)}
+  catch(e:CancellationException){throw e}
+  catch(e:Exception){error=e.message?:"Az elérhetőségek nem tölthetők be."}
+  finally{busy=false}
+ }
+ Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Text("Gazdasági kapcsolattartók és saját megosztott elérhetőségek",color=SoftInk,fontSize=14.sp)
+  if(busy)CircularProgressIndicator(color=colors.accent)
+  else if(error!=null){
+   Text(error!!,color=Critical,fontSize=13.sp)
+   TextButton(onClick={revision++}){Text("Újrapróbálás")}
+  }else contacts?.let{directory->
+   Card(colors,background=colors.tint){
+    Text("Saját szaktanácsadói elérhetőségek",fontSize=17.sp,fontWeight=FontWeight.Bold,color=Ink)
+    if(directory.own.isEmpty())Text("Még nincs megadott elérhetőség.",color=SoftInk,fontSize=13.sp)
+    directory.own.forEach{AdvisorContactLine(it,colors)}
+   }
+   Text("Gazdasági kapcsolattartók (${directory.farms.size} gazdaság)",fontSize=17.sp,fontWeight=FontWeight.Bold,color=Ink)
+   if(directory.farms.isEmpty())Text("Nincs elérhető gazdaság.",color=SoftInk,fontSize=13.sp)
+   directory.farms.forEach{farm->
+    Card(colors){
+     Text(farm.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
+     farm.settlement?.let{Text(it,color=SoftInk,fontSize=12.sp)}
+     if(farm.contacts.isEmpty())Text("Nincs rögzített kapcsolattartó.",color=SoftInk,fontSize=12.sp)
+     farm.contacts.forEach{AdvisorContactLine(it,colors)}
+    }
+   }
+   Text("A kapcsolattartók szerkesztése a webes Agrár Mentor felületen érhető el. A változások itt is megjelennek újratöltés után.",fontSize=12.sp,color=SoftInk)
+  }
+ }
+}
+
+@Composable
+private fun AdvisorContactLine(contact:AdvisorContact,colors:PortalPalette){
+ val context=LocalContext.current
+ Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+  Column(Modifier.weight(1f)){
+   Text(contact.label.ifBlank{if(contact.type=="email")"E-mail" else "Telefon"},color=Ink,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+   Text(contact.value,color=SoftInk,fontSize=13.sp)
+   if(contact.primary)Text("Elsődleges",color=colors.accent,fontSize=11.sp)
+  }
+  if(contact.value.isNotBlank()&&contact.type in listOf("phone","email")){
+   TextButton(onClick={
+    val email=contact.type=="email"
+    val intent=Intent(if(email)Intent.ACTION_SENDTO else Intent.ACTION_DIAL,Uri.fromParts(if(email)"mailto" else "tel",contact.value,null))
+    runCatching{context.startActivity(intent)}
+   }){Text(if(contact.type=="email")"E-mail" else "Hívás",color=colors.accent)}
   }
  }
 }

@@ -47,4 +47,13 @@ class AdvisorDossierRulesTest {
   )).map{it.id}
   assertEquals(listOf("submitted","urgent","high","normal"),ordered)
  }
+
+ @Test fun contactsRequireAdvisorAndVerifiedUserIdBeforeNetwork(){
+  val repository=RoleWorkspaceRepository("https://example.supabase.co","public-test-key")
+  val farmer=AuthorizedSession(PortalRole.FARMER,"test","11111111-1111-1111-1111-111111111111","",0L)
+  assertThrows(IllegalArgumentException::class.java){runBlocking{repository.advisorContacts(farmer)}}
+  assertThrows(IllegalArgumentException::class.java){runBlocking{
+   repository.advisorContacts(farmer.copy(role=PortalRole.ADVISOR,userId="invalid&id=eq.other"))
+  }}
+ }
 }

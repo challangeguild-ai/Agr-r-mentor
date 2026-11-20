@@ -57,6 +57,10 @@ data class AdvisorWorkspace(
  val totalFields:Int
 )
 
+data class AdvisorContact(val label:String,val value:String,val type:String,val primary:Boolean)
+data class AdvisorFarmContacts(val name:String,val settlement:String?,val contacts:List<AdvisorContact>)
+data class AdvisorContactDirectory(val own:List<AdvisorContact>,val farms:List<AdvisorFarmContacts>)
+
 data class AdvisorDossierField(
  val id:String,
  val name:String,
@@ -129,6 +133,28 @@ data class AdminWorkspace(
  * A missing grant or RLS policy is surfaced as a fetch failure, not bypassed.
  */
 class RoleWorkspaceRepository(private val baseUrl:String,private val publishableKey:String){
+ /** The same RLS-protected contacts that the web advisor maintains; no write authority is added. */
+ suspend fun advisorContacts(session:AuthorizedSession):AdvisorContactDirectory = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.ADVISOR){"Elérhetőségeket csak szaktanácsadó nyithat meg."}
+  require(session.userId.matches(Regex("[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}"))){"Érvénytelen felhasználóazonosító."}
+  val farms=read("farms?select=id,name,settlement&order=name.asc&limit=1000",session).objects()
+  val farmContacts=read("farm_contacts?select=farm_id,contact_type,label,value,is_primary&order=is_primary.desc&limit=1000",session).objects()
+  val own=read("profile_contacts?select=contact_type,label,value,is_primary&profile_id=eq.${session.userId}&order=is_primary.desc&limit=100",session).objects()
+  fun contact(value:JSONObject)=AdvisorContact(
+   label=value.optString("label"),value=value.optString("value"),
+   type=value.optString("contact_type"),primary=value.optBoolean("is_primary")
+  )
+  AdvisorContactDirectory(
+   own=own.map(::contact),
+   farms=farms.map{farm->
+    AdvisorFarmContacts(
+     name=farm.optString("name").ifBlank{"Gazdaság"},settlement=farm.optional("settlement"),
+     contacts=farmContacts.filter{it.optString("farm_id")==farm.getString("id")}.map(::contact)
+    )
+   }
+  )
+ }
+
  /** Fetches only the requested farmer and the farms returned by advisor RLS. */
  suspend fun clientDossier(session:AuthorizedSession,clientId:String):AdvisorClientDossier = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR){"Ügyféldossziét csak szaktanácsadó nyithat meg."}
