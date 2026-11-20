@@ -3,3 +3,32 @@
 @media(max-width:767px){.toolbar{grid-template-columns:1fr 1fr;gap:6px}.searchWrap{grid-column:1/-1}.clear{grid-column:1/-1;justify-self:end;min-height:30px}.head{display:none}.table{border:0;background:transparent;overflow:visible}.body{gap:7px}.row{grid-template-columns:minmax(0,1fr) auto;gap:7px;min-height:0;padding:10px;border:1px solid #e4e2da;border-radius:9px;background:#fff}.nameCell{grid-column:1/-1}.badge{grid-column:1}.scope{grid-column:1;font-size:7px}.row time{grid-column:1;font-size:7px}.size{grid-column:2;grid-row:2;font-size:7px}.actions{grid-column:2;grid-row:3/5;align-self:end;flex-direction:column}.actions button:first-child{display:none}.nameCell strong{font-size:9px}.nameCell small{white-space:normal;font-size:7px}}
 /* === FINAL POLISH 2026-10-04 === */
 .categoryTabs button{font-size:10.5px;min-height:34px}.categoryTabs button span{font-size:8.5px}.searchWrap input,.toolbar select,.clear{font-size:10.5px;min-height:36px}.resultLine{font-size:10px}.head{font-size:9.5px}.row{min-height:62px}.nameCell strong{font-size:12px}.nameCell small{font-size:10px}.badge{font-size:9.5px}.scope,.size,.row time{font-size:10px}.actions button{font-size:9.5px;min-height:30px}.empty strong{font-size:13px}.empty p{font-size:10.5px}@media(max-width:767px){.categoryTabs button{font-size:10px}.nameCell strong{font-size:11.5px}.nameCell small,.scope,.size,.row time{font-size:9.5px}}
+
+/* Accepted 07 reference: readable file type, association and action hierarchy. */
+.categoryTabs button{min-height:40px;font-size:12px}
+.categoryTabs button span{font-size:10px}
+.searchWrap input,.toolbar select,.clear{min-height:42px;font-size:12px}
+.resultLine{font-size:11.5px}
+.head{min-height:40px;font-size:11px}
+.row{min-height:68px}
+.nameCell strong{font-size:13px}
+.nameCell small{font-size:11.5px}
+.badge,.scope,.size,.row time{font-size:11px}
+.actions button{min-height:38px;font-size:11px}
+.nameCell:focus-visible,.actions button:focus-visible,.categoryTabs button:focus-visible{outline:3px solid #55a271;outline-offset:2px}
+@media(max-width:767px){
+ .categoryTabs button{font-size:12px;min-height:43px}
+ .searchWrap input,.toolbar select{min-height:44px;font-size:16px}
+ .row{min-height:0;padding:13px}
+ .nameCell strong{font-size:13px}
+ .nameCell small,.scope,.size,.row time{font-size:11.5px}
+ .actions button{min-height:40px;font-size:11.5px}
+}
+/* Shared document browser: farmer green and advisor blue from the role root. */
+.categoryTabs button.categoryActive{background:var(--agrar-ui-accent,#0f5637);border-color:var(--agrar-ui-accent,#0f5637)}
+.categoryTabs button:focus-visible,.nameCell:focus-visible,.actions button:focus-visible{outline-color:var(--agrar-ui-focus,#55a271)}
+.toolbar select,.searchWrap input,.categoryTabs button,.table,.row{border-color:var(--agrar-ui-border,#dfe5df)}
+.clear,.actions button{color:var(--agrar-ui-accent,#2f7049);border-color:var(--agrar-ui-border,#dfe5df)}
+.badge,.emptyIcon{background:var(--agrar-ui-soft,#e9f3eb);color:var(--agrar-ui-accent,#246b49)}
+.nameCell strong,.empty strong{color:var(--agrar-ui-ink,#223329)}
+.empty,.table{background:var(--agrar-ui-surface,#fff)}

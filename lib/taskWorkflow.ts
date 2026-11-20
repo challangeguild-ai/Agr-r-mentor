@@ -3,6 +3,16 @@ export const TASK_STARTED_EVENT="task_started";
 export const TASK_SUBMITTED_EVENT="task_submitted_review";
 export const TASK_APPROVED_EVENT="task_review_approved";
 export const TASK_REJECTED_EVENT="task_review_rejected";
+export function canSubmitTaskProof(status:string|null|undefined,fieldId:string|null|undefined):boolean{
+ return Boolean(fieldId)&&(status==="open"||status==="in_progress");
+}
+export function canSubmitGeneralTask(status:string|null|undefined,fieldId:string|null|undefined,taskKind:string|null|undefined):boolean{
+ return !fieldId&&taskKind==="general"&&(status==="open"||status==="in_progress");
+}
+export function generalTaskCompletionNote(value:string):string|null{
+ const note=value.trim();
+ return note.length>=3&&note.length<=1500?note:null;
+}
 export type WorkerTaskStage="assigned"|"accepted"|"started"|"submitted"|"done";
 export function workerTaskStage(status:string|null|undefined,events:{event_type?:string|null}[]):WorkerTaskStage{
  if(status==="done")return"done";

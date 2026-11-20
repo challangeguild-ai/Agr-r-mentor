@@ -60,7 +60,7 @@
   color:#fff;
   background:
     linear-gradient(90deg,rgba(6,49,32,.96) 0%,rgba(10,54,36,.88) 40%,rgba(17,62,40,.56) 65%,rgba(18,62,38,.28) 100%),
-    url("https://upload.wikimedia.org/wikipedia/commons/f/f6/Field_in_sunrise_%28Unsplash%29.jpg") center 58%/cover no-repeat,
+    url("/images/agrar-fields-sunrise.webp") center 58%/cover no-repeat,
     linear-gradient(135deg,#17452f,#587345);
   box-shadow:0 15px 38px rgba(13,51,34,.17)
 }
@@ -215,3 +215,55 @@
 /* === REAL DASHBOARD FIELD MAP 2026-10-04 === */
 .fieldVisual:before,.fieldVisual:after{display:none!important}
 .fieldVisual svg{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+
+/* A munkafolyamat-állapot valódi státusz, nem szimulált százalék. */
+.progressMeta .resumeStateLabel{height:auto;background:transparent;overflow:visible;
+ color:#64786a;font-size:11px;font-weight:650}
+.progressMeta b{font-size:11px;line-height:1.35;text-align:right;color:#205e3e}
+@media(max-width:767px){.progressMeta .resumeStateLabel,.progressMeta b{font-size:11px}}
+
+
+/* AGRAR 2.1 mobile legibility: remove 7–9 px informational text. */
+@media(max-width:920px){
+ .heroTitleRow span{font-size:11px}.heroSignals span{font-size:11px;min-height:40px}
+ .summaryCard small{font-size:10.5px}
+ .panelHead>a{font-size:11px}
+ .resumeTitle strong{font-size:13px}.resumeTitle small{font-size:11px}
+ .guidedHead p{font-size:11px}
+ .guided>a strong{font-size:13px}.guided>a small{font-size:11px}
+ .priorityTask strong{font-size:12.5px}
+ .priorityTask small,.priorityLocation strong,.priorityLocation small{font-size:10.5px}
+ .priorityBadge{font-size:10px}
+ .priorityAction{font-size:11px}
+ .fieldBody strong{font-size:13px}.fieldBody small{font-size:11px}
+ .fieldBody dt,.fieldBody dd{font-size:10.5px}
+ .event time,.event p,.doc small{font-size:10.5px}
+ .event strong,.doc strong{font-size:12px}
+}
+
+
+/* Weather totals include measured-day coverage: keep labels readable at every width. */
+.fieldCard dt{font-size:10px;line-height:1.35;letter-spacing:.02em}
+.fieldCard dd{font-size:11.5px;line-height:1.4;overflow-wrap:anywhere;white-space:normal}
+@media(max-width:920px){.fieldCard dt{font-size:10px}.fieldCard dd{font-size:11px}}
+
+/* Farmer reference values for the shared three-role component system. */
+.page{--surface:var(--agrar-ui-surface);--line:var(--agrar-ui-border);--ink:var(--agrar-ui-ink);--muted:var(--agrar-ui-muted)}
+.summaryCard,.panel,.guided{background:var(--agrar-ui-surface);border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius);box-shadow:var(--agrar-ui-shadow)}
+.summaryCard{min-height:88px;padding:12px;gap:10px}
+.summaryIcon{width:44px;height:44px;border-radius:50%}
+.summaryCard small{font-size:11px;line-height:1.4}.summaryCard strong{font-size:21px}
+.panelHead{min-height:52px;padding:12px 14px;background:linear-gradient(180deg,#fffefa,var(--agrar-ui-surface));border-bottom:1px solid var(--agrar-ui-border)}
+.panelHead h2{font-size:17px;color:var(--agrar-ui-ink)}.panelHead>a{font-size:12px;color:var(--agrar-ui-accent)}
+.resumeCard,.fieldCard,.doc{background:#fff;border:1px solid var(--agrar-ui-border);border-radius:10px}
+.resumeTitle strong,.fieldTop strong,.doc strong,.priorityTask strong{font-size:13px;line-height:1.4}
+.resumeTitle small,.fieldTop small,.doc small,.priorityTask small{font-size:11px;line-height:1.45}
+.priorityRow{min-height:64px;padding:12px 8px;border-bottom:1px solid var(--agrar-ui-border)}
+.priorityAction,.resumeCard>a{min-height:42px;border-radius:var(--agrar-ui-control-radius);background:var(--agrar-ui-accent);font-size:12px}
+.primaryCta,.secondaryCta{min-height:44px;border-radius:var(--agrar-ui-control-radius);font-size:12px}
+@media(max-width:767px){
+ .summaryCard{min-height:88px}.summaryIcon{width:36px;height:36px}
+ .summaryCard small,.resumeTitle small,.fieldTop small,.doc small,.priorityTask small{font-size:11.5px}
+ .summaryCard strong{font-size:21px}.panelHead h2{font-size:17px}.panelHead>a{font-size:12px;min-height:44px}
+ .priorityRow{min-height:64px}.priorityAction{min-height:44px}
+}

@@ -1,0 +1,25 @@
+.page{min-width:0;color:var(--agrar-ui-ink)}
+.summaryHeading{grid-column:1/-1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 2px 2px}
+.summaryHeading h2{margin:0;font-size:16px;line-height:1.35;color:var(--agrar-ui-ink)}
+.taskList{display:grid;gap:12px;min-width:0}
+.taskCard{min-width:0;max-width:100%;padding:14px;border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-card-radius);background:#fff}
+.taskHeading{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
+.taskDetails{flex:1 1 240px;min-width:0;overflow-wrap:anywhere}
+.taskDetails strong{display:block;font-size:14px;line-height:1.4;color:var(--agrar-ui-ink)}
+.taskDetails small{display:block;margin-top:4px;font-size:12px;line-height:1.45;color:var(--agrar-ui-muted);overflow-wrap:anywhere}
+.taskHeading :global(.user-pill){max-width:100%;overflow-wrap:anywhere;font-size:12px;line-height:1.3}
+.repairForm{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(0,2fr) auto;gap:10px;align-items:end;min-width:0;margin-top:14px}
+.repairForm label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:800;line-height:1.4;color:var(--agrar-ui-ink)}
+.repairForm select,.repairForm input:not([type="hidden"]){display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--agrar-ui-border);border-radius:var(--agrar-ui-control-radius);background:#fff;color:var(--agrar-ui-ink);font:inherit;font-size:14px;font-weight:500}
+.repairForm button{min-height:44px;white-space:normal;line-height:1.3}
+.backLink{margin-top:14px}
+@media(max-width:1100px){
+ .repairForm{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .repairForm button{grid-column:1/-1;justify-self:start}
+}
+@media(max-width:700px){
+ .summaryHeading h2{font-size:14px}
+ .taskCard{padding:13px}
+ .repairForm{grid-template-columns:minmax(0,1fr)}
+ .repairForm button{grid-column:auto;width:100%;justify-self:stretch}
+}

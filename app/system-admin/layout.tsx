@@ -12,5 +12,5 @@ export default async function SystemAdminLayout({children}:{children:ReactNode})
  const{data:aal}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();if(aal?.currentLevel!=="aal2")redirect(`/mfa?next=${encodeURIComponent("/system-admin")}`);
  const{data:profile}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
  if(profile?.role!=="advisor"||profile?.system_role!=="admin")redirect(profile?.role==="advisor"?"/admin":"/dashboard");
- return <div className={styles.app}><SystemAdminSidebar/><section className={styles.content}>{children}</section></div>
+ return <div className={`${styles.app} agrar-role-ui agrar-role-system-admin`}><SystemAdminSidebar/><section className={styles.content}>{children}</section></div>
 }

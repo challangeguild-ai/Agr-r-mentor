@@ -11,8 +11,10 @@ type ProfileState={full_name:string|null;avatar_url:string|null};
 export function FarmerTopbar({
  userName="Gazdálkodó",
  placeholder="Keresés táblák, feladatok és események között…",
- defaultQuery=""
-}:{userName?:string;placeholder?:string;defaultQuery?:string}){
+ defaultQuery="",
+ searchAction="/dashboard",
+ preserveSearchParams={}
+}:{userName?:string;placeholder?:string;defaultQuery?:string;searchAction?:string;preserveSearchParams?:Record<string,string>}){
  const supabase=useMemo(()=>createClient(),[]);
  const[profile,setProfile]=useState<ProfileState>({full_name:userName,avatar_url:null});
  const[open,setOpen]=useState(false);
@@ -33,9 +35,10 @@ export function FarmerTopbar({
  const name=profile.full_name?.trim()||userName||"Gazdálkodó";
  const initial=name.slice(0,1).toUpperCase()||"G";
  return <header className={styles.bar} data-tour="farmer-topbar">
-  <form className={styles.search} action="/dashboard" method="get" data-tour="farmer-global-search">
+  <form className={styles.search} action={searchAction} method="get" data-tour="farmer-global-search">
    <span aria-hidden="true">⌕</span>
-   <input name="q" defaultValue={defaultQuery} placeholder="Keresés…" aria-label={placeholder} title={placeholder}/>
+   <input name="q" type="search" defaultValue={defaultQuery} placeholder={placeholder} aria-label={placeholder} title={placeholder}/>
+   {Object.entries(preserveSearchParams).map(([name,value])=><input type="hidden" name={name} value={value} key={name}/>)}
    <button type="submit">Keresés</button>
   </form>
   <div className={styles.actions}>

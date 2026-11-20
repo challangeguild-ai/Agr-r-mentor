@@ -1,0 +1,10 @@
+{
+  "repository": "challangeguild-ai/Agr-r-mentor",
+  "draftPr": 59,
+  "draftBranch": "fix/agrar-mentor-21-wizard-ux-hardening",
+  "vercelTeam": "infowaterk-5067",
+  "vercelProjectId": "prj_DMNfMt71StWzgb7rO839NUnrYEjS",
+  "supabaseProjectId": "qkezhvtwirdsvhzjyvfi",
+  "productionHost": "agr-r-mentor.vercel.app",
+  "emailRelease": "2026-11-20-email-v1"
+}

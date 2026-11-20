@@ -1,5 +1,5 @@
 "use client";
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import styles from "./HelpCenter.module.css";
 
@@ -35,4 +35,44 @@ const farmer:Topic[]=[
  {title:"Értesítések",summary:"Szaktanácsadói válaszok, szemleészrevételek és munkafolyamat-események követése.",example:"A szaktanácsadó új szemleészrevételt küld, amely megjelenik a harangnál.",href:"/notifications",steps:["Nyisd meg az értesítési központot.","Nézd meg az olvasatlan eseményeket.","A Megnyitás gombbal lépj közvetlenül a kapcsolódó tartalomhoz.","A konkrét szakmai bejegyzést is nyisd meg, ha Látta visszajelzést szeretnél rögzíteni.","A feldolgozott értesítéseket jelöld olvasottnak."],important:"Az értesítés olvasottnak jelölése önmagában nem jelent szakmai Látta visszajelzést."},
  {title:"Dokumentumok és idővonal",summary:"Korábbi események és dokumentumok visszakeresése.",example:"Egy régi szemle vagy művelet időpontját keresed vissza ellenőrzéshez.",href:"/timeline",steps:["Nyisd meg az Idővonalat.","Keresd meg az időszakot vagy eseményt.","Nyisd meg a kapcsolódó adatlapot.","Dokumentum esetén válts a Dokumentumok menüre."]}
 ];
-export function HelpCenter({role}:{role:Role}){const topics=role==="advisor"?advisor:farmer;const[open,setOpen]=useState(false);const[q,setQ]=useState("");const filtered=useMemo(()=>topics.filter(t=>(t.title+" "+t.summary+" "+t.example).toLowerCase().includes(q.toLowerCase())),[topics,q]);return <><button type="button" className={styles.launch} onClick={()=>setOpen(true)}>?</button>{open&&<div className={styles.overlay} onMouseDown={()=>setOpen(false)}><section className={styles.panel} onMouseDown={e=>e.stopPropagation()}><button className={styles.close} onClick={()=>setOpen(false)}>×</button><span className={styles.eyebrow}>AGRÁR MENTOR SÚGÓKÖZPONT</span><h2>Miben segíthetünk?</h2><p>Keress rá egy feladatra, vagy válassz az oktatóanyagok közül.</p><input className={styles.search} value={q} onChange={e=>setQ(e.target.value)} placeholder="Például: művelet, gazdaság, jóváhagyás…"/><div className={styles.list}>{filtered.map(t=><details key={t.title} className={styles.topic}><summary>{t.title}<small>{t.summary}</small></summary><div className={styles.body}>{t.important&&<aside><b>Fontos</b>{t.important}</aside>}<div className={styles.example}><b>Gyakorlati példa</b>{t.example}</div><b>Lépésről lépésre</b><ol>{t.steps.map((s,i)=><li key={i}>{s}</li>)}</ol><Link href={t.href} onClick={()=>setOpen(false)}>Nyisd meg ezt a funkciót →</Link></div></details>)}</div></section></div>}</>}
+export function HelpCenter({role}:{role:Role}){
+ const topics=role==="advisor"?advisor:farmer;
+ const[open,setOpen]=useState(false);
+ const[q,setQ]=useState("");
+ const filtered=useMemo(()=>topics.filter(t=>(t.title+" "+t.summary+" "+t.example).toLowerCase().includes(q.toLowerCase())),[topics,q]);
+
+ // Mobile farmer navigation opens the existing help panel without a floating
+ // launcher obscuring fields, cards or action buttons while scrolling.
+ useEffect(()=>{
+  const show=()=>setOpen(true);
+  window.addEventListener("agrar-help-center-open",show);
+  return()=>window.removeEventListener("agrar-help-center-open",show);
+ },[]);
+
+ useEffect(()=>{
+  if(!open)return;
+  const escape=(event:KeyboardEvent)=>{if(event.key==="Escape")setOpen(false)};
+  window.addEventListener("keydown",escape);
+  return()=>window.removeEventListener("keydown",escape);
+ },[open]);
+
+ return <>
+  <button type="button" className={styles.launch} aria-label="Súgóközpont megnyitása" onClick={()=>setOpen(true)}>?</button>
+  {open&&<div className={styles.overlay} onMouseDown={()=>setOpen(false)}>
+   <section className={styles.panel} role="dialog" aria-modal="true" aria-label="Agrár Mentor súgóközpont" onMouseDown={e=>e.stopPropagation()}>
+    <button type="button" className={styles.close} aria-label="Súgóközpont bezárása" onClick={()=>setOpen(false)}>×</button>
+    <span className={styles.eyebrow}>AGRÁR MENTOR SÚGÓKÖZPONT</span>
+    <h2>Miben segíthetünk?</h2><p>Keress rá egy feladatra, vagy válassz az oktatóanyagok közül.</p>
+    <input className={styles.search} value={q} onChange={e=>setQ(e.target.value)} placeholder="Például: művelet, gazdaság, jóváhagyás…"/>
+    <div className={styles.list}>{filtered.map(t=><details key={t.title} className={styles.topic}>
+     <summary>{t.title}<small>{t.summary}</small></summary>
+     <div className={styles.body}>{t.important&&<aside><b>Fontos</b>{t.important}</aside>}
+      <div className={styles.example}><b>Gyakorlati példa</b>{t.example}</div>
+      <b>Lépésről lépésre</b><ol>{t.steps.map((s,i)=><li key={i}>{s}</li>)}</ol>
+      <Link href={t.href} onClick={()=>setOpen(false)}>Nyisd meg ezt a funkciót →</Link>
+     </div>
+    </details>)}</div>
+   </section>
+  </div>}
+ </>;
+}

@@ -16,6 +16,10 @@ export async function createFarmerReport(fieldId:string,title:string,message:str
  const{data:report,error}=await supabase.from("farmer_reports").insert({field_id:fieldId,farmer_id:user.id,title:title.trim().slice(0,200),message:message.trim().slice(0,5000)||null,category,severity,location_lat:lat,location_lng:lng}).select("id").single();
  if(error||!report)throw new Error(error?.message||"A bejelentés mentése sikertelen.");
  const severityLabel=severity==="urgent"?"SÜRGŐS":severity==="high"?"FONTOS":"NORMÁL";
- await notifyAdvisors(supabase,{kind:"farmer_report",title:`Új gazdálkodói bejelentés · ${severityLabel}`,message:`${farm.name} · ${field.name} · ${title.trim().slice(0,200)}`,href:"/admin/reports?view=new",eventKey:`report:${report.id}:created`,emailSubject:"Új gazdálkodói bejelentés",emailMessage:`${farm.name}\n${field.name}\n${severityLabel}\n${title.trim()}${message.trim()?`\n\n${message.trim()}`:""}`});
- return{id:report.id};
+ let warning:string|null=null;
+ try{
+  const recipients=await notifyAdvisors(supabase,{kind:"farmer_report",title:`Új gazdálkodói bejelentés · ${severityLabel}`,message:`${farm.name} · ${field.name} · ${title.trim().slice(0,200)}`,href:"/admin/reports?view=new",eventKey:`report:${report.id}:created`,emailSubject:"Új gazdálkodói bejelentés",emailMessage:`${farm.name}\n${field.name}\n${severityLabel}\n${title.trim()}${message.trim()?`\n\n${message.trim()}`:""}`});
+  if(!recipients.length)warning="A bejelentés elmentődött, de nem igazolható, hogy szaktanácsadó kapott értesítést. A bejelentést ne küldd el még egyszer.";
+ }catch(error){console.error("Mentett bejelentés értesítése sikertelen",error);warning="A bejelentés rögzítve, de a szaktanácsadó értesítése nem igazolható. A bejelentést ne küldd be újra."}
+ return{id:report.id,warning};
 }

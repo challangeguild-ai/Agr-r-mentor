@@ -1,0 +1,139 @@
+name: AgrarMentor encrypted database backup
+
+# Deliberately manual: no untrusted pull requests, pushes or scheduled invocations.
+# This workflow must first reach the GitHub default branch to become dispatchable.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agrarmentor-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump and encrypt the AgrarMentor database
+    runs-on: ubuntu-latest
+    environment: agrarmentor-backup
+    timeout-minutes: 40
+    steps:
+      - name: Confirm dependencies and configured secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.AGRAR_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.AGRAR_SUPABASE_DB_PASSWORD }}
+          BACKUP_PASSPHRASE: ${{ secrets.AGRAR_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo 'Missing Supabase access token' >&2; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo 'Missing database password' >&2; exit 1; }
+          test "${#BACKUP_PASSPHRASE}" -ge 32 || { echo 'Backup passphrase must contain at least 32 characters' >&2; exit 1; }
+          command -v docker >/dev/null
+          command -v npx >/dev/null
+          command -v gpg >/dev/null
+          docker info --format '{{.ServerVersion}}' >/dev/null
+
+      - name: Export production database with read-only CLI commands
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.AGRAR_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.AGRAR_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          backup_dir="$RUNNER_TEMP/agrarmentor-db"
+          mkdir -p "$backup_dir"
+          npx --yes supabase@3.2.0 db dump --remote=qkezhvtwirdsvhzjyvfi --role-only -f "$backup_dir/roles.sql"
+          npx --yes supabase@3.2.0 db dump --remote=qkezhvtwirdsvhzjyvfi -f "$backup_dir/schema.sql"
+          npx --yes supabase@3.2.0 db dump --remote=qkezhvtwirdsvhzjyvfi --data-only --use-copy -f "$backup_dir/data.sql"
+
+      - name: Validate dumps and write a metadata-only manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          backup_dir = Path(os.environ['RUNNER_TEMP']) / 'agrarmentor-db'
+          checks = []
+          for filename, minimum in [('roles.sql', 40), ('schema.sql', 100), ('data.sql', 1024)]:
+              path = backup_dir / filename
+              if not path.is_file() or path.stat().st_size < minimum:
+                  raise RuntimeError(f'Missing or suspiciously small dump: {filename}')
+              hasher = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      hasher.update(chunk)
+              checks.append({'file': filename, 'bytes': path.stat().st_size, 'sha256': hasher.hexdigest()})
+
+          rows = {}
+          opened = closed = 0
+          current = None
+          copy_header = re.compile(r'^COPY\s+"([^"]+)"\."([^"]+)"\s+.*FROM stdin;$')
+          with (backup_dir / 'data.sql').open(encoding='utf-8', errors='replace') as stream:
+              for raw_line in stream:
+                  line = raw_line.rstrip('\r\n')
+                  header = copy_header.match(line)
+                  if header:
+                      if current is not None:
+                          raise RuntimeError('Nested COPY blocks')
+                      current = '.'.join(header.groups())
+                      rows[current] = 0
+                      opened += 1
+                  elif current is not None and line == r'\.':
+                      current = None
+                      closed += 1
+                  elif current is not None:
+                      rows[current] += 1
+
+          required = ['auth.users', 'public.tasks', 'public.field_operations',
+                      'public.inspections', 'storage.objects']
+          if current is not None or opened != closed or opened < 60:
+              raise RuntimeError('Invalid/incomplete COPY data blocks')
+          if any(rows.get(table, 0) < 1 for table in required):
+              raise RuntimeError('Missing or empty critical data tables')
+          manifest = {
+              'project_ref': 'qkezhvtwirdsvhzjyvfi',
+              'captured_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'cli': 'supabase@3.2.0',
+              'files': checks,
+              'copy_blocks': opened,
+              'critical_table_rows': {table: rows[table] for table in required},
+              'storage_object_bytes_included': False,
+              'production_modified': False,
+          }
+          (backup_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          print(f'Validated {opened} COPY blocks and {len(required)} critical tables; no row data logged.')
+          PY
+
+      - name: Encrypt the full backup before any upload
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.AGRAR_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          tar -czf "$RUNNER_TEMP/agrarmentor-db.tar.gz" -C "$RUNNER_TEMP/agrarmentor-db" \
+            roles.sql schema.sql data.sql manifest.json
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            --s2k-mode 3 --s2k-digest-algo SHA256 --s2k-count 65011712 \
+            --output "$RUNNER_TEMP/agrarmentor-db-${GITHUB_RUN_ID}.tar.gz.gpg" \
+            "$RUNNER_TEMP/agrarmentor-db.tar.gz"
+          test -s "$RUNNER_TEMP/agrarmentor-db-${GITHUB_RUN_ID}.tar.gz.gpg"
+          # Remove unencrypted material prior to the artifact upload step.
+          rm -f -- "$RUNNER_TEMP/agrarmentor-db.tar.gz"
+          find "$RUNNER_TEMP/agrarmentor-db" -maxdepth 1 -type f -delete
+          rmdir -- "$RUNNER_TEMP/agrarmentor-db"
+
+      - name: Upload ONLY the encrypted archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agrarmentor-db-encrypted-${{ github.run_id }}
+          path: ${{ runner.temp }}/agrarmentor-db-${{ github.run_id }}.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

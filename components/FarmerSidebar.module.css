@@ -13,3 +13,55 @@
  .help strong,.help small,.help a,.help button{grid-column:1/-1}
  .help a,.help button{width:100%;min-width:0;max-width:100%;height:auto!important;min-height:40px!important;padding:8px 10px!important;white-space:normal!important;line-height:1.2!important;text-align:center;overflow-wrap:anywhere}
 }
+
+/* Shared reference sidebar (02–07): emerald navigation, field horizon, account footer. */
+.sidebar{background:linear-gradient(180deg,#00543b 0%,#03452f 68%,#062e22 100%)}
+.brand{padding-bottom:14px;gap:11px}
+.leaf{width:37px;height:37px;flex:0 0 37px;border:1px solid rgba(255,255,255,.72);border-radius:50%;background:linear-gradient(145deg,#86c76b,#3b944b);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18),inset 0 1px 1px rgba(255,255,255,.28)}
+.leaf svg{width:23px;height:27px;stroke-width:2.6}
+.brand strong{font-size:15px;letter-spacing:.04em;line-height:1.12;text-wrap:nowrap}
+.brand small{margin-top:5px;font-size:9px;letter-spacing:.13em;line-height:1.3}
+/* The original brand artwork is a single responsive image shared across roles. */
+.brandText{flex:1;min-width:0}
+.brandLogo{width:100%;max-width:205px}
+.brand .brandText small{margin-top:4px;font-size:8.5px;letter-spacing:.085em;color:#c3dbc9}
+.nav a{font-size:12px;min-height:40px}
+.nav a.active{background:#367f43;box-shadow:inset 3px 0 0 #a6d56a}
+.nav a.active:before{display:none}
+.icon{font-size:15px;flex:0 0 21px}
+.landscape{position:relative;height:78px;flex:0 0 78px;margin:8px -12px 0;overflow:hidden;background-color:#407a43;background-image:linear-gradient(0deg,rgba(5,57,37,.25),transparent 65%),url("/images/agrar-fields-sunrise.webp");background-size:cover;background-position:center 58%}
+.userFooter{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:60px;margin:0 -12px -12px;padding:11px 16px;background:#063b2b;color:#fff}
+.userFooterAvatar{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:2px solid rgba(255,255,255,.7);border-radius:50%;background:#dcebcf;color:#145b38;font-size:14px;font-weight:900}
+.userFooter>span:last-child{min-width:0}
+.userFooter strong,.userFooter small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.userFooter strong{font-size:12px}
+.userFooter small{margin-top:3px;font-size:10px;color:#c1d7cb}
+.userFooter:focus-visible{outline:3px solid #bbdc83;outline-offset:-3px}
+@media(max-height:780px){.landscape{height:50px;flex-basis:50px}.help{max-height:172px;overflow:auto}}
+@media(max-width:1199px){.landscape{margin-top:12px}.userFooter{margin-bottom:-16px}}
+
+/* Navigation and help remain legible and touch-friendly in the mobile drawer. */
+.nav a:focus-visible,.help a:focus-visible,.help button:focus-visible,.launch:focus-visible,.close:focus-visible{outline:3px solid #bde59b;outline-offset:2px}
+.sectionLabel{font-size:10.5px;line-height:1.4}
+.help strong{font-size:12px}
+.help small{font-size:11.5px;line-height:1.5}
+.help a,.help button{min-height:42px!important;height:auto!important;font-size:11.5px!important;line-height:1.4!important}
+@media(max-width:1199px){
+ .launch{width:44px;height:44px}
+ .close{width:44px;height:44px}
+ .nav a{min-height:44px;font-size:12.5px}
+ .help a,.help button{min-height:44px!important}
+}
+
+/* The menu belongs to the page header, not over scrolled field cards. */
+@media(max-width:767px){
+ :global(.farmer-app) .launch{position:absolute;top:10px;left:12px}
+}
+/* On phones, one drawer scroll reaches every menu item, contextual guide,
+   field artwork and profile. A separately scrolling nav concealed routes. */
+@media(max-width:767px){
+ .sidebar{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ .nav{flex:none;min-height:max-content;overflow:visible}
+ .help{flex:none;max-height:none;overflow:visible}
+ .landscape,.userFooter{flex:none}
+}

@@ -8,3 +8,40 @@
 @media(max-width:767px){.workspace:not(.hasSelection) .thread{display:none}.workspace.hasSelection .conversations{display:none}.mobileBack{display:grid;width:30px;height:30px;place-items:center;border-radius:8px;background:#e9f2e7;color:#245f3e;font-size:14px;font-weight:900}.page{width:100%;padding:0 12px 24px!important}.titleRow{align-items:flex-start}.titleRow h1{font-size:25px}.titleRow p{font-size:9px;line-height:1.4}.titleActions{flex-direction:column;align-items:flex-end}.primary{min-height:34px}.tabs{overflow-x:auto;flex-wrap:nowrap}.tabs a{white-space:nowrap}.workspace{grid-template-columns:1fr;min-height:0;border:0;background:transparent;box-shadow:none;overflow:visible}.conversations{border:1px solid #e2dfd4;border-radius:10px;overflow:hidden}.conversation{min-height:80px;background:#fffdf8}.thread{margin-top:9px;min-height:420px;border:1px solid #e2dfd4;border-radius:10px;overflow:hidden}.threadHead{align-items:flex-start}.threadTools{justify-content:flex-end}.outgoing>div,.incoming>div{max-width:84%}.composer{align-items:flex-start}.composer span{line-height:1.4}}
 /* === FINAL POLISH 2026-10-04 === */
 .titleRow h1{font-size:34px}.titleRow p{font-size:13px;line-height:1.45}.primary{font-size:11px;min-height:38px}.tabs a{font-size:10.5px;min-height:35px}.tabs a span{font-size:9px}.conversationHead strong{font-size:12px}.conversationHead time{font-size:9.5px}.conversation small{font-size:10px}.conversation p{font-size:10.5px}.status{font-size:9.5px}.threadHead strong{font-size:12px}.threadHead small{font-size:10px}.threadTools>a{font-size:10px}.dayLabel{font-size:9.5px}.outgoing strong,.incoming strong{font-size:10px}.outgoing p,.incoming p{font-size:12px}.outgoing small,.incoming small{font-size:9px}.waitingReply{font-size:10px}.composer span{font-size:10px}.composer a{font-size:10px}.threadEmpty strong{font-size:13px}.threadEmpty p{font-size:10.5px}@media(max-width:767px){.titleRow h1{font-size:28px}.titleRow p{font-size:12px}.tabs a{font-size:10px}.conversationHead strong{font-size:11.5px}.conversation p{font-size:10px}.outgoing p,.incoming p{font-size:11.5px}.composer span{font-size:9.5px}}
+
+/* Accepted 06 reference: conversation list and chat-sized reading comfort. */
+.workspace{background:#fff;border-color:#e0e7dd}
+.conversations{background:#f8faf6}
+.conversation{min-height:94px}
+.conversationHead strong{font-size:13px}
+.conversationHead time{font-size:11px}
+.conversation small,.conversation p{font-size:12px}
+.conversation p{line-height:1.5}
+.status{font-size:10px}
+.threadHead{min-height:72px}
+.threadHead strong{font-size:14px}
+.threadHead small{font-size:12px}
+.threadTools>a{min-height:40px;font-size:11px}
+.outgoing p,.incoming p{font-size:13px;line-height:1.55}
+.outgoing strong,.incoming strong{font-size:11px}
+.outgoing small,.incoming small{font-size:10px}
+.composer span{font-size:12px;line-height:1.5}
+.composer a{min-height:41px;font-size:11.5px}
+.tabs a{min-height:41px;font-size:12px}
+.primary{min-height:42px;font-size:12px}
+.conversation:focus-visible,.tabs a:focus-visible,.composer a:focus-visible,.threadTools>a:focus-visible{outline:3px solid #55a271;outline-offset:-2px}
+@media(max-width:767px){
+ .titleRow{flex-wrap:wrap;gap:9px}
+ .tabs a{font-size:12px;min-height:43px}
+ .conversation{min-height:90px}
+ .conversationHead strong{font-size:12.5px}
+ .conversation p{font-size:11.5px}
+ .threadHead{gap:8px;flex-wrap:wrap}
+ .threadHead strong{font-size:13px}
+ .threadHead small{font-size:11px}
+ .outgoing p,.incoming p{font-size:12.5px}
+ .composer{flex-wrap:wrap}
+ .composer span{font-size:11.5px}
+ .composer a{font-size:12px;min-height:43px}
+ .mobileBack{width:40px;height:40px}
+}

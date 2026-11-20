@@ -1,9 +1,12 @@
 import {NextResponse} from "next/server";
+import {requireSystemAdminProbe} from "@/lib/security/probeAuth";
 
 export const dynamic="force-dynamic";
 export const maxDuration=30;
 
 export async function GET(){
+ const accessError=await requireSystemAdminProbe();
+ if(accessError)return accessError;
  const urls=["https://www.uksup.sk/storage/app/uploads/public/604/080/af4/604080af43e18263270214.csv","https://beta.uksup.sk/storage/app/uploads/public/604/080/af4/604080af43e18263270214.csv"];
  const attempts:any[]=[];
  for(const url of urls){

@@ -4,11 +4,13 @@ import {createClient} from "@/lib/supabase/server";
 import {Sidebar} from "@/components/Sidebar";
 import {FarmerTopbar} from "@/components/FarmerTopbar";
 import styles from "./field-detail.module.css";
+import {summarizeStationPrecipitation} from "@/lib/weather/rollingPrecipitation";
 import {InspectionMedia} from "@/components/InspectionMedia";
 import {FarmerReportForm} from "@/components/FarmerReportForm";
 import {FarmerReportMedia} from "@/components/FarmerReportMedia";
 import {FieldMapEditor} from "@/components/FieldMapEditor";
-import {completeTask} from "./actions";
+import {FieldBoundaryProposalLauncher} from "@/components/FieldBoundaryProposalLauncher";
+import {canSubmitTaskProof} from "@/lib/taskWorkflow";
 
 function formatDate(v:string|null|undefined){return v?new Date(v).toLocaleDateString("hu-HU"):"—"}
 function conditionLabel(v:string|null|undefined){if(v==="good")return"Jó állapot";if(v==="attention")return"Figyelmet igényel";if(v==="critical")return"Kritikus";return"Nincs szemle"}
@@ -33,13 +35,13 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   if(!field)notFound();
 
   const[{data:farm},{data:tasks},{data:inspections},{data:timeline},{data:reports},{data:documents},{data:weather}]=await Promise.all([
-    supabase.from("farms").select("name,settlement,address").eq("id",field.farm_id).maybeSingle(),
+    supabase.from("farms").select("name,settlement,address,owner_id").eq("id",field.farm_id).maybeSingle(),
     supabase.from("tasks").select("id,title,description,due_date,priority,status,created_at,assigned_to,completed_at").eq("field_id",id).order("created_at",{ascending:false}),
     supabase.from("inspections").select("id,inspected_at,condition,notes,recommendation,created_at,follow_up_status,next_check_at,issue_status,previous_inspection_id").eq("field_id",id).order("inspected_at",{ascending:false}),
     supabase.from("timeline_events").select("id,event_type,title,description,event_at,created_at").eq("field_id",id).order("event_at",{ascending:false}),
     supabase.from("farmer_reports").select("id,title,message,status,created_at,advisor_reply,replied_at,closed_at").eq("field_id",id).order("created_at",{ascending:false}),
     supabase.from("documents").select("id,title,category,file_name,created_at,file_size").eq("field_id",id).order("created_at",{ascending:false}).limit(8),
-    supabase.from("field_weather_daily").select("id,weather_date,source_type,provider,station_number,station_name,distance_km,precipitation_mm,temperature_min_c,temperature_max_c,source_url,fetched_at").eq("field_id",id).order("weather_date",{ascending:false}).limit(35)
+    supabase.from("field_weather_daily").select("id,weather_date,source_type,provider,station_number,station_name,distance_km,precipitation_mm,temperature_min_c,temperature_max_c,source_url,fetched_at").eq("field_id",id).order("weather_date",{ascending:false}).limit(120)
   ]);
 
   const inspectionIds=(inspections??[]).map(i=>i.id);
@@ -50,13 +52,17 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
   ]);
 
   const openTasks=(tasks??[]).filter(t=>t.status!=="done");
+  const isOwner=farm?.owner_id===user.id;
+  const [{data:membership},{data:lastProposal,error:proposalError}]=await Promise.all([
+    isOwner||profile?.role==="advisor"?Promise.resolve({data:null}):supabase.from("farm_members").select("member_role").eq("farm_id",field.farm_id).eq("user_id",user.id).eq("active",true).maybeSingle(),
+    supabase.from("field_boundary_proposals").select("status,created_at,review_note").eq("field_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle()
+  ]);
+  const canPropose=profile?.role!=="advisor"&&(isOwner||membership?.member_role==="manager"||membership?.member_role==="agronomist");
   const latestInspection=(inspections??[])[0];
   const weatherRows=weather??[];
-  const weatherAge=(date:string)=>Math.floor((Date.now()-new Date(date+"T12:00:00").getTime())/86400000);
-  const rain7=weatherRows.filter(w=>weatherAge(w.weather_date)<=7).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
-  const rain30=weatherRows.filter(w=>weatherAge(w.weather_date)<=30).reduce((s,w)=>s+Number(w.precipitation_mm||0),0);
-  const latestWeather=weatherRows[0]||null;
-  const lastRain=weatherRows.find(w=>Number(w.precipitation_mm)>0);
+  const {rain7,rain30,days7,days30,rainyDays7,rainyDays30,recentMeasurements,latestObservedDate}=summarizeStationPrecipitation(weatherRows);
+  const latestWeather=recentMeasurements[0]||null;
+  const lastRain=recentMeasurements.find(w=>Number(w.precipitation_mm)>0);
   const openReports=(reports??[]).filter(r=>r.status!=="closed");
   const operations=(timeline??[]).filter(x=>x.event_type==="field_operation");
   const hotspots=(timeline??[]).map(hotspotFromEvent).filter(Boolean) as {lat:number;lng:number;title:string;description?:string|null;severity?:"attention"|"critical"|"good"}[];
@@ -74,10 +80,10 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <FarmerTopbar userName={profile?.full_name||"Gazdálkodó"} placeholder="Keresés táblák, műveletek vagy dokumentumok között…"/>
       <section className={styles.fieldHero}>
        <div className={styles.fieldHeroMain}><Link href="/fields">← Táblák</Link><span>FÖLDTÁBLA</span><h1>{field.name}</h1><p>{field.area_ha?`${field.area_ha} ha`:"—"} · {field.current_crop||"Nincs kultúra"} · {farm?.name||"Gazdaság"}</p></div>
-       <div className={styles.fieldHeroState}><span className={latestInspection?.condition==="critical"?styles.stateCritical:latestInspection?.condition==="attention"?styles.stateAttention:styles.stateGood}>{conditionLabel(latestInspection?.condition)}</span><Link href={operationHref}>Művelet rögzítése →</Link></div>
+       <div className={styles.fieldHeroState}><span className={latestInspection?.condition==="critical"?styles.stateCritical:latestInspection?.condition==="attention"?styles.stateAttention:latestInspection?.condition==="good"?styles.stateGood:styles.stateUnknown}>{conditionLabel(latestInspection?.condition)}</span><Link href={operationHref}>Művelet rögzítése →</Link></div>
       </section>
 
-      <nav className={styles.tabs}><a href="#attekintes">Áttekintés</a><a href="#muveletek">Műveletek</a><a href="#idojaras">Időjárás</a><a href="#dokumentumok">Dokumentumok</a><a href="#terkep">Térkép</a></nav>
+      <nav className={styles.tabs} aria-label="Földtábla részletei"><a href="#attekintes">Áttekintés</a><a href="#muveletek">Műveletek</a><a href="#idojaras">Időjárás</a><a href="#allapot">Talaj és növény</a><a href="#dokumentumok">Dokumentumok</a><a href="#terkep">Térkép</a></nav>
 
       <section className={styles.stats}>
        <article><span>▣</span><div><strong>{field.area_ha?`${field.area_ha} ha`:"—"}</strong><small>Terület</small></div></article>
@@ -89,18 +95,21 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
       <section id="attekintes" className={styles.overviewGrid}>
        <article className={styles.infoCard}><h2>Tábla adatok</h2><dl><div><dt>Gazdaság</dt><dd>{farm?.name||"—"}</dd></div><div><dt>Kataszter</dt><dd>{farm?.settlement||"—"}</dd></div><div><dt>Gazdasági év</dt><dd>{field.crop_year||"—"}</dd></div><div><dt>Vetés</dt><dd>{formatDate(field.sowing_date)}</dd></div><div><dt>Megjegyzés</dt><dd>{field.notes||"—"}</dd></div></dl></article>
        <article id="terkep" className={styles.mapCard}><div className={styles.cardTitle}><h2>Térképi nézet</h2><span>{field.area_ha?field.area_ha+" ha":""}</span></div><FieldMapEditor fieldId={field.id} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} editable={false} hotspots={hotspots} compact/></article>
-       <article className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={styles.healthRing}><strong>{latestInspection?.condition==="good"?"72":latestInspection?.condition==="attention"?"48":latestInspection?.condition==="critical"?"24":"—"}%</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>30 nap csapadék</dt><dd>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
+       <article id="allapot" className={styles.healthCard}><div><h2>Aktuális állapot</h2><div className={`${styles.healthRing} ${latestInspection?.condition==="good"?styles.healthGood:latestInspection?.condition==="attention"?styles.healthAttention:latestInspection?.condition==="critical"?styles.healthCritical:styles.healthUnknown}`} role="img" aria-label={`Növényállapot: ${conditionLabel(latestInspection?.condition)}`}><strong>{latestInspection?.condition==="good"?"Jó":latestInspection?.condition==="attention"?"Figyelj":latestInspection?.condition==="critical"?"Kritikus":"—"}</strong></div></div><dl><div><dt>Növényállapot</dt><dd>{conditionLabel(latestInspection?.condition)}</dd></div><div><dt>7 nap csapadék</dt><dd>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${rainyDays7} esős nap`:"Nincs mérés"}</dd></div><div><dt>30 nap csapadék</dt><dd>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm · ${rainyDays30} esős nap`:"Nincs mérés"}</dd></div><div><dt>Nyitott ügyek</dt><dd>{openTasks.length+openReports.length}</dd></div></dl></article>
       </section>
 
+      {canPropose&&<FieldBoundaryProposalLauncher fieldId={field.id} fieldName={field.name} lat={field.center_lat} lng={field.center_lng} areaHa={field.area_ha} boundary={field.boundary_geojson} lastProposal={lastProposal??null} enabled={!proposalError} />}
+
       <section id="idojaras" className={`panel ${styles.sectionPanel}`} style={{marginTop:14}}>
-       <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadék a tábla környezetében</h2></div>{lastRain?.source_url&&<a className="ghost-btn" href={lastRain.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
+       <div className="panel-heading"><div><span className="eyebrow">HIVATALOS METEOROLÓGIAI ELŐZMÉNY</span><h2>Csapadéknapló a tábla környezetében</h2></div>{latestWeather?.source_url&&<a className="ghost-btn" href={latestWeather.source_url} target="_blank" rel="noreferrer">HungaroMet forrás ↗</a>}</div>
        <div className="field-detail-stats" style={{margin:"14px 0 0"}}>
-        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>MÉRT · hivatalos állomási adat, nem táblán mért érték</small></article>
-        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>HungaroMet automata állomás · 06–06 UTC napi összeg</small></article>
-        <article className="stat-card"><span>Utolsó mért csapadék</span><strong className="field-stat-text">{lastRain?Number(lastRain.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})+" mm":"—"}</strong><small>{lastRain?formatDate(lastRain.weather_date):"Még nincs szinkronizált adat"}</small></article>
-        <article className="stat-card"><span>Adatforrás</span><strong className="field-stat-text">{latestWeather?.station_name||"—"}</strong><small>{latestWeather?("MÉRT · hivatalos állomás · "+Number(latestWeather.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})+" km a táblától"):"A szinkron után jelenik meg"}</small></article>
+        <article className="stat-card"><span>Utolsó 7 nap</span><strong>{days7?`${rain7.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm`:"Nincs adat"}</strong><small>{rainyDays7} esős nap · {days7}/7 nap mérés</small></article>
+        <article className="stat-card"><span>Utolsó 30 nap</span><strong>{days30?`${rain30.toLocaleString("hu-HU",{maximumFractionDigits:1})} mm`:"Nincs adat"}</strong><small>{rainyDays30} esős nap · {days30}/30 nap mérés</small></article>
+        <article className="stat-card"><span>Utolsó mért eső (30 nap)</span><strong className="field-stat-text">{lastRain?Number(lastRain.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})+" mm":"—"}</strong><small>{lastRain?formatDate(lastRain.weather_date):days30?"Nem volt mért eső":"Még nincs mért adat"}</small></article>
+        <article className="stat-card"><span>Legutóbbi mérési nap</span><strong className="field-stat-text">{latestObservedDate?formatDate(latestObservedDate):"—"}</strong><small>{latestWeather?`${latestWeather.station_name||"HungaroMet állomás"} · ${Number(latestWeather.distance_km??0).toLocaleString("hu-HU",{maximumFractionDigits:1})} km`:"Még nem érkezett adat"}</small></article>
        </div>
-       {weatherRows.length>0&&<div className="task-list" style={{marginTop:14}}>{weatherRows.filter(w=>Number(w.precipitation_mm)>0).slice(0,8).map(w=><div className="task-row" key={w.id}><span className="dot normal"/><div><strong>🌧 {Number(w.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>{formatDate(w.weather_date)} · {w.provider} · {w.station_name||w.station_number||"állomás"} · {Number(w.distance_km||0).toLocaleString("hu-HU",{maximumFractionDigits:1})} km</small></div><span className="task-status">{w.source_type==="measured"?"MÉRT":w.source_type==="calculated"?"SZÁMÍTOTT":"ELŐREJELZETT"}</span></div>)}</div>}
+       <p style={{fontSize:12,color:"#766b64",margin:"12px 0 0"}}>A 0 mm mért, csapadékmentes napot jelent; a hiányzó mérés nem számít bele sem az esős napokba, sem az összegbe. Az adatok közeli hivatalos mérőállomásról származnak, nem közvetlenül a földtábláról (06–06 UTC).</p>
+       {recentMeasurements.length>0?<div className="task-list" style={{marginTop:14}}>{recentMeasurements.slice(0,14).map(w=><div className="task-row" key={w.id}><span className="dot normal"/><div><strong>{Number(w.precipitation_mm)>0?"🌧 Esős nap":"○ Csapadékmentes nap"} · {Number(w.precipitation_mm).toLocaleString("hu-HU",{maximumFractionDigits:1})} mm</strong><small>{formatDate(w.weather_date)} · {w.provider} · {w.station_name||w.station_number||"állomás"} · {Number(w.distance_km??0).toLocaleString("hu-HU",{maximumFractionDigits:1})} km</small></div><span className="task-status">{w.source_type==="measured"?"MÉRT":w.source_type==="calculated"?"SZÁMÍTOTT":"ELŐREJELZETT"}</span></div>)}</div>:<div className="empty-state" style={{marginTop:14}}>Az elmúlt 30 napból még nincs rögzített mérés. A csapadéknapló a sikeres időjárási szinkron után jelenik meg.</div>}
       </section>
 
       {profile?.role!=="advisor"&&<section className="panel farmer-report-panel"><span className="eyebrow">KAPCSOLAT A SZAKTANÁCSADÓVAL</span><h2>Bejelentés küldése</h2><FarmerReportForm fieldId={field.id}/></section>}
@@ -109,7 +118,7 @@ export default async function FieldDetailPage({params}:{params:Promise<{id:strin
 
       <section id="muveletek" className="panel"><div className="panel-heading"><div><span className="eyebrow">GAZDÁLKODÁSI NAPLÓ</span><h2>Táblaműveletek</h2></div><Link className="ghost-btn" href={operationHref}>Műveleti napló →</Link></div>{operations.length?<div className="task-list">{operations.slice(0,6).map(o=><div className="task-row" key={o.id}><span className="dot normal"/><div><strong>{o.title}</strong><small>{formatDate(o.event_at||o.created_at)}{o.description?` · ${o.description}`:""}</small></div><span className="task-status">Napló</span></div>)}</div>:<div className="empty-state">Ehhez a táblához még nincs rögzített gazdálkodási művelet.</div>}</section>
 
-      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FELADATOK</span><h2>Teendők</h2></div><Link className="ghost-btn" href={profile?.role==="advisor"?`/admin/tasks?farm=${field.farm_id}&field=${field.id}`:"/tasks"}>Teljes munkalista →</Link></div>{tasks?.length?<div className="task-list">{tasks.map(t=><div className="task-row" key={t.id}><span className={`dot ${t.priority}`}/><div><strong>{t.title}</strong><small>{t.due_date?`Határidő: ${formatDate(t.due_date)}`:"Nincs határidő"}{t.description?` · ${t.description}`:""}{t.completed_at?` · Elvégezve: ${formatDate(t.completed_at)}`:""}</small></div>{t.status==="done"?<span className="task-status">Kész ✓</span>:profile?.role!=="advisor"&&t.assigned_to===user.id?<form action={completeTask}><input type="hidden" name="task_id" value={t.id}/><button className="ghost-btn" type="submit">Készre jelölöm</button></form>:<span className="task-status">Nyitott</span>}</div>)}</div>:<div className="empty-state">Nincs ehhez a táblához kiadott teendő.</div>}</section>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FELADATOK</span><h2>Teendők</h2></div><Link className="ghost-btn" href={profile?.role==="advisor"?`/admin/tasks?farm=${field.farm_id}&field=${field.id}`:"/tasks"}>Teljes munkalista →</Link></div>{tasks?.length?<div className="task-list">{tasks.map(t=><div className="task-row" key={t.id}><span className={`dot ${t.priority}`}/><div><strong>{t.title}</strong><small>{t.due_date?`Határidő: ${formatDate(t.due_date)}`:"Nincs határidő"}{t.description?` · ${t.description}`:""}{t.completed_at?` · Elvégezve: ${formatDate(t.completed_at)}`:""}</small></div>{t.status==="done"?<span className="task-status">Kész ✓</span>:t.status==="submitted"?<span className="task-status">Ellenőrzésre vár</span>:profile?.role!=="advisor"&&t.assigned_to===user.id&&canSubmitTaskProof(t.status,field.id)?<Link className="ghost-btn" href={`/tasks?view=open#task-${t.id}`}>Igazolás beküldése →</Link>:<span className="task-status">{t.status==="cancelled"?"Törölve":"Nyitott"}</span>}</div>)}</div>:<div className="empty-state">Nincs ehhez a táblához kiadott teendő.</div>}</section>
 
       <section id="dokumentumok" className="panel"><div className="panel-heading"><div><span className="eyebrow">IRATTÁR</span><h2>Kapcsolódó dokumentumok</h2></div><Link className="ghost-btn" href={profile?.role==="advisor"?"/admin/documents":"/documents"}>Dokumentumtár →</Link></div>{documents?.length?<div className="field-document-grid">{documents.map(doc=><Link className="field-document-card" href={profile?.role==="advisor"?"/admin/documents":"/documents"} key={doc.id}><span>▤</span><div><strong>{doc.title}</strong><small>{doc.category||"Dokumentum"} · {formatDate(doc.created_at)}</small></div></Link>)}</div>:<div className="empty-state">Ehhez a táblához még nincs dokumentum csatolva.</div>}</section>
 

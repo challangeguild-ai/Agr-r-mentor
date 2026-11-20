@@ -14,8 +14,15 @@ export async function syncWeatherNow(){
  ]);
  if(aal?.currentLevel!=="aal2")redirect(`/mfa?next=${encodeURIComponent("/system-admin/weather")}`);
  if(profile?.role!=="advisor"||profile?.system_role!=="admin")redirect(profile?.role==="advisor"?"/admin":"/dashboard");
- await syncOfficialFieldWeather();
+ let status="failed";
+ try{
+  const result=await syncOfficialFieldWeather();
+  status=result.status;
+ }catch(error){
+  console.error("Manual weather sync failed",error);
+ }
  revalidatePath("/system-admin/weather");
  revalidatePath("/dashboard");
  revalidatePath("/fields");
+ redirect(`/system-admin/weather?sync=${status}`);
 }

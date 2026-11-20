@@ -3,3 +3,8 @@
 /* === FINAL AUTHORITY POLISH 2026-10-04 === */
 .launch{width:42px;height:42px;right:18px;bottom:18px;font-size:19px;box-shadow:0 7px 20px rgba(20,62,29,.22);opacity:.94}
 @media(max-width:920px){.launch{width:40px;height:40px;right:14px;bottom:14px;font-size:18px}.panel{width:min(560px,100vw)}}
+
+/* On farmer phones, the same help center opens from the side menu instead. */
+@media(max-width:767px){
+ :global(.farmer-app) .launch{display:none!important}
+}

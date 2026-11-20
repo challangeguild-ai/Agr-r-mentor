@@ -24,7 +24,28 @@ export async function GET(request:NextRequest){
   const type=request.nextUrl.searchParams.get("type")||"spraying";
   const farmId=request.nextUrl.searchParams.get("farm")||"";
   if(!countries.has(country)||!operationTypes.has(type))return noStore({error:"Érvénytelen katalóguskérés."},400);
-  if(farmId){const{data:farm,error:farmError}=await supabase.from("farms").select("id,owner_id,country_code").eq("id",farmId).maybeSingle();if(farmError)return noStore({error:farmError.message},500);if(!farm)return noStore({error:"Ehhez a gazdasághoz nincs hozzáférésed."},403);if(farm.country_code!==country)return noStore({error:"A gazdaság országa nem egyezik a kért katalógussal."},400)}
+  if(farmId){
+   const{data:farm,error:farmError}=await supabase.from("farms")
+    .select("id,owner_id,country_code").eq("id",farmId).maybeSingle();
+   if(farmError)return noStore({error:farmError.message},500);
+   if(!farm)return noStore({error:"Ehhez a gazdasághoz nincs hozzáférésed."},403);
+   if(farm.country_code!==country)return noStore({error:"A gazdaság országa nem egyezik a kért katalógussal."},400);
+   if(farm.owner_id!==user.id){
+    const{data:profile,error:profileError}=await supabase.from("profiles")
+     .select("role").eq("id",user.id).maybeSingle();
+    if(profileError)return noStore({error:"A felhasználói jogosultság nem ellenőrizhető."},500);
+    // An advisor can access only farms already visible through database RLS.
+    // Other users need explicit active manager/agronomist membership to see
+    // the farm's approved pesticide signatories and their license details.
+    if(profile?.role!=="advisor"){
+     const{data:membership,error:memberError}=await supabase.from("farm_members")
+      .select("id").eq("farm_id",farmId).eq("user_id",user.id).eq("active",true)
+      .in("member_role",["manager","agronomist"]).maybeSingle();
+     if(memberError)return noStore({error:"A gazdasági hozzáférés nem ellenőrizhető."},500);
+     if(!membership)return noStore({error:"A szakmai katalógus gazdaságspecifikus jogosultsághoz kötött."},403);
+    }
+   }
+  }
   const[{data:catalog,error:catalogError},{data:source,error:sourceError}]=await Promise.all([
     supabase.from("operation_catalog").select("id,country_code,operation_type,category,name,metadata,sort_order").in("country_code",[country,"ALL"]).eq("operation_type",type).eq("active",true).order("sort_order").order("name"),
     supabase.from("operation_catalog_sources").select("country_code,source_name,source_url,last_checked_at,last_imported_at,product_count,use_count,status,notes").eq("country_code",country).maybeSingle(),

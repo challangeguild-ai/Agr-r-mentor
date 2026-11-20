@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {syncOfficialFieldWeather} from "@/lib/weather/sync";
+import {weatherCronHttpStatus} from "@/lib/weather/syncHelpers";
 
 export const runtime="nodejs";
 export const maxDuration=300;
@@ -18,8 +19,17 @@ export async function GET(req:NextRequest){
  if(!auth.ok)return NextResponse.json({ok:false,error:auth.message},{status:auth.status,headers:{"Cache-Control":"no-store"}});
  try{
   const result=await syncOfficialFieldWeather();
-  return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
+  const httpStatus=weatherCronHttpStatus(result.totalFields,result.fields);
+  if(httpStatus===503){
+   console.error("HungaroMet cron: egyetlen meglévő tábla sem kapott mért adatot",{
+    totalFields:result.totalFields,stations:result.stations,stationFailures:result.stationFailures
+   });
+  }
+  return NextResponse.json(httpStatus===503?{
+   ...result,ok:false,error:"Egyetlen meglévő földtáblához sem sikerült napi mérést menteni."
+  }:result,{status:httpStatus,headers:{"Cache-Control":"no-store"}});
  }catch(error){
+  console.error("HungaroMet cron szinkronhiba",error);
   return NextResponse.json({ok:false,error:error instanceof Error?error.message:String(error)},{status:500,headers:{"Cache-Control":"no-store"}});
  }
 }

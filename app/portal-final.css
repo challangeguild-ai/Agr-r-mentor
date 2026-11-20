@@ -61,3 +61,102 @@
  .am-wizard-progress-labeled span{min-height:34px!important;white-space:normal!important}
  .approval-page .stats-grid{grid-template-columns:1fr 1fr!important}
 }
+
+
+/* AGRAR 2.1: unified, accessible wizard controls across farmer modules. */
+.farmer-app .am-wizard .am-wizard-step label,
+.farmer-app .am-wizard .am-operation-step label{font-size:12.5px!important;line-height:1.45;color:#294237}
+.farmer-app .am-wizard .am-wizard-step input,
+.farmer-app .am-wizard .am-wizard-step select,
+.farmer-app .am-wizard .am-wizard-step textarea,
+.farmer-app .am-wizard .am-operation-step input,
+.farmer-app .am-wizard .am-operation-step select,
+.farmer-app .am-wizard .am-operation-step textarea{
+  min-height:44px!important;font-size:14px!important;line-height:1.4!important;
+  color:#1d3529;background:#fff;border:1px solid #cbd8ce;border-radius:10px;
+}
+.farmer-app .am-wizard .am-wizard-step h3,
+.farmer-app .am-wizard .am-operation-step-head h3{font-size:18px;line-height:1.3}
+.farmer-app .am-wizard .am-wizard-summary small{font-size:11.5px}
+.farmer-app .am-wizard .am-wizard-summary strong{font-size:14px;overflow-wrap:anywhere}
+.farmer-app .am-wizard .am-wizard-actions button{
+  min-height:44px!important;height:auto!important;padding:10px 16px!important;
+  font-size:13.5px!important;line-height:1.25!important;white-space:normal!important;
+}
+.farmer-app .am-wizard .am-wizard-progress-labeled span{font-size:12px!important;line-height:1.25!important}
+.farmer-app .am-wizard :is(button,input,select,textarea):focus-visible{
+  outline:3px solid #4e9870!important;outline-offset:2px!important;
+}
+.farmer-app .am-wizard .am-draft-notice{
+ display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+ padding:12px 14px;border:1px solid #bcd9c5;background:#f0f8ef;color:#1b5034;
+ border-radius:12px;font-size:13px;line-height:1.5;
+}
+.farmer-app .am-wizard .am-draft-notice button{
+ border:1px solid #c1d8c6;border-radius:9px;color:#1f5839;background:white;
+ min-height:38px;padding:8px 12px;font-size:12px;font-weight:750;
+}
+@media(max-width:767px){
+ .farmer-app .am-wizard .am-wizard-grid{grid-template-columns:minmax(0,1fr)}
+ .farmer-app .am-wizard .am-wizard-actions{gap:8px}
+ .farmer-app .am-wizard .am-wizard-actions button{min-width:90px}
+ .farmer-app .am-wizard .am-wizard-progress-labeled span{font-size:12px!important}
+}
+
+
+/* Agrár Mentor 2.1 – dependent dispatch form and accessible feedback. */
+.farmer-app .task-create-grid{align-items:end;gap:12px}
+.farmer-app .task-create-grid label{min-width:0;font-size:12.5px;line-height:1.45;color:#31483a}
+.farmer-app .task-create-grid :is(input,select){
+ min-height:44px;font-size:14px;line-height:1.4;background:#fff;
+ border:1px solid #cbd8ce;border-radius:10px;min-width:0;
+}
+.farmer-app .task-create-grid :is(input,select,button):focus-visible{
+ outline:3px solid #4e9870;outline-offset:2px;
+}
+.farmer-app .task-create-grid .am-dispatch-summary{
+ grid-column:1/-1!important;padding:11px 13px;
+ border:1px solid #d9e5d8;border-radius:10px;background:#f2f8f0;
+ color:#385946;font-size:12.5px;line-height:1.5;
+}
+.farmer-app .task-create-grid .error-box,
+.farmer-app .task-create-grid .success-box{
+ grid-column:1/-1!important;margin:0;font-size:13px;line-height:1.55;
+}
+.farmer-app .task-create-grid button[type="submit"]{
+ min-height:44px;height:auto!important;width:max-content;max-width:100%;
+ padding:10px 16px!important;font-size:13.5px!important;white-space:normal!important;
+}
+@media(max-width:760px){
+ .farmer-app .task-create-grid :is(input,select){font-size:16px}
+ .farmer-app .task-create-grid button[type="submit"]{width:100%}
+ .farmer-app .task-create-grid .am-dispatch-summary{font-size:13px}
+}
+
+/* Accepted reference continuity for legacy farmer screens without altering workflows. */
+.farmer-app .topbar h1{font-size:clamp(28px,3vw,34px)!important;color:#183125!important;letter-spacing:-.035em}
+.farmer-app .topbar p{font-size:13px!important;line-height:1.55!important;color:#69796f!important}
+.farmer-app .topbar .eyebrow{color:#30764c}
+.farmer-app .stats-grid .stat-card{border-color:#dfe6dc!important;background:#fff!important}
+.farmer-app .stats-grid .stat-card span{font-size:12px!important;line-height:1.4}
+.farmer-app .stats-grid .stat-card strong{font-size:clamp(22px,2.2vw,28px)!important;overflow-wrap:anywhere}
+.farmer-app .stats-grid .stat-card small{font-size:11px!important;line-height:1.4}
+.farmer-app .task-admin-row strong,.farmer-app .field-card-link strong{font-size:14px;line-height:1.45}
+.farmer-app .task-admin-row small,.farmer-app .field-card-link small{font-size:12px;line-height:1.45}
+.farmer-app .admin-form :is(input,select,textarea){min-height:44px;font-size:14px;line-height:1.45;border-color:#cad9cd;border-radius:9px}
+.farmer-app .admin-form label{font-size:12.5px;line-height:1.45}
+.farmer-app :is(a,button,input,select,textarea):focus-visible{outline:3px solid #55a271!important;outline-offset:2px!important}
+@media(max-width:767px){
+ .farmer-app .topbar h1{font-size:28px!important}
+ .farmer-app .topbar p{font-size:12.5px!important}
+ .farmer-app .stats-grid .stat-card span{font-size:11.5px!important}
+ .farmer-app .stats-grid .stat-card small{font-size:11px!important}
+ .farmer-app .task-admin-row strong,.farmer-app .field-card-link strong{font-size:13px}
+ .farmer-app .task-admin-row small,.farmer-app .field-card-link small{font-size:11.5px}
+ .farmer-app .admin-form :is(input,select,textarea){font-size:16px}
+}
+
+/* Anchor the mobile drawer trigger to the top of the page during scrolling. */
+@media(max-width:767px){
+ .farmer-app{position:relative}
+}

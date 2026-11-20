@@ -3,6 +3,7 @@ import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {createAdminClient} from "@/lib/supabase/admin";
+import {extractFunctionError} from "@/lib/edgeFunctionError";
 
 async function requireSystemAdmin(){
  const userClient=await createClient();const{data:{user}}=await userClient.auth.getUser();if(!user)throw new Error("Nincs bejelentkezve.");
@@ -17,7 +18,7 @@ export async function inviteAdvisor(formData:FormData){
  const fullName=String(formData.get("full_name")||"").trim();
  if(!email||!email.includes("@"))throw new Error("Érvényes e-mail cím szükséges.");
  const{data,error}=await userClient.functions.invoke("invite-advisor",{body:{email,full_name:fullName||email}});
- if(error)throw new Error(`A szaktanácsadói meghívás sikertelen: ${error.message}`);
+ if(error)throw new Error(`A szaktanácsadói meghívás sikertelen: ${await extractFunctionError(error)}`);
  if(!data?.invited||data?.role!=="advisor")throw new Error(data?.error||"A meghívó szolgáltatás nem igazolta vissza a sikeres szaktanácsadói meghívást.");
  revalidatePath("/system-admin/users");
  redirect(`/system-admin/users?invite=sent&email=${encodeURIComponent(email)}`);

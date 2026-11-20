@@ -4,6 +4,7 @@ import {useState} from "react";
 import {ComprehensiveTour,ComprehensiveTourRestart} from "@/components/ComprehensiveTour";
 import {ProcessGuideButton,ProcessGuideProvider} from "@/components/ProcessGuide";
 import {HelpCenter} from "@/components/HelpCenter";
+import {AgrarMentorLogo} from "@/components/AgrarMentorLogo";
 import styles from "./FarmerSidebar.module.css";
 
 const primary=[
@@ -31,18 +32,22 @@ export function Sidebar({active="dashboard",userName="Gazdálkodó"}:{active?:st
  const[open,setOpen]=useState(false);
  const row=([href,key,icon,label,tour]:typeof primary[number]|typeof secondary[number])=><Link data-tour={tour} onClick={()=>setOpen(false)} key={key} className={active===key?styles.active:""} href={href}><span className={styles.icon}>{icon}</span><span>{label}</span></Link>;
  return <><ComprehensiveTour role="farmer"/><ProcessGuideProvider/><HelpCenter role="farmer"/>
-  <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} onClick={()=>setOpen(true)}><span/><span/><span/></button>
-  {open&&<button className={styles.overlay} aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
-  <aside className={`${styles.sidebar} ${open?styles.open:""}`}>
-   <div className={styles.brand}><span className={styles.leaf} aria-hidden="true"><svg viewBox="0 0 42 54"><path d="M21 51V8"/><path d="M21 17C14 14 10 10 9 5c7 1 11 5 12 12Z"/><path d="M21 25c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 32c-7-3-11-7-12-12 7 1 11 5 12 12Z"/><path d="M21 40c7-3 11-7 12-12-7 1-11 5-12 12Z"/><path d="M21 47c-7-3-11-7-12-12 7 1 11 5 12 12Z"/></svg></span><div className={styles.brandText}><strong>AGRÁR MENTOR</strong><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
-   <nav className={styles.nav}>
+  <button className={styles.launch} type="button" aria-label="Menü megnyitása" aria-expanded={open} aria-controls="farmer-navigation-drawer" onClick={()=>setOpen(true)}><span/><span/><span/></button>
+  {open&&<button className={styles.overlay} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}/>}
+  <aside id="farmer-navigation-drawer" className={`${styles.sidebar} ${open?styles.open:""}`} onKeyDown={event=>{if(event.key==="Escape")setOpen(false)}}>
+   <div className={styles.brand}><div className={styles.brandText}><AgrarMentorLogo className={styles.brandLogo} priority/><small>GAZDÁLKODÓI PORTÁL</small></div><button className={styles.close} type="button" aria-label="Oldalsáv bezárása" onClick={()=>setOpen(false)}><span/><span/><span/></button></div>
+   <nav className={styles.nav} aria-label="Gazdálkodói menü">
     <div className={styles.primaryList}>{primary.map(row)}</div>
     <div className={styles.sectionLabel}>GAZDASÁGOM</div>
     <div className={styles.secondaryList}>{secondary.map(row)}</div>
    </nav>
    <div className={styles.promo}><span>◒</span><strong>Hatékonyabb gazdálkodás<br/>egy fenntarthatóbb<br/>jövőért.</strong></div>
-   <div className={styles.help}><strong>Segítség</strong><small>Gyors elérés az útmutatóhoz és a szakmai kapcsolathoz.</small><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolat</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
-   
+   <div className={styles.help}><strong>Segítség</strong><small>Gyors elérés az útmutatóhoz és a szakmai kapcsolathoz.</small><button type="button" onClick={()=>{setOpen(false);window.dispatchEvent(new Event("agrar-help-center-open"))}}>Súgóközpont</button><Link onClick={()=>setOpen(false)} href="/messages">Kapcsolat</Link><ComprehensiveTourRestart role="farmer"/>{active==="operations"&&<ProcessGuideButton guide="create-operation" label="ⓘ Művelet rögzítése – mezőről mezőre"/>}{active==="team"&&<ProcessGuideButton guide="invite-member" label="ⓘ Munkatárs meghívása – mezőről mezőre"/>}{active==="machines"&&<ProcessGuideButton guide="create-machine" label="ⓘ Gép felvétele – mezőről mezőre"/>}{active==="dispatch"&&<ProcessGuideButton guide="dispatch-work" label="ⓘ Munka kiosztása – mezőről mezőre"/>}</div>
+   <div className={styles.landscape} aria-hidden="true"/>
+   <Link className={styles.userFooter} href="/profile" onClick={()=>setOpen(false)} aria-label={`${userName} – profil megnyitása`}>
+    <span className={styles.userFooterAvatar}>{userName.trim().slice(0,1).toLocaleUpperCase("hu-HU")||"G"}</span>
+    <span><strong>{userName}</strong><small>Profil és fiókbeállítások</small></span>
+   </Link>
   </aside>
  </>;
 }
