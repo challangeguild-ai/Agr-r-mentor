@@ -1,0 +1,51 @@
+package hu.agrarmentor.android.data
+
+import hu.agrarmentor.android.auth.AuthorizedSession
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+data class NativeMapField(
+ val id:String,
+ val name:String,
+ val farmName:String,
+ val latitude:Double?,
+ val longitude:Double?,
+ val boundary:String?
+)
+
+/** RLS-scoped geometry reader. The map renders only what this user can access. */
+class MapFieldsRepository(private val baseUrl:String,private val publishableKey:String){
+ suspend fun load(session:AuthorizedSession):List<NativeMapField> = withContext(Dispatchers.IO){
+  val farmNames=read("farms?select=id,name&limit=1000",session)
+   .associate{it.getString("id") to it.optString("name")}
+  read("fields?select=id,name,farm_id,center_lat,center_lng,boundary_geojson&order=name.asc&limit=1000",session).map{row->
+   NativeMapField(
+    id=row.getString("id"),
+    name=row.optString("name","Földtábla"),
+    farmName=farmNames[row.optString("farm_id")]?:"Gazdaság",
+    latitude=row.numberOrNull("center_lat"),
+    longitude=row.numberOrNull("center_lng"),
+    boundary=if(row.isNull("boundary_geojson"))null else row.getJSONObject("boundary_geojson").toString()
+   )
+  }
+ }
+
+ private fun read(path:String,session:AuthorizedSession):List<JSONObject>{
+  val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
+   requestMethod="GET";connectTimeout=12000;readTimeout=15000
+   setRequestProperty("apikey",publishableKey)
+   setRequestProperty("Authorization","Bearer ${session.accessToken}")
+  }
+  return try{
+   if(conn.responseCode !in 200..299)error("A térképi adatok nem érhetők el (${conn.responseCode}).")
+   val rows=JSONArray(conn.inputStream.bufferedReader().use{it.readText()})
+   (0 until rows.length()).map{rows.getJSONObject(it)}
+  }finally{conn.disconnect()}
+ }
+
+ private fun JSONObject.numberOrNull(key:String):Double?=if(isNull(key))null else optDouble(key).takeIf{!it.isNaN()&&it.isFinite()}
+}

@@ -353,13 +353,14 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
     item{LiveDocumentsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/invoices"&&session!=null){
     item{LiveDocumentsScreen(session,colors,onlyInvoices=true)}
+   }else if(role==PortalRole.FARMER&&route=="/map"&&session!=null){
+    item{NativeMapScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/profile"&&session!=null){
     item{LiveProfileScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route in listOf("/farms","/team","/machines","/timeline")&&session!=null){
     item{LiveFarmExtrasScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/map"&&session!=null){
-    item{Text("Földtáblák és figyelmeztetések – listanézet. A térképi műholdréteg még nincs bekötve.",fontSize=13.sp,color=MutedText)}
-    item{LiveFieldsScreen(session,colors,onNavigate)}
+    item{NativeMapScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/fields/")&&session!=null){
     item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/reports","/admin/visits")&&session!=null){
