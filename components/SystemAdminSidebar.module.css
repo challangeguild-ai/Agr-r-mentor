@@ -33,3 +33,10 @@
  .logout{min-height:44px!important;font-size:12px!important}
  .mobileNav{display:none!important}
 }
+/* One scrolling surface for the entire phone drawer: the help/footer must not
+   shrink the navigation and silently hide its final destinations. */
+@media(max-width:767px){
+ .sidebar{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ .nav{flex:none;min-height:max-content;overflow:visible}
+ .help{margin-top:14px;flex:none}
+}

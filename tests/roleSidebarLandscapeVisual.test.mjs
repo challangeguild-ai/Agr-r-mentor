@@ -33,3 +33,14 @@ test("advisor and admin landscape never covers menu controls and adapts on short
     assert.match(css, /@media\(max-height:780px\)\{\.landscape\{flex-basis:52px;min-height:52px\}\}/);
   }
 });
+
+test("mobile role drawers scroll as one surface without hiding their last links", () => {
+  for (const component of ["AdvisorSidebar", "SystemAdminSidebar"]) {
+    const css = read(`components/${component}.module.css`);
+    const mobileRules = css.slice(css.lastIndexOf("/* Keep all nine advisor destinations") >= 0
+      ? css.lastIndexOf("/* Keep all nine advisor destinations")
+      : css.lastIndexOf("/* One scrolling surface"));
+    assert.match(mobileRules, /\.sidebar\{[^}]*overflow-y:auto/, component);
+    assert.match(mobileRules, /\.nav\{[^}]*flex:none;min-height:max-content;overflow:visible/, component);
+  }
+});
