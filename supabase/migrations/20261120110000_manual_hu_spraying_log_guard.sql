@@ -34,6 +34,11 @@ begin
     new.approval_required := false;
     new.approval_status := 'not_required';
     new.requested_approver_id := null;
+    new.approver_name := null;
+    new.approved_by := null;
+    new.approved_at := null;
+    new.approval_basis := null;
+    new.approval_note := null;
     new.regulatory_snapshot := jsonb_build_object(
       'verification_status','not_verified',
       'source','user_reported_actual_application',
