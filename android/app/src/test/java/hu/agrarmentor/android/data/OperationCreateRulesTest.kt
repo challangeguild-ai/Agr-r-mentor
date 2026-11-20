@@ -2,6 +2,7 @@ package hu.agrarmentor.android.data
 
 import org.junit.Assert.*
 import org.junit.Test
+import java.time.LocalDate
 
 class OperationCreateRulesTest {
  @Test fun excludesRegulatedSprayingWithoutOfficialCatalog(){
@@ -14,6 +15,7 @@ class OperationCreateRulesTest {
 
  @Test fun rejectsImpossibleDatesAndInvalidAmounts(){
   assertFalse(OperationCreateRules.validDate("2026-02-30"))
+  assertFalse(OperationCreateRules.validDate("2026-11-21",LocalDate.parse("2026-11-20")))
   assertEquals(2.5,OperationCreateRules.parseAmount("2,5")!!,0.00001)
   assertNull(OperationCreateRules.parseAmount(""))
   assertThrows(IllegalArgumentException::class.java){OperationCreateRules.parseAmount("2.4abc")}

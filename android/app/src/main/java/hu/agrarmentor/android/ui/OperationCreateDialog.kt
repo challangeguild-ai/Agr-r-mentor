@@ -61,6 +61,8 @@ internal fun OperationCreateDialog(
  fun validate():String?{
   if(selected==null)return "Válassz saját földtáblát."
   if(!OperationCreateRules.validDate(date))return "Érvényes dátumot adj meg (ÉÉÉÉ-HH-NN)."
+  if(OperationCreateRules.types.none{it.first==type})return "Válassz érvényes művelettípust."
+  if(step==0)return null
   if(!OperationCreateRules.validDetails(type,date,subtype,product,notes))return "Ellenőrizd a művelettípust, az anyagot és a szöveges adatokat."
   return runCatching{
    val area=OperationCreateRules.parseAmount(treatedArea)

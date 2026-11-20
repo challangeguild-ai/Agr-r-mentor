@@ -1,6 +1,7 @@
 package hu.agrarmentor.android.data
 
 import java.time.LocalDate
+import java.time.ZoneId
 
 /** Non-plant-protection operation recording. Chemical use needs the separate official catalogue workflow. */
 internal object OperationCreateRules {
@@ -9,8 +10,9 @@ internal object OperationCreateRules {
   "soil_work" to "Talajmunka", "harvest" to "Betakarítás",
   "irrigation" to "Öntözés", "mowing" to "Kaszálás", "other" to "Egyéb művelet"
  )
- fun validDate(input:String):Boolean=input.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}"))&&
-  runCatching{LocalDate.parse(input).toString()==input}.getOrDefault(false)
+ fun validDate(input:String,today:LocalDate=LocalDate.now(ZoneId.of("Europe/Budapest"))):Boolean=
+  input.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}"))&&
+   runCatching{LocalDate.parse(input).let{it.toString()==input&&!it.isAfter(today)}}.getOrDefault(false)
 
  fun parseAmount(input:String):Double?{
   val value=input.trim().replace(',','.')
