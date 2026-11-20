@@ -19,6 +19,7 @@ function levelAllows(level:string,category:string|null|undefined){const c=(categ
 async function validatePlantProtection(supabase:any,farmId:string,countryCode:"HU"|"SK",operationDate:string,formData:FormData,rawDose:number|null,doseUnit:string){
  const productId=text(formData.get("product_id"),100),useId=text(formData.get("use_id"),100);
  if(!productId){
+  if(countryCode!=="HU")throw new Error("Szlovákiában kötelező ellenőrzött növényvédő szert és engedélyezett felhasználást választani.");
   const{data:policyVersion,error:policyError}=await supabase.rpc("hu_manual_spraying_policy_version");
   if(policyError||policyVersion!==1)throw new Error("A kézi magyar növényvédelmi naplózás szerveroldali védelme még nincs élesítve.");
   const{data:verifiedUses,error:catalogError}=await supabase.from("plant_protection_uses")
