@@ -22,7 +22,9 @@ test("original agricultural photo and accessible branding stay consistent across
  const markup=read("components/Sidebar.tsx");
  assert.match(sidebar,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
  assert.match(field,/url\("\/images\/agrar-fields-sunrise\.webp"\)/);
- assert.match(markup,/<strong>AGRÁR MENTOR<\/strong>/);
+ assert.match(markup,/className=\{styles\.wordmark\} aria-label="Agrár Mentor"/);
+ assert.match(markup,/<span>AGRÁR<\/span><span>MENTOR<\/span>/);
+ assert.match(sidebar,/\.wordmark span:last-child\{font-size:22px/);
  assert.match(markup,/aria-hidden="true"\/\>/);
 });
 
@@ -38,6 +40,44 @@ test("field cards and the interactive map/list switch use real field data",()=>{
  assert.match(page,/FieldsOverviewMap/);
  assert.match(styles,/\.workspace\[data-mode="map"\] \.list\{display:none\}/);
  assert.match(styles,/\.workspace\[data-mode="auto"\] \.map/);
+});
+
+test("fields search actually filters the catalog and preserves search when views change",()=>{
+ const page=read("app/fields/page.tsx");
+ const header=read("components/FarmerTopbar.tsx");
+ const css=read("app/fields/fields.module.css");
+ assert.match(page,/searchAction="\/fields" defaultQuery=\{query\} preserveSearchParams=\{\{view,mode\}\}/);
+ assert.match(page,/matchesFieldCatalogQuery\(\{\.\.\.field,farmName:/);
+ assert.match(page,/&mode=map\$\{querySuffix\}/);
+ assert.match(page,/&mode=list\$\{querySuffix\}/);
+ assert.match(page,/Keresés törlése/);
+ assert.match(header,/searchAction="\/dashboard"/);
+ assert.match(header,/action=\{searchAction\} method="get"/);
+ assert.match(header,/Object\.entries\(preserveSearchParams\)/);
+ assert.match(css,/\.filters\{flex-wrap:wrap;overflow:visible/);
+ assert.match(page,/inactive\?statusLabel\(field\.status\)/);
+});
+
+test("field boundaries stand out on satellite imagery and the mobile drawer stays above Leaflet",()=>{
+ const map=read("components/FieldsOverviewMap.tsx");
+ const css=read("app/fields/fields.module.css");
+ const sidebarCss=read("components/FarmerSidebar.module.css");
+ assert.match(map,/color:"#153927",weight:8,opacity:\.92,fill:false/);
+ assert.match(map,/color:"#ffe348",weight:4,opacity:1/);
+ assert.match(map,/interactive:false/);
+ assert.match(map,/isolation:"isolate",zIndex:0/);
+ assert.match(css,/\.map\{position:relative;z-index:0;isolation:isolate\}/);
+ assert.match(sidebarCss,/z-index:100/);
+ assert.match(sidebarCss,/z-index:95/);
+});
+
+test("field list outline uses the actual inspection status and stays neutral without one",()=>{
+ const page=read("app/fields/page.tsx");
+ const css=read("app/fields/fields.module.css");
+ assert.match(page,/const cardOutline=inactive\?"":state==="critical"\?styles\.fieldCritical:state==="attention"\?styles\.fieldAttention:state==="good"\?styles\.fieldGood:""/);
+ assert.match(css,/\.fieldCard\.fieldCritical\{border:2px solid #d84b50\}/);
+ assert.match(css,/\.fieldCard\.fieldAttention\{border:2px solid #dfb62a\}/);
+ assert.match(css,/\.fieldCard\.fieldGood\{border:2px solid #4c995f\}/);
 });
 
 test("field health indicates the actual inspection state, not a made-up score",()=>{
@@ -80,7 +120,7 @@ test("six reference sections preserve responsive views and readable controls",()
 test("shared farmer header preserves real search behavior and usable mobile controls",()=>{
  const header=read("components/FarmerTopbar.tsx");
  const css=read("components/FarmerTopbar.module.css");
- assert.match(header,/action="\/dashboard" method="get"/);
+ assert.match(header,/searchAction="\/dashboard"/);
  assert.match(header,/name="q" type="search"/);
  assert.match(header,/placeholder=\{placeholder\}/);
  assert.match(css,/\.search:focus-within/);

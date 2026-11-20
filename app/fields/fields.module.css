@@ -22,11 +22,21 @@
 .workspace[data-mode="list"] .map{display:none}
 .workspace[data-mode="list"] .list{grid-template-columns:repeat(2,minmax(0,1fr))}
 .fieldCard{border-color:#e0e7dd;background:#fff;box-shadow:0 3px 11px rgba(15,57,33,.045)}
+/* The outline reflects a real inspection, never an assumed healthy condition. */
+.fieldCard.fieldCritical{border:2px solid #d84b50}
+.fieldCard.fieldAttention{border:2px solid #dfb62a}
+.fieldCard.fieldGood{border:2px solid #4c995f}
 .fieldCard:focus-visible,.viewOption:focus-visible{outline:3px solid #55a271;outline-offset:2px}
 .fieldHead strong{font-size:15px;line-height:1.35}
 .fieldHead small{font-size:12px;line-height:1.4}
 .fieldMeta span{font-size:11.5px;line-height:1.35}
+.fieldHead{flex-wrap:wrap;row-gap:6px}
+.fieldHead>div{min-width:0;flex:1 1 116px}
+.fieldHead strong,.fieldHead small{overflow-wrap:anywhere}
+.status{max-width:100%;text-align:center}
+.empty a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;margin:12px 0 0;padding:0 14px;border:1px solid #a5c7aa;border-radius:8px;color:#0c593a;background:#fff;font-size:12px;font-weight:800}
 .map{background:#fff;border-color:#e0e7dd}
+.map{position:relative;z-index:0;isolation:isolate}
 @media(min-width:768px) and (max-width:1199px){
  .workspace[data-mode="list"] .list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -34,6 +44,9 @@
  .titleRow{gap:10px;flex-wrap:wrap}
  .titleRow .primary{min-height:40px;font-size:12px}
  .toolbar{display:flex;align-items:stretch;flex-direction:column;gap:9px;padding:10px}
+ /* Every filter must remain visible instead of hiding the last chips offscreen. */
+ .filters{flex-wrap:wrap;overflow:visible;padding-bottom:0;row-gap:7px}
+ .filters a{white-space:normal;min-height:40px;padding:6px 11px;font-size:11.5px;line-height:1.2;text-align:center}
  .toolbarActions{margin-top:0;justify-content:space-between}
  .viewSwitch{flex:1}
  .viewOption{flex:1;min-height:43px;font-size:12px}
