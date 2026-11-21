@@ -17,22 +17,39 @@ data class NativeMapField(
  val boundary:String?
 )
 
+/** Rejects extra path segments or query fragments before constructing a PostgREST URL. */
+internal fun validMapFieldId(fieldId:String):Boolean=fieldId.matches(
+ Regex("[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}")
+)
+
 /** RLS-scoped geometry reader. The map renders only what this user can access. */
 class MapFieldsRepository(private val baseUrl:String,private val publishableKey:String){
+ suspend fun loadOne(session:AuthorizedSession,fieldId:String):NativeMapField? = withContext(Dispatchers.IO){
+  require(validMapFieldId(fieldId)){"Érvénytelen földtábla-azonosító."}
+  val row=read("fields?select=id,name,farm_id,center_lat,center_lng,boundary_geojson&id=eq.$fieldId&limit=1",session)
+   .singleOrNull()?:return@withContext null
+  val farmId=row.getString("farm_id")
+  require(validMapFieldId(farmId)){"Érvénytelen gazdaságazonosító."}
+  val farm=read("farms?select=id,name&id=eq.$farmId&limit=1",session).singleOrNull()
+  mapField(row,farm?.optString("name")?:"Gazdaság")
+ }
+
  suspend fun load(session:AuthorizedSession):List<NativeMapField> = withContext(Dispatchers.IO){
   val farmNames=read("farms?select=id,name&limit=1000",session)
    .associate{it.getString("id") to it.optString("name")}
   read("fields?select=id,name,farm_id,center_lat,center_lng,boundary_geojson&order=name.asc&limit=1000",session).map{row->
-   NativeMapField(
+   mapField(row,farmNames[row.optString("farm_id")]?:"Gazdaság")
+  }
+ }
+
+ private fun mapField(row:JSONObject,farmName:String):NativeMapField=NativeMapField(
     id=row.getString("id"),
     name=row.optString("name","Földtábla"),
-    farmName=farmNames[row.optString("farm_id")]?:"Gazdaság",
+    farmName=farmName,
     latitude=row.numberOrNull("center_lat"),
     longitude=row.numberOrNull("center_lng"),
     boundary=if(row.isNull("boundary_geojson"))null else row.getJSONObject("boundary_geojson").toString()
-   )
-  }
- }
+ )
 
  private fun read(path:String,session:AuthorizedSession):List<JSONObject>{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{

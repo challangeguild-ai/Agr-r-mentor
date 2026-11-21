@@ -40,6 +40,8 @@ A menünek 18 gazdálkodói, 22 szaktanácsadói és 6 admin első szintű célp
 
 ### 2026. november 20. – menüfunkciók összekötése
 
+**2026. november 21-i földtábla-adatlap bővítés:** a gazdálkodói és a szaktanácsadói adatlap most a megfelelő táblára szűrt, RLS-védett élő poligont vagy helypontot is megjeleníti a natív MapLibre-térképen. A térképi adat hibája nem rejti el a szemléket, teendőket és műveleteket; az alakzat külön újratölthető. A poligon az adatlapon egyelőre nem szerkeszthető, és a műholdréteg nincs bekötve.
+
 - A natív szaktanácsadói **ügyféldosszié** a gazdálkodó gazdaságait, tábláit, utolsó szemléit és nyitott/lejárt feladatait mutatja. Az ügyféllista, a **prioritások**, az **elérhetőségek** (telefon/e-mail) és a **munkatársak** valódi, jogosultságvédett adatokra épülnek.
 - A **munkanap** hétnapos feladat-, visszaellenőrzés- és tervezett látogatásnézetet ad, budapesti időzónával. A **szemlézési szezonok** gazdaságonként megtekinthetők és menthetők azonos eseményformátumban, mint a weben; a kliens ellenőrzi a mentés tényleges eredményét.
 - A **határjavaslatok** natív képernyője a régi/javasolt poligon összehasonlítását és kifejezett döntési megerősítést követel; az elbírálás kizárólag a meglévő szerveroldali, versenyhelyzetet ellenőrző `review_field_boundary_proposal` RPC-n fut. A **térképi minőség** nézet jelzi a hiányzó pontot, a csak-pont állapotot, a hibás poligont és a közelítő területeltérést. Ez az Android-ellenőrzés **nem** végez szomszédos táblák közötti teljes átfedésvizsgálatot, és nem hiteles földmérés.

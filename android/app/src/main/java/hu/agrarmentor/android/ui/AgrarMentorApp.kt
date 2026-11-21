@@ -40,6 +40,9 @@ import hu.agrarmentor.android.data.FarmerWorkspaceRepository
 import hu.agrarmentor.android.data.FieldTaskCompletion
 import hu.agrarmentor.android.data.GeneralTaskCompletion
 import hu.agrarmentor.android.data.MobileFieldDetail
+import hu.agrarmentor.android.data.MapFieldsRepository
+import hu.agrarmentor.android.data.NativeMapField
+import hu.agrarmentor.android.data.NativeMapGeoJson
 import hu.agrarmentor.android.data.MobileOperation
 import hu.agrarmentor.android.data.MobileTask
 import hu.agrarmentor.android.data.OperationCreateRepository
@@ -342,7 +345,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
    }else if(role==PortalRole.FARMER&&route=="/fields"&&session!=null){
     item{LiveFieldsScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route.startsWith("/fields/")&&session!=null){
-    item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
+    item{LiveFieldDetailScreen(route.removePrefix("/fields/").substringBefore('/'),session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/tasks"&&session!=null){
     item{LiveTasksScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/daily-work"&&session!=null){
@@ -372,7 +375,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
    }else if(role==PortalRole.ADVISOR&&route=="/admin/map"&&session!=null){
     item{NativeMapScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/fields/")&&session!=null){
-    item{LiveFieldDetailScreen(route.removePrefix("/fields/"),session,colors,onNavigate)}
+    item{LiveFieldDetailScreen(route.removePrefix("/fields/").substringBefore('/'),session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/reports"&&session!=null){
     item{LiveAdvisorReportsScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/visits")&&session!=null){
@@ -622,7 +625,12 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
 @Composable
 private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val mapRepository=remember{MapFieldsRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var detail by remember(fieldId){mutableStateOf<MobileFieldDetail?>(null)}
+ var mappedField by remember(fieldId,session.userId){mutableStateOf<NativeMapField?>(null)}
+ var mapLoading by remember(fieldId){mutableStateOf(true)}
+ var mapFailed by remember(fieldId){mutableStateOf(false)}
+ var mapRevision by remember(fieldId){mutableIntStateOf(0)}
  var loading by remember(fieldId){mutableStateOf(true)}
  var error by remember(fieldId){mutableStateOf(false)}
  var revision by remember(fieldId){mutableIntStateOf(0)}
@@ -630,6 +638,13 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
   loading=true;error=false
   try{detail=repository.field(session,fieldId)}catch(_:Exception){error=true}
   finally{loading=false}
+ }
+ LaunchedEffect(fieldId,session.accessToken,mapRevision){
+  mapLoading=true;mapFailed=false;mappedField=null
+  try{mappedField=mapRepository.loadOne(session,fieldId)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){mapFailed=true}
+  finally{mapLoading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
   TextButton(onClick={onNavigate(NavigationCatalog.fieldDetailBackRoute(session.role))}){
@@ -659,7 +674,22 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
     if(field.operations.isEmpty())Text("Még nincs rögzített művelet.",color=MutedText)
     else field.operations.take(8).forEach{op->Text("• ${operationLabel(op.type)} · ${huDate(op.date)}",fontSize=13.sp,color=DarkText)}
    }
-   Text("A műholdas térkép és a szerkeszthető poligonréteg bekötése még hátravan.",fontSize=12.sp,color=MutedText)
+   Card(colors){
+    Text("Földtábla a térképen",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
+    if(mapLoading)CircularProgressIndicator(color=colors.accent)
+    else if(mapFailed){
+     Text("A térképi határ most nem tölthető be. A tábla többi adata továbbra is elérhető.",color=MutedText,fontSize=12.sp)
+     TextButton(onClick={mapRevision++}){Text("Térkép újrapróbálása",color=colors.accent)}
+    }else if(mappedField==null)Text("A térképi adat nem hozzáférhető.",color=MutedText,fontSize=12.sp)
+    else mappedField?.let{fieldMap->
+     if(NativeMapGeoJson.center(fieldMap)==null)Text("Ehhez a táblához még nincs érvényes térképi helypont vagy poligon.",color=MutedText,fontSize=12.sp)
+     else{
+      NativeFieldMap(listOf(fieldMap))
+      Text(if(fieldMap.boundary!=null)"Rögzített poligon – csak megtekintés" else "Rögzített helypont – poligon még nincs",color=colors.accent,fontSize=12.sp)
+     }
+    }
+    Text("OpenFreeMap / OpenStreetMap térkép. A poligon itt nem szerkeszthető és nem hiteles földmérési adat; műholdréteg még nincs.",fontSize=12.sp,color=MutedText)
+   }
   }
  }
 }
