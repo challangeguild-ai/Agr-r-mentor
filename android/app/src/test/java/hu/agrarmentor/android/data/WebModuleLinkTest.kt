@@ -14,6 +14,10 @@ class WebModuleLinkTest{
    safeWebModuleUrl("https://agr-r-mentor.vercel.app","/admin/tasks"))
   assertEquals("https://agr-r-mentor.vercel.app/system-admin/backup",
    safeWebModuleUrl("https://agr-r-mentor.vercel.app","/system-admin/backup"))
+  for(path in listOf("/system-admin/users","/system-admin/support","/system-admin/security")){
+   assertEquals("https://agr-r-mentor.vercel.app$path",
+    safeWebModuleUrl("https://agr-r-mentor.vercel.app",path))
+  }
   assertEquals("https://agr-r-mentor.vercel.app/admin/inspections",
    safeWebModuleUrl("https://agr-r-mentor.vercel.app","/admin/inspections"))
   assertEquals("https://agr-r-mentor.vercel.app/admin/visits",
