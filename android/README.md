@@ -34,7 +34,7 @@ Minden felület alján 4 gyorselérés + **Menü** található (összesen 5 gomb
 | Szaktanácsadó | Kezdőlap · Ügyfelek · Napi munka · Térkép · Menü |
 | Rendszeradmin | Kezdőlap · Ügyek · Fiókok · Biztonság · Menü |
 
-A menünek 18 gazdálkodói, 23 szaktanácsadói és 6 admin első szintű célpontja van; a további mélyoldalak az adott listaelem/dosszié részletéből érhetők el a későbbi modulfejlesztések során.
+A menünek 18 gazdálkodói, 22 szaktanácsadói és 6 admin első szintű célpontja van; a további mélyoldalak az adott listaelem/dosszié részletéből érhetők el a későbbi modulfejlesztések során. A teljes adatbázismentés csak rendszeradminisztrátori jogosultsággal indítható; az átirányító `/admin/backup` nem jelenik meg többé szaktanácsadói menüpontként.
 
 ## Mi valós és mi még nem?
 

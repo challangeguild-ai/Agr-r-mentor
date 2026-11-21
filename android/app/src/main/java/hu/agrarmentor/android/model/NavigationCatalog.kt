@@ -46,8 +46,7 @@ object NavigationCatalog {
   MobileDestination("/admin/plant-protection-import","Növényvédelem","Szakmai eszközök"),
   MobileDestination("/admin/documents","Dokumentumok","Szakmai eszközök"),
   MobileDestination("/admin/timeline","Idővonal","Szakmai eszközök"),
-  MobileDestination("/admin/reports","Jelentések","Szakmai eszközök"),
-  MobileDestination("/admin/backup","Biztonsági mentés","Rendszereszközök")
+  MobileDestination("/admin/reports","Jelentések","Szakmai eszközök")
  )
  val admin=listOf(
   MobileDestination("/system-admin","Rendszeráttekintés","Rendszer"),

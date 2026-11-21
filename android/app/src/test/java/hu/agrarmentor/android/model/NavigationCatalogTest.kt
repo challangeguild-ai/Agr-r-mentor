@@ -31,4 +31,8 @@ class NavigationCatalogTest {
   assertNull(NavigationCatalog.activeTab(PortalRole.SYSTEM_ADMIN,"/system-admin/weather"))
   assertNull(NavigationCatalog.activeTab(PortalRole.ADVISOR,"/admin/backup"))
  }
+ @Test fun sensitiveDatabaseExportIsAdminOnly(){
+  assertFalse(NavigationCatalog.advisor.any{it.route=="/admin/backup"})
+  assertTrue(NavigationCatalog.admin.any{it.route=="/system-admin/backup"})
+ }
 }
