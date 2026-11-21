@@ -1,10 +1,12 @@
 package hu.agrarmentor.android.data
 
-/** Only four known web workflows are linkable. Never append an auth token or untrusted route. */
+/** Allowlist of known web workflows. Never append an auth token or untrusted route. */
 internal fun safeWebModuleUrl(origin:String,path:String):String?{
  if(path !in setOf(
   "/admin/map/import",
   "/admin/plant-protection-import",
+  "/admin/inspections",
+  "/admin/visits",
   "/system-admin/weather",
   "/system-admin/backup"
  ))return null

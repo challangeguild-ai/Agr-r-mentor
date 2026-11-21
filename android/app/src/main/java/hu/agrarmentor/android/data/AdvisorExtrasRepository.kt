@@ -1,6 +1,7 @@
 package hu.agrarmentor.android.data
 
 import hu.agrarmentor.android.auth.AuthorizedSession
+import hu.agrarmentor.android.model.PortalRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -8,17 +9,21 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class MobileAdvisorRecord(val title:String,val subtitle:String,val detail:String?,val date:String?,val fieldId:String?)
+data class MobileAdvisorRecord(
+ val title:String,val subtitle:String,val detail:String?,val date:String?,val fieldId:String?,
+ val id:String?=null,val visitStatus:String?=null,val visitDescription:String?=null,val owned:Boolean=false
+)
 
 /** Advisor-only read endpoints; the JWT and Postgres RLS control visibility. */
 class AdvisorExtrasRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun load(route:String,session:AuthorizedSession):List<MobileAdvisorRecord> = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.ADVISOR){"Szaktanácsadói jogosultság szükséges."}
   val fields=read("fields?select=id,name&limit=1000",session)
    .associate{it.getString("id") to it.optString("name")}
   val rows=when(route){
    "/admin/inspections"->read("inspections?select=field_id,condition,notes,recommendation,inspected_at&order=inspected_at.desc&limit=150",session)
    "/admin/reports"->read("farmer_reports?select=field_id,title,message,status,advisor_reply,created_at&order=created_at.desc&limit=150",session)
-   "/admin/visits"->read("timeline_events?select=title,field_id,description,event_at&event_type=eq.advisor_visit_plan&order=event_at.asc&limit=150",session)
+   "/admin/visits"->read("timeline_events?select=id,created_by,title,field_id,description,event_at&event_type=eq.advisor_visit_plan&order=event_at.asc&limit=150",session)
    else->emptyList()
   }
   rows.map{row->
@@ -34,9 +39,17 @@ class AdvisorExtrasRepository(private val baseUrl:String,private val publishable
      listOfNotNull(row.optional("message"),row.optional("advisor_reply")?.let{"Válasz: $it"}).joinToString("\n"),
      row.optional("created_at"),row.optional("field_id")
     )
-    else->MobileAdvisorRecord(
-     row.optString("title"),fieldName,row.optional("description"),row.optional("event_at"),row.optional("field_id")
-    )
+    else->{
+     val visit=decodeMobileAdvisorVisit(row.optional("description"))
+     val status=when(visit?.status){"planned"->"Tervezve";"completed"->"Elvégezve";"cancelled"->"Lemondva";else->"Ismeretlen állapot"}
+     MobileAdvisorRecord(
+      row.optString("title"),"$fieldName · $status",
+      visit?.note?.takeIf{it.isNotBlank()}?:if(visit==null)"A látogatás formátuma nem olvasható." else null,
+      visit?.scheduledAt?:row.optional("event_at"),row.optional("field_id"),
+      id=row.optional("id"),visitStatus=visit?.status,visitDescription=row.optional("description"),
+      owned=row.optString("created_by")==session.userId
+     )
+    }
    }
   }
  }
