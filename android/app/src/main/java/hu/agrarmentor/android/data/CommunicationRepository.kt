@@ -276,23 +276,25 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
    .map{row->MobileDocument(row.getString("id"),row.optString("title"),row.optString("file_name"),row.optString("category"),row.optString("storage_path"),row.optString("created_at"),row.nullable("notes"))}
  }
 
- /** Document upload is farmer-owned; the existing Storage/REST RLS policies verify ownership again. */
+ /** Farmers see owned farms, advisors see RLS-authorized farms; Storage/REST validate on write. */
  suspend fun documentScopes(session:AuthorizedSession):DocumentScopes=withContext(Dispatchers.IO){
-  require(session.role==PortalRole.FARMER)
-  val owner=uuid(session.userId)
-  val farms=getArray("rest/v1/farms?select=id,name&owner_id=eq.$owner&order=name.asc&limit=1000",session)
+  require(DocumentUploadRules.canUpload(session.role))
+  val farmsPath=if(session.role==PortalRole.FARMER){
+   "rest/v1/farms?select=id,name&owner_id=eq.${uuid(session.userId)}&order=name.asc&limit=1000"
+  }else "rest/v1/farms?select=id,name&order=name.asc&limit=1000"
+  val farms=getArray(farmsPath,session)
    .map{DocumentFarm(it.getString("id"),it.optString("name","Gazdaság"))}
-  val owned=farms.map{it.id}.toSet()
-  val fields=if(owned.isEmpty())emptyList() else
+  val accessible=farms.map{it.id}.toSet()
+  val fields=if(accessible.isEmpty())emptyList() else
    getArray("rest/v1/fields?select=id,name,farm_id&order=name.asc&limit=1000",session)
-    .filter{it.optString("farm_id") in owned}
+    .filter{it.optString("farm_id") in accessible}
     .map{DocumentField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
   DocumentScopes(farms,fields)
  }
 
  suspend fun uploadDocument(session:AuthorizedSession,resolver:ContentResolver,farmId:String,fieldId:String?,
   title:String,category:String,notes:String,file:DocumentUploadInput):String=withContext(Dispatchers.IO){
-  require(session.role==PortalRole.FARMER)
+  require(DocumentUploadRules.canUpload(session.role))
   require(DocumentUploadRules.validFile(file.mimeType,file.sizeBytes)&&file.fileName.length in 1..DocumentUploadRules.MAX_NAME){
    "PDF, JPG, PNG, WebP, DOC vagy DOCX fájl tölthető fel, legfeljebb 20 MB méretben."
   }
@@ -300,7 +302,7 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
    "Ellenőrizd a megnevezést, kategóriát és megjegyzést."
   }
   val scopes=documentScopes(session)
-  val ownedFarm=scopes.farms.find{it.id==uuid(farmId)}?:error("Csak a saját gazdaságodba tölthetsz fel dokumentumot.")
+  val ownedFarm=scopes.farms.find{it.id==uuid(farmId)}?:error("Csak az elérhető gazdasághoz tölthetsz fel dokumentumot.")
   val field=fieldId?.let{id->scopes.fields.find{it.id==uuid(id)&&it.farmId==ownedFarm.id}
    ?:error("A földtábla nem ehhez a gazdasághoz tartozik.")}
   val newDocument=PendingDocument(UUID.randomUUID().toString(),

@@ -294,7 +294,7 @@ private fun ReportChoice(label:String,choices:List<Pair<String,String>>,value:St
 
 @Composable
 internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,onlyInvoices:Boolean=false){
- val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val repo=remember(session.userId){CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var entries by remember(session.userId){mutableStateOf<List<MobileDocument>>(emptyList())}
@@ -302,7 +302,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  var error by remember{mutableStateOf<String?>(null)}
  var opening by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
- val canUpload=session.role==PortalRole.FARMER
+ val canUpload=DocumentUploadRules.canUpload(session.role)
  var scopes by remember(session.userId){mutableStateOf(DocumentScopes(emptyList(),emptyList()))}
  var showUpload by remember{mutableStateOf(false)}
  var selectedFarm by remember{mutableStateOf<String?>(null)}
@@ -346,7 +346,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  Text(if(onlyInvoices)"A dokumentumtár számla kategóriájú iratai" else "A gazdaságod dokumentumtára",color=GrayText,fontSize=13.sp)
+  Text(if(onlyInvoices)"A dokumentumtár számla kategóriájú iratai" else if(session.role==PortalRole.ADVISOR)"Az ügyfelek hozzáférhető dokumentumtára" else "A gazdaságod dokumentumtára",color=GrayText,fontSize=13.sp)
   if(uploadNotice!=null)Text(uploadNotice!!,color=colors.accent,fontSize=13.sp)
   if(canUpload){
    Button(onClick={
@@ -358,7 +358,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
    },enabled=!loading&&scopes.farms.isNotEmpty(),colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
     Text("Dokumentum feltöltése")
    }
-   if(!loading&&scopes.farms.isEmpty())Text("Feltöltéshez saját gazdaság szükséges.",color=GrayText,fontSize=12.sp)
+   if(!loading&&scopes.farms.isEmpty())Text("Feltöltéshez elérhető gazdaság szükséges.",color=GrayText,fontSize=12.sp)
   }
   val visible=if(onlyInvoices)entries.filter{it.category=="szamla"}else entries
   if(loading)CircularProgressIndicator(color=colors.accent)
@@ -395,7 +395,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  if(showUpload&&canUpload){
   AlertDialog(onDismissRequest={if(!uploadBusy)showUpload=false},title={Text("Dokumentum feltöltése")},
    text={Column(Modifier.fillMaxWidth().heightIn(max=500.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
-    Text("PDF, JPG, PNG, WebP, DOC vagy DOCX · legfeljebb 20 MB. A dokumentum a saját gazdaságodhoz kerül.",color=GrayText,fontSize=12.sp)
+    Text("PDF, JPG, PNG, WebP, DOC vagy DOCX · legfeljebb 20 MB. A dokumentum a kiválasztott, jogosult gazdasághoz kerül.",color=GrayText,fontSize=12.sp)
     Box{
      OutlinedButton(onClick={farmMenu=true},enabled=!uploadBusy){
       Text("Gazdaság: ${scopes.farms.find{it.id==selectedFarm}?.name?:"Válassz gazdaságot"}")

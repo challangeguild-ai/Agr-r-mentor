@@ -1,7 +1,10 @@
 package hu.agrarmentor.android.data
 
+import hu.agrarmentor.android.model.PortalRole
+
 /** Matches the existing private documents Storage bucket and web uploader. */
 internal object DocumentUploadRules {
+ fun canUpload(role:PortalRole):Boolean=role==PortalRole.FARMER||role==PortalRole.ADVISOR
  const val MAX_BYTES=20L*1024*1024
  const val MAX_TITLE=200
  const val MAX_NOTES=500
