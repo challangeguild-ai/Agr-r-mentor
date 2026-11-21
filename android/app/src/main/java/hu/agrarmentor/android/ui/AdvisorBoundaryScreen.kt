@@ -3,6 +3,7 @@ package hu.agrarmentor.android.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -105,10 +106,10 @@ private fun BoundaryReviewCard(detail:MobileBoundaryReview,repo:AdvisorBoundaryR
  Text("Jelenlegi nézet: ${if(seenPrevious)"megnyitva" else "még nem nyitottad meg"} · Javasolt nézet: ${if(seenProposed)"megnyitva" else "még nem nyitottad meg"}",color=BoundaryMuted,fontSize=12.sp)
  error?.let{Text(it,color=BoundaryWarn,fontSize=12.sp)}
  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-  Button(onClick={decision=true},enabled=!saving&&!detail.stale&&seenPrevious&&seenProposed&&confirmed,modifier=Modifier.weight(1f)){
+  Button(onClick={decision=true},enabled=!saving&&!detail.stale&&seenPrevious&&seenProposed&&confirmed,modifier=Modifier.weight(1f),colors=ButtonDefaults.buttonColors(containerColor=colors.accent)){
    Text("Jóváhagyás",fontSize=12.sp)
   }
-  Button(onClick={decision=false},enabled=!saving,modifier=Modifier.weight(1f)){
+  Button(onClick={decision=false},enabled=!saving,modifier=Modifier.weight(1f),colors=ButtonDefaults.buttonColors(containerColor=BoundaryWarn)){
    Text("Elutasítás",fontSize=12.sp)
   }
  }

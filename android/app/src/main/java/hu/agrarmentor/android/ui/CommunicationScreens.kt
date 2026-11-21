@@ -40,6 +40,7 @@ import hu.agrarmentor.android.data.ReportMediaInput
 import hu.agrarmentor.android.data.ReportMediaRules
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
@@ -53,6 +54,7 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
  val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var entries by remember(session.userId){mutableStateOf<List<MobileNotification>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
+ var loadFailed by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
  var savingId by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
@@ -504,16 +506,18 @@ internal fun LiveProfileScreen(session:AuthorizedSession,colors:PortalPalette){
  var success by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(session.userId,revision){
-  loading=true;error=null
+  loading=true;error=null;loadFailed=false
   try{
    val profile=repo.profile(session)
    name=profile.name;phone=profile.phone;city=profile.city;jobTitle=profile.jobTitle
-  }catch(_:Exception){error="A profil nem tölthető be."}
+  }catch(e:CancellationException){throw e}
+  catch(_:Exception){loadFailed=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("A saját profiladatod szerkeszthető. A szerepkör és a jogosultság itt nem változtatható.",color=GrayText,fontSize=13.sp)
   if(loading)CircularProgressIndicator(color=colors.accent)
+  else if(loadFailed)LoadError(colors,onRetry={revision++})
   else{
    Card(colors){
     OutlinedTextField(name,{name=it;success=false},label={Text("Teljes név")},singleLine=true,modifier=Modifier.fillMaxWidth())

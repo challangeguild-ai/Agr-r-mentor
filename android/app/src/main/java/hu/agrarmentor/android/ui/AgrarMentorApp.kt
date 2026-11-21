@@ -148,27 +148,51 @@ private fun PortalShell(role:PortalRole,session:AuthorizedSession,reconnectWarni
  }
  BackHandler(enabled=drawerState.isOpen){scope.launch{drawerState.close()}}
 
- ModalNavigationDrawer(
-  drawerState=drawerState,
-  gesturesEnabled=true,
+ MaterialTheme(colorScheme=lightColorScheme(
+  primary=colors.accent,onPrimary=Color.White,
+  primaryContainer=colors.tint,onPrimaryContainer=colors.drawer,
+  secondary=colors.accent,onSecondary=Color.White,
+  secondaryContainer=colors.tint,onSecondaryContainer=colors.drawer,
+  background=CanvasCream,onBackground=DarkText,
+  surface=CardWhite,onSurface=DarkText,outline=colors.border
+ )){
+  ModalNavigationDrawer(
+   drawerState=drawerState,
+   gesturesEnabled=true,
    drawerContent={RoleDrawer(role,route,colors,onNavigate=::navigate,onClose={scope.launch{drawerState.close()}},onSignOut=onSignOut)}
- ){
-  Scaffold(
-   containerColor=CanvasCream,
-   topBar={AppHeader(colors,onMenu={scope.launch{drawerState.open()}})},
-   bottomBar={RoleBottomBar(role,route,colors,onNavigate=::navigate,onMenu={scope.launch{drawerState.open()}})}
-  ){insets->
-   PortalContent(role,route,colors,session,reconnectWarning,onNavigate=::navigate,modifier=Modifier.padding(insets))
+  ){
+   Scaffold(
+    containerColor=CanvasCream,
+    topBar={AppHeader(role,colors,onMenu={scope.launch{drawerState.open()}},onNavigate=::navigate)},
+    bottomBar={RoleBottomBar(role,route,colors,onNavigate=::navigate,onMenu={scope.launch{drawerState.open()}})}
+   ){insets->
+    PortalContent(role,route,colors,session,reconnectWarning,onNavigate=::navigate,modifier=Modifier.padding(insets))
+   }
   }
  }
 }
 
 @Composable
-private fun AppHeader(colors:PortalPalette,onMenu:()->Unit){
+private fun AppHeader(role:PortalRole,colors:PortalPalette,onMenu:()->Unit,onNavigate:(String)->Unit){
+ val attention=when(role){
+  PortalRole.FARMER->"/notifications"
+  PortalRole.ADVISOR->"/admin/reports"
+  PortalRole.SYSTEM_ADMIN->"/system-admin/security"
+ }
+ val profile=when(role){
+  PortalRole.FARMER->"/profile"
+  PortalRole.ADVISOR->"/admin/profile"
+  PortalRole.SYSTEM_ADMIN->"/system-admin/profile"
+ }
  Column(Modifier.fillMaxWidth().background(CardWhite).windowInsetsPadding(WindowInsets.statusBars)){
-  Row(Modifier.fillMaxWidth().heightIn(min=64.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
-   androidx.compose.foundation.Image(painterResource(R.drawable.agrar_mentor_logo_on_light),"Agrár Mentor",Modifier.width(168.dp).height(55.dp),contentScale=ContentScale.Fit)
+  Row(Modifier.fillMaxWidth().heightIn(min=60.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
+   androidx.compose.foundation.Image(painterResource(R.drawable.agrar_mentor_logo_on_light),"Agrár Mentor",Modifier.widthIn(max=148.dp).height(50.dp),contentScale=ContentScale.Fit)
    Spacer(Modifier.weight(1f))
+   IconButton(onClick={onNavigate(attention)}){
+    Icon(if(role==PortalRole.SYSTEM_ADMIN)Icons.Default.Warning else Icons.Default.Notifications,contentDescription=when(role){
+     PortalRole.FARMER->"Értesítések";PortalRole.ADVISOR->"Gazdálkodói jelzések";PortalRole.SYSTEM_ADMIN->"Biztonsági események"},tint=colors.accent)
+   }
+   IconButton(onClick={onNavigate(profile)}){Icon(Icons.Default.AccountCircle,contentDescription="Saját profil",tint=colors.accent)}
    IconButton(onClick=onMenu){Icon(Icons.Default.Menu,contentDescription="Teljes menü",tint=colors.accent)}
   }
   HorizontalDivider(color=colors.border)
@@ -330,6 +354,8 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{LiveFieldDetailScreen(route.removePrefix("/fields/").substringBefore('/'),session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/reports"&&session!=null){
     item{LiveAdvisorReportsScreen(session,colors)}
+   }else if(role==PortalRole.ADVISOR&&route=="/admin/profile"&&session!=null){
+    item{LiveProfileScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/visits")&&session!=null){
     item{AdvisorExtrasScreen(route,session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/operations"&&session!=null){
@@ -362,10 +388,12 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{AdvisorClientDossierScreen(route.removePrefix("/admin/clients/"),session,colors,onNavigate)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&(route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security","/system-admin/farms","/system-admin/fields")||route.startsWith("/system-admin/fields/"))&&session!=null){
     item{AdminWorkspaceScreen(route,session,colors,onNavigate)}
+   }else if(role==PortalRole.SYSTEM_ADMIN&&route=="/system-admin/profile"&&session!=null){
+    item{LiveProfileScreen(session,colors)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin/weather","/system-admin/backup")&&session!=null){
     item{AdvancedWebModuleScreen(route,colors,onNavigate)}
    }else{
-    item{GenericScreen(title,role,colors)}
+    item{GenericScreen(title,role,colors,onNavigate)}
    }
   }
   item{Spacer(Modifier.height(12.dp))}
@@ -840,11 +868,13 @@ private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNa
 }
 
 @Composable
-private fun GenericScreen(title:String,role:PortalRole,colors:PortalPalette){
+private fun GenericScreen(title:String,role:PortalRole,colors:PortalPalette,onNavigate:(String)->Unit){
  Card(colors){
   Text(title,fontSize=19.sp,fontWeight=FontWeight.Bold,color=DarkText)
-  Text("A ${role.title.lowercase()}i funkció Android-képernyőjének helye már szerepel a menüben.",fontSize=14.sp,color=MutedText)
-  Text("A működés és az éles adatok bekötése ebben a modulban még hátravan.",fontSize=13.sp,color=colors.accent)
+  Text("Ez az oldal nem érhető el ezzel a szerepkörrel vagy már nem létezik.",fontSize=14.sp,color=MutedText)
+  TextButton(onClick={onNavigate(NavigationCatalog.tabs(role).first().route)}){
+   Text("Vissza a kezdőlapra ›",color=colors.accent)
+  }
  }
 }
 

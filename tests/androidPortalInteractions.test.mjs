@@ -26,6 +26,25 @@ test("roles share the reference layout but keep green, blue and burgundy palette
  assert.match(theme,/colors\.drawer\.copy/);
  assert.match(theme,/R\.drawable\.agrar_fields_sunrise/);
  assert.ok(existsSync(join(root,"android/app/src/main/res/drawable-nodpi/agrar_fields_sunrise.webp")));
+ assert.match(main,/MaterialTheme\(colorScheme=lightColorScheme\(/);
+ assert.match(main,/primary=colors\.accent,onPrimary=Color\.White/);
+ assert.match(main,/primaryContainer=colors\.tint,onPrimaryContainer=colors\.drawer/);
+});
+
+test("reference-inspired header alerts and account buttons have real role-specific destinations",()=>{
+ for(const route of ["/notifications","/admin/reports","/system-admin/security","/profile","/admin/profile","/system-admin/profile"]){
+  assert.ok(main.includes(`"${route}"`),`${route} missing from routed header`);
+ }
+ assert.match(main,/IconButton\(onClick=\{onNavigate\(attention\)\}\)/);
+ assert.match(main,/IconButton\(onClick=\{onNavigate\(profile\)\}\)/);
+ assert.match(main,/role==PortalRole\.ADVISOR&&route=="\/admin\/profile"[\s\S]*?LiveProfileScreen/);
+ assert.match(main,/role==PortalRole\.SYSTEM_ADMIN&&route=="\/system-admin\/profile"[\s\S]*?LiveProfileScreen/);
+ assert.match(nav,/MobileDestination\("\/admin\/profile"/);
+ assert.match(nav,/MobileDestination\("\/system-admin\/profile"/);
+ const communication=read(`${ui}/CommunicationScreens.kt`);
+ assert.match(communication,/else if\(loadFailed\)LoadError\(colors,onRetry=\{revision\+\+\}\)/);
+ assert.doesNotMatch(main,/A működés és az éles adatok bekötése ebben a modulban még hátravan/);
+ assert.match(main,/Vissza a kezdőlapra ›/);
 });
 
 test("farmer overview KPI and priority entries open relevant modules",()=>{
