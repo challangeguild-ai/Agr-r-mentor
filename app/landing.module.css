@@ -21,3 +21,60 @@
  .processStep h3{font-size:12.5px}
  .processStep p{font-size:10px}
 }
+
+/* Unified visual system: original Agrár Mentor imagery, consistent typography and spacing. */
+.site{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--gold:#d6a83c;--ivory:#f8f8f2;--ink:#12392a;--green:#0b4933}
+.site section[id]{scroll-margin-top:78px}
+.header{background:rgba(250,251,245,.97);border-color:#e5eadf}
+.nav{gap:23px}.nav a{font-size:12px}
+.heroImage{background-image:url("/images/agrar-hero-generated.webp");background-position:center 52%;filter:saturate(.95)}
+.heroWash{background:linear-gradient(90deg,rgba(250,251,245,.97) 0%,rgba(250,251,245,.91) 32%,rgba(250,251,245,.64) 46%,rgba(250,251,245,.05) 72%)}
+.fieldThumb{background-image:url("/images/agrar-fields-sunrise.webp")}
+.serviceGrid article{border-radius:15px;border-color:#e2e9df;grid-template-columns:66px 1fr 16px;padding:15px;background:#fff;min-height:118px}
+.serviceGrid h3{font-size:16px}.serviceGrid p{font-size:13px;line-height:1.48}
+.serviceVisualField,.serviceVisualAdvisor,.serviceVisualDigital{display:block;width:64px;height:72px;border-radius:11px;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px rgba(14,65,42,.07)}
+.serviceVisualField{background-image:url("/images/agrar-hero-generated.webp");background-position:70% 70%}
+.serviceVisualAdvisor{background-image:url("/images/agrar-advisory-generated.webp");background-position:25% 50%}
+.serviceVisualDigital{background-image:url("/images/agrar-fields-sunrise.webp");background-position:50% 60%}
+.processStep p{font-size:12px;line-height:1.53}.processStep h3{font-size:14px}
+.stepIcon{background:linear-gradient(145deg,#ecf5e7,#dceada);color:#165b40;font-size:16px;font-weight:900;letter-spacing:.05em}
+.digitalScenery{background-image:url("/images/agrar-fields-sunrise.webp")}
+.dataBand{background-image:linear-gradient(90deg,rgba(5,56,39,.96),rgba(6,60,43,.89)),url("/images/agrar-hero-generated.webp")}
+.dataCopy>p{font-size:14px}.dataGrid p{font-size:12px;line-height:1.45}.dataGrid>div{min-height:66px;border-radius:10px}
+.dataGrid span{display:grid;place-items:center;background:rgba(211,177,85,.17);border:1px solid rgba(233,204,118,.36);border-radius:50%;width:31px;height:31px;color:#f2d37b;font-size:14px}
+.advisorPhoto{background-image:url("/images/agrar-advisory-generated.webp");background-position:34% 48%}
+.advisorCopy>p{font-size:15px;line-height:1.58}.advisorChips span{font-size:12px}
+.contact p{font-size:14px;line-height:1.55}.footer nav a{font-size:11px}
+.brandMarkLarge{width:100px;height:150px}.brandMarkLarge img{display:block;width:100%;height:100%;object-fit:contain}
+
+/* Android is a real product direction, while public APK distribution is not released yet. */
+.mobileSection{position:relative;overflow:hidden;background:linear-gradient(130deg,#073b2a 0%,#0a4932 52%,#123e2e 100%);color:#f8fbf6;border-top:1px solid rgba(224,215,157,.24);border-bottom:1px solid rgba(224,215,157,.24)}
+.mobileSection:before{content:"";position:absolute;inset:0;background-image:url("/images/agrar-hero-generated.webp");background-size:cover;background-position:center;opacity:.075;pointer-events:none}
+.mobileInner{position:relative;width:min(100%,1200px);margin:0 auto;padding:60px 42px;display:grid;grid-template-columns:.95fr 1.05fr;gap:75px;align-items:center}
+.mobileVisual{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:515px}
+.mobileGlow{position:absolute;width:min(100%,480px);height:440px;border-radius:50%;background:radial-gradient(circle,rgba(217,188,95,.21),rgba(104,159,106,.11) 43%,transparent 74%);filter:blur(8px)}
+.phoneMockup{position:relative;width:258px;height:488px;padding:10px 8px 8px;border-radius:36px;border:3px solid #48534c;background:#151e19;transform:rotate(-4deg);box-shadow:16px 28px 56px rgba(0,18,11,.48),inset 0 0 0 2px #101713;isolation:isolate}
+.phoneSpeaker{position:absolute;z-index:3;left:calc(50% - 28px);top:12px;width:56px;height:11px;border-radius:0 0 13px 13px;background:#151e19}
+.phoneScreen{height:100%;display:flex;flex-direction:column;overflow:hidden;padding:14px 12px 0;border-radius:27px;background:#f6f8f2;color:#163e2a}
+.phoneStatus{display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#315742;margin-bottom:15px;padding:0 3px}.phoneStatus span{letter-spacing:2px}
+.phoneAppBrand{padding:7px 0 10px;border-bottom:1px solid #e0e8db}.phoneAppLogo{width:133px;max-width:100%;height:auto}
+.phoneWelcome{display:grid;gap:4px;padding:17px 0 12px}.phoneWelcome small{font-size:8px;font-weight:900;letter-spacing:.12em;color:#6d826f}.phoneWelcome strong{font-size:21px;letter-spacing:-.04em}.phoneWelcome span{font-size:10px;color:#64796a}
+.phoneHighlight{display:grid;gap:5px;background:linear-gradient(135deg,#125e40,#0d462f);border-radius:13px;color:#fff;padding:14px 13px;box-shadow:0 10px 18px rgba(4,62,37,.14)}.phoneHighlight small{font-size:8px;color:#d4e7d9}.phoneHighlight strong{font-size:15px}.phoneHighlight span{font-size:9px;color:#e0ecde}
+.phoneCardGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:15px}.phoneCardGrid>div{min-height:66px;display:flex;flex-direction:column;justify-content:center;gap:5px;padding:11px;border:1px solid #e0e9dc;border-radius:10px;background:#fff}.phoneCardGrid b{font-size:10px}.phoneCardGrid span{font-size:8px;color:#7b8a7d}
+.phoneBottom{display:flex;justify-content:space-between;gap:5px;margin-top:auto;padding:12px 1px;border-top:1px solid #e2e9e0}.phoneBottom span{font-size:8px;color:#718475}.phoneBottom span:first-child{color:#1b7047;font-weight:900}
+.phoneCaption{margin:20px 0 0;color:#c4d7c8;font-size:11px;letter-spacing:.02em}
+.mobileEyebrow{display:inline-block;margin-bottom:16px;color:#edcd73;font-size:13px;letter-spacing:.18em;font-weight:900}
+.mobileCopy h2{margin:0;font-size:clamp(40px,4vw,57px);line-height:1.04;letter-spacing:-.05em;font-weight:850}.mobileCopy h2 em{font-style:normal;color:#e9c669}
+.mobileCopy>p{max-width:585px;margin:20px 0 0;color:#d8e5da;font-size:16px;line-height:1.7}
+.mobileFeatures{display:grid;gap:13px;padding:0;margin:25px 0 0;list-style:none}.mobileFeatures li{position:relative;padding-left:30px;color:#f1f7f0;font-size:14px;line-height:1.4}.mobileFeatures li:before{content:"✓";position:absolute;left:0;top:-2px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#0d4b31;background:#e7ca74;font-size:12px;font-weight:900}
+.mobileRelease{display:flex;align-items:center;flex-wrap:wrap;gap:11px;margin-top:28px}.androidLabel,.comingSoon{display:inline-flex;align-items:center;min-height:33px;border-radius:8px;padding:0 12px;font-size:11px;font-weight:900;letter-spacing:.04em}.androidLabel{background:#e2c96d;color:#173c2b}.comingSoon{border:1px solid rgba(238,218,154,.5);color:#efdfaf;background:rgba(255,255,255,.055)}
+.mobileCopy>.mobileHonesty{font-size:12px;line-height:1.6;color:#acc7b5;margin:14px 0 23px}
+.mobileLoginButton{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:9px;border:1px solid #e0c87b;background:#fffef4;color:#15422e;font-size:13px;font-weight:900;cursor:pointer;transition:background .2s ease,transform .2s ease}.mobileLoginButton:hover{background:#fff7d8;transform:translateY(-2px)}
+@media(max-width:1080px){.mobileInner{grid-template-columns:1fr 1fr;gap:36px;padding:46px 26px}.mobileCopy h2{font-size:42px}}
+@media(max-width:760px){
+ .heroImage{background-position:68% 50%}.heroAssurances span{font-size:12px}
+ .serviceGrid article{grid-template-columns:60px 1fr 16px;min-height:94px}.serviceVisualField,.serviceVisualAdvisor,.serviceVisualDigital{width:58px;height:64px}
+ .services h2,.processSection>h2{font-size:28px}.processStep p{font-size:12px}.processStep h3{font-size:13px}
+ .mobileInner{display:flex;flex-direction:column-reverse;gap:14px;padding:43px 20px 38px}.mobileCopy h2{font-size:37px}.mobileCopy>p{font-size:15px}.mobileFeatures li{font-size:13px}.mobileVisual{min-height:456px;width:100%}.mobileGlow{height:390px}.phoneMockup{transform:rotate(-3deg) scale(.9)}.phoneCaption{margin:0;font-size:10px}
+ .dataGrid p{font-size:11px}.advisorCopy>p{font-size:14px}.contact p{font-size:13px}
+}
