@@ -43,7 +43,7 @@ internal fun AdvancedWebModuleScreen(route:String,colors:PortalPalette,onNavigat
 
 /** Opens the separate web session, never putting the Android access token in the URL. */
 @Composable
-internal fun WebModuleOpenButton(path:String,colors:PortalPalette){
+internal fun WebModuleOpenButton(path:String,colors:PortalPalette,label:String="Megnyitás a webes Agrár Mentorban ›"){
  val uriHandler=LocalUriHandler.current
  var openError by remember(path){mutableStateOf(false)}
  TextButton(onClick={
@@ -51,6 +51,6 @@ internal fun WebModuleOpenButton(path:String,colors:PortalPalette){
   val url=safeWebModuleUrl(BuildConfig.WEB_ORIGIN,path)
   if(url==null)openError=true
   else runCatching{uriHandler.openUri(url)}.onFailure{openError=true}
- }){Text("Megnyitás a webes Agrár Mentorban ›",color=colors.accent)}
+ }){Text(label,color=colors.accent)}
  if(openError)Text("A biztonságos webcím nem nyitható meg. Ellenőrizd a kapcsolatot és a kiadási konfigurációt.",color=Color(0xFFC1453B),fontSize=12.sp)
 }

@@ -47,17 +47,9 @@ class NavigationCatalogTest {
    assertFalse(NavigationCatalog.farmer.any{it.route==path})
   }
  }
- @Test fun everyRoleHasItsOwnAccountPage(){
-  val profiles=mapOf(
-   PortalRole.FARMER to "/profile",
-   PortalRole.ADVISOR to "/admin/profile",
-   PortalRole.SYSTEM_ADMIN to "/system-admin/profile"
-  )
-  for((role,route) in profiles){
-   assertTrue(NavigationCatalog.menu(role).any{it.route==route})
-   for(other in PortalRole.entries.filter{it!=role}){
-    assertFalse(NavigationCatalog.menu(other).any{it.route==route})
-   }
-  }
+ @Test fun plantRecommendationsAreAdvisorOnly(){
+  assertTrue(NavigationCatalog.advisor.any{it.route=="/admin/recommendations"})
+  assertFalse(NavigationCatalog.farmer.any{it.route=="/admin/recommendations"})
+  assertFalse(NavigationCatalog.admin.any{it.route=="/admin/recommendations"})
  }
 }

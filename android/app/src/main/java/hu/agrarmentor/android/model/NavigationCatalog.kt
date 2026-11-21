@@ -44,10 +44,10 @@ object NavigationCatalog {
   MobileDestination("/admin/map/quality","Határminőség","Szakmai eszközök"),
   MobileDestination("/admin/map/import","Térképimport","Szakmai eszközök"),
   MobileDestination("/admin/plant-protection-import","Növényvédelem","Szakmai eszközök"),
+  MobileDestination("/admin/recommendations","Növényvédelmi ajánlások","Szakmai eszközök"),
   MobileDestination("/admin/documents","Dokumentumok","Szakmai eszközök"),
   MobileDestination("/admin/timeline","Idővonal","Szakmai eszközök"),
-  MobileDestination("/admin/reports","Jelentések","Szakmai eszközök"),
-  MobileDestination("/admin/profile","Profil és beállítások","Fiók")
+  MobileDestination("/admin/reports","Jelentések","Szakmai eszközök")
  )
  val admin=listOf(
   MobileDestination("/system-admin","Rendszeráttekintés","Rendszer"),
@@ -57,8 +57,7 @@ object NavigationCatalog {
  MobileDestination("/system-admin/fields","Földtáblák","Nyilvántartás"),
   MobileDestination("/system-admin/security","Biztonsági események","Rendszer"),
   MobileDestination("/system-admin/weather","HungaroMet kapcsolat","Rendszer"),
-  MobileDestination("/system-admin/backup","Biztonsági mentés","Rendszer"),
-  MobileDestination("/system-admin/profile","Profil és beállítások","Fiók")
+  MobileDestination("/system-admin/backup","Biztonsági mentés","Rendszer")
  )
 
  fun menu(role:PortalRole):List<MobileDestination> = when(role){
