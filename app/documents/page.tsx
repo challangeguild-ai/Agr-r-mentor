@@ -34,12 +34,12 @@ export default async function DocumentsPage(){
     <BlockHelpButton label="A dokumentumtár magyarázata" content={{title:"Dokumentumtár",body:"A dokumentumok gazdasághoz vagy földtáblához kapcsolva kereshetők vissza. A szűrők és a kereső gyorsan szűkítik a listát.",important:"A pontos kategória és hozzárendelés segíti a későbbi visszakeresést."}}/>
    </section>
 
-   <details className={styles.uploadDisclosure}>
+   <details className={styles.uploadDisclosure} data-help-block="documents-upload">
     <summary>+ Feltöltés</summary>
     <div className={styles.uploadCard}><div className={styles.uploadHead}><div><span>ÚJ DOKUMENTUM</span><h2>Dokumentum feltöltése</h2></div></div><DocumentUploadForm farms={farms??[]} fields={fields??[]}/></div>
    </details>
 
-   <section className={styles.libraryCard}>
+   <section className={styles.libraryCard} data-help-block="documents-library">
     <div className={styles.libraryHead}><div><h2>Dokumentumtár</h2><p>{documents.length} dokumentum</p></div></div>
     <DocumentLibrary items={documents} currentUserId={user.id}/>
    </section>

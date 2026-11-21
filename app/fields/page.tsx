@@ -66,7 +66,7 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
     </div>
    </section>
 
-   <section className={styles.workspace} data-mode={mode}>
+   <section className={styles.workspace} data-mode={mode} data-help-block="fields-register">
     <div className={styles.list}>
      {visibleFields.length?visibleFields.map(field=>{const farm=farmMap.get(field.farm_id);const ins=latestInspection.get(field.id);const fieldTasks=(tasks??[]).filter(t=>t.field_id===field.id&&t.status!=="done");const state=ins?.condition||"none";const inactive=field.status==="inactive"||field.status==="archived";const cardOutline=inactive?"":state==="critical"?styles.fieldCritical:state==="attention"?styles.fieldAttention:state==="good"?styles.fieldGood:"";return <Link className={`${styles.fieldCard} ${cardOutline}`} href={`/fields/${field.id}`} key={field.id}>
       <FieldMiniMap className={styles.thumb} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/>

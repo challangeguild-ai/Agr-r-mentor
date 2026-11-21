@@ -83,7 +83,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
 
   <div className={styles.viewport}>
    {query&&<section className={styles.searchResults}><div className={styles.searchResultsHead}><strong>Keresési találatok</strong><Link href="/dashboard">Bezárás ×</Link></div>{searchResults.length?<div className={styles.searchResultsGrid}>{searchResults.map(r=><Link href={r.href} key={r.key}><span>{r.kind}</span><strong>{r.title}</strong><small>{r.meta}</small></Link>)}</div>:<div className={styles.searchEmpty}>Nincs találat erre: <b>{q}</b></div>}</section>}
-   <section className={styles.hero}>
+   <section className={styles.hero} data-help-block="dashboard-alerts">
     <div>
      <div className={styles.heroTitleRow}><strong>Mai munkaközpont</strong><span>{today}</span></div>
      <h1>Ma <em>{attentionCount}</em> dolog igényel figyelmet</h1>
@@ -98,7 +98,7 @@ export default async function DashboardPage({searchParams}:{searchParams:Promise
     <div className={styles.heroAside}><blockquote>„Jobb döntések.<br/>Eredményesebb gazdálkodás.”</blockquote><span className={styles.heroRule}/><small>{totalArea.toLocaleString("hu-HU",{maximumFractionDigits:2})} ha · {fields?.length??0} tábla</small></div>
    </section>
 
-   <section className={styles.summaryGrid}>
+   <section className={styles.summaryGrid} data-help-block="dashboard-summary">
     <Link href="/fields" className={[styles.summaryCard,styles.summaryRed].join(" ")}><span className={styles.summaryIcon}>!</span><div><small>Kritikus táblák</small><strong>{critical.length}</strong><p>{attention.length} további figyelmet igényel</p></div><b className={styles.cardArrow}>›</b></Link>
     <Link href="/tasks" className={[styles.summaryCard,styles.summaryOrange].join(" ")}><span className={styles.summaryIcon}>◷</span><div><small>Lejárt feladatok</small><strong>{overdue.length}</strong><p>{openTasks.length} nyitott feladat összesen</p></div><b className={styles.cardArrow}>›</b></Link>
     <Link href="/tasks" className={[styles.summaryCard,styles.summaryGold].join(" ")}><span className={styles.summaryIcon}>◉</span><div><small>Ellenőrzésre vár</small><strong>{waitingReview.length}</strong><p>Beküldött végrehajtások</p></div><b className={styles.cardArrow}>›</b></Link>
