@@ -606,7 +606,7 @@ private fun LiveOperationDetailScreen(operationId:String,session:AuthorizedSessi
  val back=if(session.role==PortalRole.ADVISOR)"/admin/operations" else "/operations"
  LaunchedEffect(session.accessToken,operationId,revision){
   loading=true;failed=false
-  try{operation=repository.operations(session).find{it.id==operationId}}
+  try{operation=repository.operation(session,operationId)}
   catch(e:CancellationException){throw e}
   catch(_:Exception){failed=true}
   finally{loading=false}

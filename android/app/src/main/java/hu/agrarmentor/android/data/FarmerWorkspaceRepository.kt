@@ -69,6 +69,18 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   rows.filter{it.optString("field_id") in fieldNames}.map{row->operation(row,fieldNames)}
  }
 
+ /** Detail pages fetch exactly one authorized operation and its visible field. */
+ suspend fun operation(session:AuthorizedSession,operationId:String):MobileOperation? = withContext(Dispatchers.IO){
+  require(validMapFieldId(operationId)){"Érvénytelen műveletazonosító."}
+  val row=fetch("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&id=eq.$operationId&limit=1",session.accessToken)
+   .optJSONObject(0)?:return@withContext null
+  val fieldId=row.optString("field_id")
+  require(validMapFieldId(fieldId)){"Érvénytelen földtábla-azonosító."}
+  val field=fetch("fields?select=id,name&id=eq.$fieldId&limit=1",session.accessToken)
+   .optJSONObject(0)?:return@withContext null
+  operation(row,mapOf(fieldId to field.optString("name","Földtábla")))
+ }
+
  suspend fun field(session:AuthorizedSession,fieldId:String):MobileFieldDetail = withContext(Dispatchers.IO){
   // Never interpolate an untrusted path or query fragment into PostgREST filters.
   require(validMapFieldId(fieldId)){"Érvénytelen táblaazonosító."}

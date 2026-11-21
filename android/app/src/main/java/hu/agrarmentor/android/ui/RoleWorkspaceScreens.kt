@@ -602,13 +602,15 @@ private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
  var search by remember{mutableStateOf("")}
  var shown by remember{mutableIntStateOf(40)}
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){PortalMetric("Gazdálkodók",data.users.count{it.role=="farmer"}.toString(),colors){roleFilter="farmer"}}
-  Box(Modifier.weight(1f)){PortalMetric("Szaktanácsadók",data.users.count{it.role=="advisor"}.toString(),colors){roleFilter="advisor"}}
+  Box(Modifier.weight(1f)){PortalMetric("Gazdálkodók",data.users.count{it.role=="farmer"&&it.systemRole!="admin"}.toString(),colors){roleFilter="farmer";shown=40}}
+  Box(Modifier.weight(1f)){PortalMetric("Szaktanácsadók",data.users.count{it.role=="advisor"&&it.systemRole!="admin"}.toString(),colors){roleFilter="advisor";shown=40}}
  }
- Text("Rendszeradminisztrátorok: ${data.users.count{it.systemRole=="admin"}}",fontSize=13.sp,color=SoftInk)
- if(roleFilter!=null)TextButton(onClick={roleFilter=null;shown=40}){Text("Szűrés törlése · ${if(roleFilter=="farmer")"Gazdálkodók" else "Szaktanácsadók"}",color=colors.accent)}
+ PortalMetric("Rendszeradminisztrátorok",data.users.count{it.systemRole=="admin"}.toString(),colors){roleFilter="admin";shown=40}
+ if(roleFilter!=null)TextButton(onClick={roleFilter=null;shown=40}){
+  Text("Szűrés törlése · ${when(roleFilter){"farmer"->"Gazdálkodók";"advisor"->"Szaktanácsadók";else->"Adminisztrátorok"}}",color=colors.accent)
+ }
  OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Felhasználó keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
- val users=data.users.filter{(roleFilter==null||it.role==roleFilter)&&
+ val users=data.users.filter{(roleFilter==null||if(roleFilter=="admin")it.systemRole=="admin" else it.systemRole!="admin"&&it.role==roleFilter)&&
   (it.name.contains(search,true)||it.phone?.contains(search,true)==true)}
  Text("${users.size} találat",color=SoftInk,fontSize=12.sp)
  if(users.isEmpty())Text("Nincs a szűrésnek megfelelő felhasználó.",color=SoftInk,fontSize=12.sp)

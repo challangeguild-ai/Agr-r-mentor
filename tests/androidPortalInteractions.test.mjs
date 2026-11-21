@@ -98,6 +98,13 @@ test("admin farm card drills into associated fields and their actual metadata",(
  assert.match(workspace,/field\.areaHa\?\.let\{Text\("Terület: \$it ha"\)\}/);
 });
 
+test("admin accounts cannot inflate the farmer or advisor counts",()=>{
+ assert.match(workspace,/data\.users\.count\{it\.role=="farmer"&&it\.systemRole!="admin"\}/);
+ assert.match(workspace,/data\.users\.count\{it\.role=="advisor"&&it\.systemRole!="admin"\}/);
+ assert.match(workspace,/PortalMetric\("Rendszeradminisztrátorok"/);
+ assert.match(workspace,/if\(roleFilter=="admin"\)it\.systemRole=="admin"/);
+});
+
 test("web operation audit button has a strictly validated route",()=>{
  const link=read("android/app/src/main/java/hu/agrarmentor/android/data/WebModuleLink.kt");
  const linkTest=read("android/app/src/test/java/hu/agrarmentor/android/data/WebModuleLinkTest.kt");
@@ -105,4 +112,12 @@ test("web operation audit button has a strictly validated route",()=>{
  assert.match(link,/validMapFieldId\(path\.removePrefix\("\/operations\/"\)\)/);
  assert.match(linkTest,/\/operations\/\.\.\/\.\.\/system-admin\/backup/);
  assert.doesNotMatch(main,/AdvisorWorkspaceScreen\("\/admin",session,colors,onNavigate\)/);
+});
+
+test("an operation detail never downloads every operation from a farm",()=>{
+ const repo=read("android/app/src/main/java/hu/agrarmentor/android/data/FarmerWorkspaceRepository.kt");
+ assert.match(repo,/suspend fun operation\(session:AuthorizedSession,operationId:String\):MobileOperation\?/);
+ assert.match(repo,/require\(validMapFieldId\(operationId\)\)/);
+ assert.match(repo,/&id=eq\.\$operationId&limit=1/);
+ assert.match(main,/operation=repository\.operation\(session,operationId\)/);
 });
