@@ -22,14 +22,14 @@ export default async function SystemAdminWeatherPage(){
    <Link href="/system-admin">← Rendszeráttekintés</Link>
   </header>
 
-  <section className={styles.summary}>
-   <article><small>Cron állapot</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Konfigurálva":"CRON_SECRET hiányzik"}</strong><span>Vercel napi szinkron</span></article>
+  <section className={styles.summary} data-help-block="admin-weather-summary">
+   <article><small>Cron állapot</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Konfigurálva":"CRON_SECRET hiányzik"}</strong><span>A beállítás önmagában nem igazol sikeres adatbeérkezést</span></article>
    <article><small>Mérhető táblák</small><strong>{mappable}</strong><span>Koordinátával / geometriával</span></article>
    <article><small>Időjárási adattal</small><strong>{fieldIds.size}</strong><span>Legalább egy HungaroMet sor</span></article>
    <article><small>Legfrissebb adat</small><strong className={styles.date}>{latest?.weather_date||"—"}</strong><span>{latest?fmt(latest.fetched_at):"Még nincs szinkron"}</span></article>
   </section>
 
-  <section className={styles.panel}>
+  <section className={styles.panel} data-help-block="admin-weather-sync">
    <div className={styles.panelHead}><div><span>KÉZI VISSZAELLENŐRZÉS</span><h2>Szinkron futtatása most</h2><p>A kézi futtatás ugyanazt a fail-safe szinkronmotort használja, mint a napi Vercel Cron.</p></div>
     <form action={syncWeatherNow}><button type="submit">HungaroMet szinkron indítása →</button></form>
    </div>
@@ -41,7 +41,7 @@ export default async function SystemAdminWeatherPage(){
    </div>
   </section>
 
-  <section className={styles.panel}>
+  <section className={styles.panel} data-help-block="admin-weather-history">
    <div className={styles.panelHead}><div><span>ÜZEMELTETÉSI BIZONYÍTÉK</span><h2>Legutóbbi szinkronok</h2></div></div>
    {runs?.length?<div className={styles.runList}>{runs.map(run=><article key={run.id}><div><strong>{run.status==="success"?"Sikeres":run.status==="partial"?"Részleges":run.status==="failed"?"Sikertelen":"Fut"}</strong><small>{fmt(run.started_at)} → {fmt(run.finished_at)}</small></div><dl><div><dt>Táblák</dt><dd>{run.fields_synced??0}/{run.fields_total??0}</dd></div><div><dt>Állomások</dt><dd>{run.stations_requested??0}</dd></div><div><dt>Hibás állomás</dt><dd>{run.stations_failed??0}</dd></div><div><dt>Adatsor</dt><dd>{run.observations_upserted??0}</dd></div><div><dt>Idővonal</dt><dd>{run.timeline_inserted??0}</dd></div></dl>{Array.isArray(run.error_summary)&&run.error_summary.length>0&&<pre>{JSON.stringify(run.error_summary,null,2)}</pre>}</article>)}</div>:<div className={styles.empty}>Még nincs rögzített időjárási szinkronfutás.</div>}
   </section>
