@@ -47,6 +47,7 @@ import hu.agrarmentor.android.data.MobileTask
 import hu.agrarmentor.android.data.OperationCreateRepository
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
