@@ -88,6 +88,14 @@ test("system admin gets native searchable farms and fields without bypassing per
  assert.match(workspace,/Card\(colors,onClick=\{opened=index\}\)/);
 });
 
+test("read-only Android admin workflows open their corresponding secured web actions",()=>{
+ const allowed=read("android/app/src/main/java/hu/agrarmentor/android/data/WebModuleLink.kt");
+ for(const path of ["/system-admin/users","/system-admin/support","/system-admin/security"]){
+  assert.ok(workspace.includes(`WebModuleOpenButton("${path}",colors`),`${path} has no UI action`);
+  assert.ok(allowed.includes(`"${path}"`),`${path} is blocked by the safe web allowlist`);
+ }
+});
+
 test("field tabs and operation cards open native details for both authorized roles",()=>{
  for(const title of ["Áttekintés","Teendők","Műveletek","Időjárás","Térkép"]){
   assert.ok(main.includes(`"${title}"`),`${title} tab missing`);
