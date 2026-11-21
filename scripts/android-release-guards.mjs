@@ -34,7 +34,7 @@ export function isPublicSupabaseKey(value){
  }catch{return false}
 }
 
-/** Debug test APKs may omit configuration only when clearly labelled as demo. */
+/** Even a DEBUG APK must have real, strictly validated login configuration. */
 export function validateAndroidTestConfig(env,expected=targets){
  const errors=[];
  if(!exactHttpsOrigin(env.AGRAR_SUPABASE_URL,`${expected.supabaseProjectId}.supabase.co`))

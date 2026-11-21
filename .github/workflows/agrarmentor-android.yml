@@ -58,23 +58,17 @@ jobs:
       - name: Gradle wrapper engedélyezése
         run: chmod +x ./gradlew
 
-      - name: Teszt-APK kapcsolati módjának ellenőrzése
-        id: test-config
-        run: |
-          set -euo pipefail
-          if [[ -z "$AGRAR_SUPABASE_PUBLISHABLE_KEY" ]]; then
-            echo 'mode=DEMO' >> "$GITHUB_OUTPUT"
-            echo 'Nincs teszt publishable kulcs: csak mintaadatokkal futó UI-próba készül.'
-          else
-            node ../scripts/android-release-guards.mjs test-config
-            echo 'mode=KAPCSOLT' >> "$GITHUB_OUTPUT"
-            echo 'Supabase-hez kapcsolódó belső teszt-APK készül.'
-          fi
-
       - name: Natív Kotlin tesztek és ellenőrző fordítás
         # The unsigned release is compiled but NEVER uploaded here.
         # A DEBUG-only test artifact is allowed on this development branch.
         run: ./gradlew --no-daemon testDebugUnitTest testReleaseUnitTest assembleDebug assembleRelease
+
+      - name: Kötelező valódi Supabase-kapcsolat ellenőrzése
+        # Compile tests even before configuration is available, but NEVER publish an unusable APK.
+        run: |
+          set -euo pipefail
+          node ../scripts/android-release-guards.mjs test-config
+          echo 'A bejelentkezést és szerveroldali szerepkör-ellenőrzést használó belső teszt-APK készül.'
 
       - name: Debug teszt-APK csomagazonosító és aláírás ellenőrzése
         if: github.ref == 'refs/heads/feat/agrarmentor-android-native'
@@ -89,7 +83,7 @@ jobs:
         if: github.ref == 'refs/heads/feat/agrarmentor-android-native'
         uses: actions/upload-artifact@v4
         with:
-          name: AgrarMentor-ANDROID-TESZT-${{ steps.test-config.outputs.mode }}-${{ github.run_number }}
+          name: AgrarMentor-ANDROID-TESZT-KAPCSOLT-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7

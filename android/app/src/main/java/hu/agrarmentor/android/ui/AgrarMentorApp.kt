@@ -1,7 +1,6 @@
 package hu.agrarmentor.android.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,8 +18,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -50,9 +47,8 @@ import hu.agrarmentor.android.data.MobileTask
 import hu.agrarmentor.android.data.OperationCreateRepository
 import hu.agrarmentor.android.model.NavigationCatalog
 import hu.agrarmentor.android.model.PortalRole
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -73,40 +69,18 @@ private fun palette(role:PortalRole)=when(role){
 }
 
 /**
- * The approved A-design navigation in one native Android application.
- * demoMode is strictly for local UI review. Release uses Supabase Auth and
- * the verified profile (plus MFA for privileged accounts), never a role chooser.
+ * Every new application process starts at sign-in. There are no demo users or
+ * role switches: the server-verified profile selects the only permitted portal.
  */
 @Composable
-fun AgrarMentorApp(demoMode:Boolean){
+fun AgrarMentorApp(){
  var session by remember{mutableStateOf<AuthorizedSession?>(null)}
  val gateway=remember{SupabaseAuthGateway(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY,BuildConfig.WEB_ORIGIN)}
  val context=LocalContext.current
- val secureStore=remember{SecureSessionStore(context)}
  val scope=rememberCoroutineScope()
- var restoring by remember{mutableStateOf(!demoMode)}
  var reconnectWarning by remember{mutableStateOf(false)}
- LaunchedEffect(demoMode){
-  if(!demoMode){
-   try{
-    val stored=withContext(Dispatchers.IO){secureStore.loadRefreshToken()}
-    if(stored!=null){
-     when(val result=gateway.refresh(stored)){
-      is SignInResult.Authorized->{
-       withContext(Dispatchers.IO){secureStore.saveRefreshToken(result.session.refreshToken)}
-       session=result.session
-      }
-      is SignInResult.Failed->if(result.reauthenticationRequired){
-       withContext(Dispatchers.IO){secureStore.clear()}
-      }
-      is SignInResult.NeedsMfa->withContext(Dispatchers.IO){secureStore.clear()}
-     }
-    }
-   }catch(e:CancellationException){throw e}
-   catch(_:Exception){/* Device without available keystore can still log in for this run. */}
-   finally{restoring=false}
-  }
- }
+ // Remove refresh tokens left by older test versions; new launches never restore sessions.
+ LaunchedEffect(Unit){withContext(Dispatchers.IO){runCatching{SecureSessionStore(context).clear()}}}
  LaunchedEffect(session?.accessToken){
   val current=session?:return@LaunchedEffect
   while(true){
@@ -114,25 +88,19 @@ fun AgrarMentorApp(demoMode:Boolean){
    when(val result=gateway.refresh(current.refreshToken)){
     is SignInResult.Authorized->{
      if(result.session.userId!=current.userId||result.session.role!=current.role){
-      withContext(Dispatchers.IO){secureStore.clear()}
       session=null
      }else{
-      try{withContext(Dispatchers.IO){secureStore.saveRefreshToken(result.session.refreshToken)}}
-      catch(e:CancellationException){throw e}
-      catch(_:Exception){/* Keep the current session in memory if device storage is unavailable. */}
       reconnectWarning=false
       session=result.session
      }
      break
     }
     is SignInResult.NeedsMfa->{
-     withContext(Dispatchers.IO){secureStore.clear()}
      session=null
      break
     }
     is SignInResult.Failed->{
      if(result.reauthenticationRequired){
-      withContext(Dispatchers.IO){secureStore.clear()}
       session=null
       break
      }
@@ -142,41 +110,27 @@ fun AgrarMentorApp(demoMode:Boolean){
    }
   }
  }
- if(restoring&&!demoMode){
-  Box(Modifier.fillMaxSize().background(CanvasCream),contentAlignment=Alignment.Center){
-   CircularProgressIndicator(color=Color(0xFF0A613C))
-  }
-  return
- }
- if(!demoMode&&session==null){
+ if(session==null){
   SignInScreen(gateway,onAuthenticated={authenticated->
-   scope.launch{
-    try{withContext(Dispatchers.IO){secureStore.saveRefreshToken(authenticated.refreshToken)}}
-    catch(e:CancellationException){throw e}
-    catch(_:Exception){/* Do not prevent this run's login if Keystore is unavailable. */}
-    session=authenticated
-    reconnectWarning=false
-   }
+   session=authenticated
+   reconnectWarning=false
   })
   return
  }
- val initialRole=if(demoMode)PortalRole.FARMER else session!!.role
- key(initialRole,demoMode){
-  PortalShell(initialRole,demoMode,session,reconnectWarning,onSignOut={
-   val accessToken=session?.accessToken
+ val authenticated=session!!
+ key(authenticated.userId,authenticated.role){
+  PortalShell(authenticated.role,authenticated,reconnectWarning,onSignOut={
+   val accessToken=authenticated.accessToken
    session=null
-   scope.launch{
-    withContext(Dispatchers.IO){secureStore.clear()}
-    if(accessToken!=null)gateway.signOut(accessToken)
-   }
+   reconnectWarning=false
+   // Invalidate the server session; no refresh token is persisted on the device.
+   scope.launch{gateway.signOut(accessToken)}
   })
  }
 }
 
 @Composable
-private fun PortalShell(initialRole:PortalRole,demoMode:Boolean,session:AuthorizedSession?,reconnectWarning:Boolean,onSignOut:()->Unit){
- var roleKey by rememberSaveable{mutableStateOf(initialRole.name)}
- val role=PortalRole.valueOf(roleKey)
+private fun PortalShell(role:PortalRole,session:AuthorizedSession,reconnectWarning:Boolean,onSignOut:()->Unit){
  var route by rememberSaveable{mutableStateOf(NavigationCatalog.tabs(role).first().route)}
  val history=remember{mutableStateListOf<String>()}
  val drawerState=rememberDrawerState(initialValue=DrawerValue.Closed)
@@ -196,40 +150,24 @@ private fun PortalShell(initialRole:PortalRole,demoMode:Boolean,session:Authoriz
  ModalNavigationDrawer(
   drawerState=drawerState,
   gesturesEnabled=true,
-   drawerContent={RoleDrawer(role,route,colors,onNavigate=::navigate,onClose={scope.launch{drawerState.close()}},onSignOut=if(demoMode)null else onSignOut)}
+   drawerContent={RoleDrawer(role,route,colors,onNavigate=::navigate,onClose={scope.launch{drawerState.close()}},onSignOut=onSignOut)}
  ){
   Scaffold(
    containerColor=CanvasCream,
-   topBar={AppHeader(role,colors,showDemoSwitch=demoMode,onMenu={scope.launch{drawerState.open()}},onRolePreview={previewRole->
-    roleKey=previewRole.name
-    route=NavigationCatalog.tabs(previewRole).first().route
-    history.clear()
-    scope.launch{drawerState.close()}
-   })},
+   topBar={AppHeader(colors,onMenu={scope.launch{drawerState.open()}})},
    bottomBar={RoleBottomBar(role,route,colors,onNavigate=::navigate,onMenu={scope.launch{drawerState.open()}})}
   ){insets->
-   PortalContent(role,route,colors,demoMode,session,reconnectWarning,onNavigate=::navigate,modifier=Modifier.padding(insets))
+   PortalContent(role,route,colors,session,reconnectWarning,onNavigate=::navigate,modifier=Modifier.padding(insets))
   }
  }
 }
 
 @Composable
-private fun AppHeader(role:PortalRole,colors:PortalPalette,showDemoSwitch:Boolean,onMenu:()->Unit,onRolePreview:(PortalRole)->Unit){
- var chooseRole by remember{mutableStateOf(false)}
+private fun AppHeader(colors:PortalPalette,onMenu:()->Unit){
  Column(Modifier.fillMaxWidth().background(CardWhite).windowInsetsPadding(WindowInsets.statusBars)){
   Row(Modifier.fillMaxWidth().heightIn(min=64.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
    androidx.compose.foundation.Image(painterResource(R.drawable.agrar_mentor_logo_on_light),"Agrár Mentor",Modifier.width(168.dp).height(55.dp),contentScale=ContentScale.Fit)
    Spacer(Modifier.weight(1f))
-   if(showDemoSwitch)Box{
-    TextButton(onClick={chooseRole=true},contentPadding=PaddingValues(horizontal=5.dp,vertical=3.dp)){
-     Text("DEMÓ",fontSize=11.sp,color=colors.accent,fontWeight=FontWeight.Bold)
-    }
-    DropdownMenu(expanded=chooseRole,onDismissRequest={chooseRole=false}){
-     PortalRole.entries.forEach{preview->
-      DropdownMenuItem(text={Text(preview.title)},onClick={chooseRole=false;onRolePreview(preview)})
-     }
-    }
-   }
    IconButton(onClick=onMenu){Icon(Icons.Default.Menu,contentDescription="Teljes menü",tint=colors.accent)}
   }
   HorizontalDivider(color=colors.border)
@@ -274,7 +212,7 @@ private fun tabIcon(index:Int,role:PortalRole) = when(role){
 }
 
 @Composable
-private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavigate:(String)->Unit,onClose:()->Unit,onSignOut:(()->Unit)?){
+private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavigate:(String)->Unit,onClose:()->Unit,onSignOut:()->Unit){
  var query by remember(role){mutableStateOf("")}
  val normalize:(String)->String={it.lowercase().normalizeForSearch()}
  val groups=NavigationCatalog.menu(role)
@@ -317,10 +255,8 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
     }
     if(groups.isEmpty())item{Text("Nincs ilyen menüpont.",Modifier.padding(20.dp),color=MutedText)}
    }
-   if(onSignOut!=null){
-    HorizontalDivider(color=colors.border)
-    TextButton(onClick=onSignOut,modifier=Modifier.fillMaxWidth().padding(10.dp)){Text("Kijelentkezés",color=colors.accent,fontWeight=FontWeight.Bold)}
-   }
+   HorizontalDivider(color=colors.border)
+   TextButton(onClick=onSignOut,modifier=Modifier.fillMaxWidth().padding(10.dp)){Text("Kijelentkezés",color=colors.accent,fontWeight=FontWeight.Bold)}
   }
  }
 }
@@ -328,7 +264,7 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
 private fun String.normalizeForSearch()=java.text.Normalizer.normalize(this,java.text.Normalizer.Form.NFD).replace(Regex("[\\u0300-\\u036f]"),"")
 
 @Composable
-private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demoMode:Boolean,session:AuthorizedSession?,reconnectWarning:Boolean,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
+private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,session:AuthorizedSession,reconnectWarning:Boolean,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
  val title=NavigationCatalog.find(role,route)?.title ?: when {
   route.startsWith("/fields/")->"Tábla részletei"
   route.startsWith("/admin/clients/")->"Ügyféldosszié"
@@ -338,12 +274,12 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
   item{
    Text(role.title.uppercase(),color=colors.accent,fontSize=11.sp,fontWeight=FontWeight.Bold,letterSpacing=1.4.sp)
    Text(title,color=DarkText,fontSize=28.sp,fontWeight=FontWeight.ExtraBold,lineHeight=33.sp)
-   Text(if(demoMode)"Natív Android-előnézet · mintaadatok" else "Agrár Mentor mobilalkalmazás",color=MutedText,fontSize=12.sp)
+   Text("Agrár Mentor mobilalkalmazás",color=MutedText,fontSize=12.sp)
   }
-  if(reconnectWarning&&!demoMode)item{
+  if(reconnectWarning)item{
    Text("A kapcsolat megszakadt. A munkamenet automatikus megújítása folyamatban van.",color=Color(0xFF985414),fontSize=13.sp)
   }
-  if(!demoMode){
+  run{
    if(role==PortalRole.FARMER&&route=="/dashboard"&&session!=null){
     item{FarmerDashboardScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/fields"&&session!=null){
@@ -419,17 +355,6 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,demo
    }else{
     item{GenericScreen(title,role,colors)}
    }
-  }
-  else when {
-   route=="/dashboard"||route=="/admin"||route=="/system-admin" -> {
-    item{RoleDashboard(role,colors,onNavigate)}
-   }
-   route=="/fields" -> item{FieldsOverview(colors,onNavigate)}
-   route=="/tasks"||route=="/admin/tasks" -> item{TaskOverview(colors)}
-   route=="/operations"||route=="/admin/operations" -> item{OperationsOverview(colors)}
-   route=="/admin/clients"->item{SimpleList("Ügyfelek",listOf("Agrár Mentor demógazdaság","Nagrét gazdaság","Homoki gazdaság"),colors)}
-   route=="/system-admin/support"->item{SimpleList("Támogatási ügyek",listOf("Feladatállapot ellenőrzése","Fiók hozzáférésének vizsgálata","Felhasználói bejelentések"),colors)}
-   else -> item{GenericScreen(title,role,colors)}
   }
   item{Spacer(Modifier.height(12.dp))}
  }
@@ -758,80 +683,6 @@ internal fun LoadError(colors:PortalPalette,onRetry:()->Unit){
 }
 
 @Composable
-private fun RoleDashboard(role:PortalRole,colors:PortalPalette,onNavigate:(String)->Unit){
- val (headline,caption)=when(role){
-  PortalRole.FARMER->"A gazdaságod egy pillantásra" to "Táblaállapotok, teendők, műveletek"
-  PortalRole.ADVISOR->"Mai szakmai prioritások" to "Ügyfelek és az esedékes teendők"
-  PortalRole.SYSTEM_ADMIN->"Rendszerfelügyelet" to "Folyamatok, hozzáférések és események"
- }
- Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Card(colors,background=colors.accent){
-   Text(headline,color=Color.White,fontSize=22.sp,fontWeight=FontWeight.Bold)
-   Text(caption,color=Color.White.copy(alpha=.88f),fontSize=13.sp)
-   Spacer(Modifier.height(8.dp))
-   Text("Ez a képernyő egyelőre demóadatokat mutat.",color=Color.White,fontSize=11.sp)
-  }
-  val cards=when(role){
-   PortalRole.FARMER->listOf("Táblák" to "/fields","Műveleti napló" to "/operations","Teendők" to "/tasks")
-   PortalRole.ADVISOR->listOf("Ügyfelek" to "/admin/clients","Mai prioritások" to "/admin/daily-work","Térkép" to "/admin/map")
-   PortalRole.SYSTEM_ADMIN->listOf("Támogatási központ" to "/system-admin/support","Felhasználók" to "/system-admin/users","Biztonsági események" to "/system-admin/security")
-  }
-  cards.forEach{(label,path)->
-   Card(colors,onClick={onNavigate(path)}){
-    Row(verticalAlignment=Alignment.CenterVertically){
-     Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
-     Spacer(Modifier.width(9.dp))
-     Text(label,fontWeight=FontWeight.Bold,color=DarkText,fontSize=17.sp)
-     Spacer(Modifier.weight(1f))
-     Text("Megnyitás",color=colors.accent,fontSize=12.sp)
-    }
-   }
-  }
- }
-}
-
-@Composable
-private fun FieldsOverview(colors:PortalPalette,onNavigate:(String)->Unit){
- var mapView by rememberSaveable{mutableStateOf(false)}
- Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Row(Modifier.fillMaxWidth().background(colors.tint,RoundedCornerShape(13.dp)).padding(5.dp)){
-   listOf(false to "Lista",true to "Térkép").forEach{(isMap,label)->
-    Box(Modifier.weight(1f).background(if(mapView==isMap)colors.accent else Color.Transparent,RoundedCornerShape(9.dp)).clickable{mapView=isMap}.padding(13.dp),contentAlignment=Alignment.Center){
-     Text(label,color=if(mapView==isMap)Color.White else colors.accent,fontWeight=FontWeight.Bold)
-    }
-   }
-  }
-  if(mapView){
-   Card(colors){
-    Text("Táblahatárok – illusztráció",fontWeight=FontWeight.Bold,color=DarkText)
-    Canvas(Modifier.fillMaxWidth().height(245.dp).background(Color(0xFF5F8557),RoundedCornerShape(10.dp))){
-     val w=size.width;val h=size.height
-     val polygons=listOf(
-      listOf(.07f to .15f,.4f to .1f,.46f to .4f,.12f to .48f),
-      listOf(.5f to .15f,.91f to .22f,.86f to .63f,.5f to .48f),
-      listOf(.15f to .56f,.48f to .5f,.5f to .86f,.1f to .92f),
-      listOf(.54f to .55f,.92f to .68f,.88f to .94f,.55f to .9f)
-     )
-     polygons.forEachIndexed{index,points->
-      val path=Path().apply{
-       points.forEachIndexed{j,p->if(j==0)moveTo(p.first*w,p.second*h)else lineTo(p.first*w,p.second*h)}
-       close()
-      }
-      drawPath(path,if(index==2)Color(0xFFB8A15A)else Color(0xFF467144))
-      drawPath(path,Color(0xFFFFE34F),style=Stroke(width=5.dp.toPx()))
-     }
-    }
-    Text("A valódi műholdréteg és poligonok a meglévő adatokhoz kapcsolódnak majd.",fontSize=12.sp,color=MutedText)
-   }
-  }else{
-   FieldEntry("Déli 3. tábla","31,4 ha · Kukorica","Aktív",Color(0xFF39834D),colors,onNavigate={onNavigate("/fields/demo-1")})
-   FieldEntry("Északi 1. tábla","24,8 ha · Őszi búza","Aktív",Color(0xFF39834D),colors,onNavigate={onNavigate("/fields/demo-2")})
-   FieldEntry("Nagyrét 03","15,4 ha · Kukorica","Figyelmet igényel",Color(0xFFE4AE29),colors,onNavigate={onNavigate("/fields/demo-3")})
-  }
- }
-}
-
-@Composable
 private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
  val repository=remember{FieldRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var revision by remember{mutableIntStateOf(0)}
@@ -885,53 +736,6 @@ private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNa
      }
      Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
     }
-   }
-  }
- }
-}
-
-@Composable
-private fun FieldEntry(name:String,description:String,status:String,statusColor:Color,colors:PortalPalette,onNavigate:()->Unit){
- Card(colors,onClick=onNavigate,border=statusColor){
-  Row(verticalAlignment=Alignment.CenterVertically){
-   Box(Modifier.size(62.dp).background(colors.tint,RoundedCornerShape(11.dp)),contentAlignment=Alignment.Center){Icon(Icons.Default.Map,null,tint=colors.accent,modifier=Modifier.size(30.dp))}
-   Spacer(Modifier.width(12.dp))
-   Column(Modifier.weight(1f)){
-    Text(name,fontSize=17.sp,fontWeight=FontWeight.Bold,color=DarkText)
-    Text(description,color=MutedText,fontSize=12.sp)
-    Text(status,color=statusColor,fontSize=12.sp,fontWeight=FontWeight.Bold)
-   }
-   Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
-  }
- }
-}
-
-@Composable
-private fun TaskOverview(colors:PortalPalette){
- Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
-  FieldEntry("Növényvédelmi ellenőrzés","Nagyrét 03 · Ma esedékes","Kritikus",Color(0xFFCB3B43),colors,{})
-  FieldEntry("Talajminta vétel","Felsőrét 02 · Holnap","Figyelmeztetés",Color(0xFFE5AC21),colors,{})
-  FieldEntry("Öntözés ellenőrzés","Északi 1. · Ütemezve","Rendben",Color(0xFF39834D),colors,{})
- }
-}
-
-@Composable
-private fun OperationsOverview(colors:PortalPalette){
- Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  SimpleList("Műveleti napló – minta",listOf("Permetezés · Nagyrét 03 · Befejezve","Talajminta · Felsőrét 02 · Befejezve","Öntözés · Déli 3. · Befejezve"),colors)
- }
-}
-
-@Composable
-private fun SimpleList(title:String,entries:List<String>,colors:PortalPalette){
- Card(colors){
-  Text(title,fontSize=18.sp,fontWeight=FontWeight.Bold,color=DarkText)
-  Spacer(Modifier.height(8.dp))
-  entries.forEach{entry->
-   HorizontalDivider(color=colors.border)
-   Row(Modifier.fillMaxWidth().padding(vertical=13.dp),verticalAlignment=Alignment.CenterVertically){
-    Text(entry,Modifier.weight(1f),fontSize=14.sp,color=DarkText)
-    Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
    }
   }
  }

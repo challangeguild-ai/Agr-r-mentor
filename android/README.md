@@ -13,16 +13,16 @@ Ez külön Kotlin / Jetpack Compose projekt. **Nem WebView**, nem a honlap mobil
 
 ## Bejelentkezés és jogosultság
 
-1. A felhasználó **e-mail-címmel és jelszóval** bejelentkezik a meglévő Supabase Auth rendszerbe.
+1. **Minden új alkalmazásindításkor a bejelentkezési képernyő jelenik meg.** A felhasználó **e-mail-címmel és jelszóval** bejelentkezik a meglévő Supabase Auth rendszerbe. Nincs automatikus, korábban tárolt munkamenetből történő belépés.
 2. Az alkalmazás szerveroldalon ellenőrizt felhasználót és a bejelentkezett személyhez tartozó **RLS által korlátozott** `public.profiles` rekordot olvas.
 3. A `role` és `system_role` alapján **automatikusan** kiválasztódik a megfelelő felület:
    - `role=farmer` → gazdálkodói zöld;
    - `role=advisor` és nem admin → szaktanácsadói kék;
    - `role=advisor`, `system_role=admin` → rendszeradmin bordó.
 4. Szaktanácsadó/admin esetén az eddigi webes biztonsági renddel egyezően `aal2` szükséges. Ha `aal1`, a hitelesítő alkalmazás hatjegyű TOTP-kódját kéri. Hiányzó/ellenőrizetlen faktor nem kerül megkerülésre.
-5. A szerepkör nem felhasználói beállítás. **Éles alkalmazásban nincs szerepkörválasztó.** A szerver RLS szabályai továbbra is a valódi hozzáférési határt adják.
+5. A szerepkör nem felhasználói beállítás. **Sem a debug-, sem az éles alkalmazásban nincs demó, szerepkörválasztó vagy hitelesítés nélküli belépés.** A szerver RLS szabályai továbbra is a valódi hozzáférési határt adják.
 
-**Munkamenet:** a Supabase refresh tokent az Android Keystore nem exportálható AES-GCM kulcsa védi; az access token és a jelszó nem kerül lemezre. Újraindításkor a kliens új tokenpárra cseréli a tárolt refresh tokent, ellenőrzi a profilt és szükség esetén az AAL2-szintet. Használat közben a lejárat előtt megújítja a tokent, kijelentkezéskor törli a tárolt munkamenetet. Elfelejtett jelszó esetén a Supabase által konfigurált helyreállítási e-mail kérhető.
+**Munkamenet:** az access és a refresh token csak a futó alkalmazás memóriájában marad; az Android kliens nem ment el belépési munkamenetet későbbi automatikus belépéshez. Új alkalmazásindításkor újra meg kell adni a belépési adatokat. Használat közben a kliens megújítja a tokent, kijelentkezéskor eldobja és a Supabase-nél érvényteleníti a munkamenetet. Elfelejtett jelszó esetén a Supabase által konfigurált helyreállítási e-mail kérhető.
 
 ## Közös mobilnavigáció
 
@@ -123,7 +123,7 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 
 **Belső Android-teszt APK (nem végleges kiadás):** a `feat/agrarmentor-android-native` ágra történő feltöltéskor a GitHub Actions előbb lefuttatja a natív debug/release egységteszteket és fordítást, majd az Android által debugkulccsal aláírt, `hu.agrarmentor.android` csomagazonosítójú **debug APK-t** ellenőrzi és legfeljebb 7 napra Actions-artifactként elérhetővé teszi. Az unsigned release build továbbra sem tölthető le innen. A teszt-APK nem kerül Play Áruházba vagy a védett éles kiadási ágba.
 
-A valódi Supabase-hez kapcsolt tesztverzióhoz a **GitHub repository** → Settings → Secrets and variables → Actions → **Variables** alatt egyszer kell létrehozni a `AGRAR_ANDROID_TEST_PUBLISHABLE_KEY` változót a jóváhagyott `qkezhvtwirdsvhzjyvfi` projekt aktív **publishable** API-kulcsával. A projekt URL-jét és a HTTPS webcímet a CI a jóváhagyott célra rögzíti, a kulcs publikus/anon típusát ellenőrzi; `service_role` vagy `sb_secret_` kulcsot soha nem fogad el. A kulcs **nem kerül a Git-forrásba**. Ha a változó nincs beállítva, a CI kizárólag `DEMO` jelzésű, mintaadatokat használó UI-próba APK-t készít; ezt nem szabad éles bejelentkezésként bemutatni. A GitHub Action artifact ZIP-jéből kell kibontani az `app-debug.apk`-t. A debug-aláírás a futtatók között változhat, ezért újabb tesztverzió telepítése előtt a korábbi verzió eltávolítására lehet szükség.
+A valódi Supabase-hez kapcsolt tesztverzióhoz a **GitHub repository** → Settings → Secrets and variables → Actions → **Variables** alatt egyszer kell létrehozni a `AGRAR_ANDROID_TEST_PUBLISHABLE_KEY` változót a jóváhagyott `qkezhvtwirdsvhzjyvfi` projekt aktív **publishable** API-kulcsával. A projekt URL-jét és a HTTPS webcímet a CI a jóváhagyott célra rögzíti, a kulcs publikus/anon típusát ellenőrzi; `service_role` vagy `sb_secret_` kulcsot soha nem fogad el. A kulcs **nem kerül a Git-forrásba**. **Ha a változó hiányzik vagy érvénytelen, a build leáll; nem készül demó-APK vagy hitelesítés nélküli kerülőút.** A GitHub Action artifact ZIP-jéből kell kibontani az `app-debug.apk`-t. A debug-aláírás a futtatók között változhat, ezért újabb tesztverzió telepítése előtt a korábbi verzió eltávolítására lehet szükség.
 
 **A helyi környezetben nincs telepített Android SDK vagy Gradle-disztribúció.** A tényleges teszt-APK készítése és a Kotlin-tesztek igazolása ezért a GitHub Actions futásának sikerétől függ. A védett, tartósan aláírt végleges APK kiadási folyamata ettől független, változatlanul külön jóváhagyást igényel.
 

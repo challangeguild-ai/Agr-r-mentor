@@ -15,10 +15,7 @@ class MainActivity : ComponentActivity() {
   setContent {
    MaterialTheme {
     Surface {
-     // Real login in all configured builds; demo exists only in unconfigured debug previews.
-     val previewOnly = BuildConfig.DEBUG &&
-      (BuildConfig.SUPABASE_URL.isBlank() || BuildConfig.SUPABASE_PUBLISHABLE_KEY.isBlank())
-     AgrarMentorApp(demoMode = previewOnly)
+     AgrarMentorApp()
     }
    }
   }
