@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {LandingLoginModal} from "@/components/LandingLoginModal";
 import {AgrarMentorLogo} from "@/components/AgrarMentorLogo";
+import {publicContactHref} from "@/lib/publicContact";
 import styles from "./landing.module.css";
 
 function BrandMark({large=false}:{large?:boolean}){
@@ -10,7 +11,7 @@ function BrandMark({large=false}:{large?:boolean}){
   </span>;
 }
 
-const process=[
+const processSteps=[
  ["Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
  ["Területek rögzítése","Táblák, növények, alapadatok felvétele."],
  ["Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
@@ -30,6 +31,7 @@ const dataPoints=[
 
 export default async function Home({searchParams}:{searchParams:Promise<{login?:string;next?:string}>}){
  const params=await searchParams;const requestedNext=params.next&&params.next.startsWith("/")&&!params.next.startsWith("//")?params.next:null;
+ const contactHref=publicContactHref(process.env.AGRAR_CONTACT_EMAIL);
  return <main className={styles.site}>
   <header className={styles.header}>
    <div className={styles.headerInner}>
@@ -68,7 +70,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
 
   <section className={styles.processSection} id="hogyan">
    <h2>Így működik az Agrár Mentor</h2>
-   <div className={styles.processGrid}>{process.map(([title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{String(index+1).padStart(2,"0")}</span>{index<process.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
+   <div className={styles.processGrid}>{processSteps.map(([title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{String(index+1).padStart(2,"0")}</span>{index<processSteps.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
   </section>
 
   <section className={styles.mobileSection} id="mobilapp" aria-labelledby="mobilapp-title">
@@ -137,7 +139,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
 
   <section className={styles.contact} id="kapcsolat">
    <div className={styles.contactContour}/>
-   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div><a className={styles.primaryButton} href="#kapcsolat">Kapcsolatfelvétel <span>→</span></a><LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
+   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div>{contactHref?<a className={styles.primaryButton} href={contactHref}>Kapcsolatfelvétel e-mailben <span>→</span></a>:<p role="status">A kapcsolatfelvételi e-mail-cím beállítása folyamatban van. Addig a jelentkezés innen nem küldhető el.</p>}<LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
    <BrandMark large/>
   </section>
 
