@@ -87,7 +87,7 @@ test("a public-repository backup cannot upload database dumps unencrypted",()=>{
  assert.equal(compromised.ok,false);
  assert.ok(compromised.problems.some(p=>p.includes("GitHub runner")));
  const notProtected=checkReleaseContract(path=>path===".github/workflows/agrarmentor-encrypted-backup.yml"
-  ?workflow.replace('select(.type == "required_reviewers")','select(.type == "wait_timer")')
+  ?workflow.replace('.prevent_self_review == true','.prevent_self_review == false')
   :read(path));
  assert.equal(notProtected.ok,false);
  const unverified=checkReleaseContract(path=>path===".github/workflows/agrarmentor-encrypted-backup.yml"

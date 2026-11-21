@@ -38,9 +38,30 @@ jobs:
               echo 'A védett agrarmentor-backup környezet nincs konfigurálva.' >&2
               exit 1
             }
-          printf '%s' "$environment_json" | jq -e \
-            '.protection_rules[]? | select(.type == "required_reviewers")' > /dev/null || {
-              echo 'Az adatmentéshez kötelező GitHub-jóváhagyó szükséges.' >&2
+          printf '%s' "$environment_json" | jq -e '
+            .name == "agrarmentor-backup" and .can_admins_bypass == false and
+            .deployment_branch_policy.custom_branch_policies == true and
+            .deployment_branch_policy.protected_branches == false and
+            ([.protection_rules[]? | select(.type == "required_reviewers" and
+              .prevent_self_review == true and (.reviewers | length) == 1)] | length == 1) and
+            ([.protection_rules[]? | select(.type == "required_reviewers") |
+              .reviewers[]? | select(.type == "User" and .reviewer.login == "gpshuntruck-blip")] | length == 1) and
+            ([.protection_rules[]? | select(.type == "branch_policy")] | length == 1)
+          ' > /dev/null || {
+              echo 'Az adatmentési környezet jóváhagyása vagy ágvédelme hibás.' >&2
+              exit 1
+            }
+          branches_json="$(curl --fail --silent --show-error \
+            --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-backup/deployment-branch-policies?per_page=2")" || {
+              echo 'Az adatmentési ágkorlát nem ellenőrizhető.' >&2
+              exit 1
+            }
+          printf '%s' "$branches_json" | jq -e '
+            .total_count == 1 and (.branch_policies | length) == 1 and
+            .branch_policies[0].name == "main" and .branch_policies[0].type == "branch"
+          ' > /dev/null || {
+              echo 'Az adatmentés kizárólag a main ágról engedélyezhető.' >&2
               exit 1
             }
 
