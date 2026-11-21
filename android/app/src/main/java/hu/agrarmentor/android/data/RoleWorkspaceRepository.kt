@@ -235,6 +235,7 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
  }
 
  suspend fun advisor(session:AuthorizedSession):AdvisorWorkspace = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.ADVISOR){"A szaktanácsadói portfólió csak szaktanácsadóknak érhető el."}
   val people=read("profiles?select=id,full_name,phone&role=eq.farmer&order=full_name.asc&limit=500",session)
   val farms=read("farms?select=id,name,owner_id&limit=1000",session)
   val fields=read("fields?select=id,name,farm_id,status&limit=1000",session)
@@ -302,6 +303,7 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
  }
 
  suspend fun admin(session:AuthorizedSession):AdminWorkspace = withContext(Dispatchers.IO){
+  require(session.role==PortalRole.SYSTEM_ADMIN){"A rendszeradmin-felülethez rendszeradmin jogosultság szükséges."}
   val people=read("profiles?select=id,full_name,role,system_role,phone&limit=1000",session)
   val farms=read("farms?select=id,name&limit=1000",session)
   val fields=read("fields?select=id,name,farm_id&limit=1000",session)
