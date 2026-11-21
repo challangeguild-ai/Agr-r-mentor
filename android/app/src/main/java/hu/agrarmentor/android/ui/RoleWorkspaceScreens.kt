@@ -520,6 +520,9 @@ internal fun AdminWorkspaceScreen(route:String,session:AuthorizedSession,colors:
   else if(failed){
    LoadError(colors,onRetry={revision++})
    Text("A webes rendszeradmin egyes adatai csak szerveroldali jogosultsággal érhetők el. Ezt mobilon nem kerüljük meg.",fontSize=12.sp,color=SoftInk)
+   if(route in listOf("/system-admin/users","/system-admin/support","/system-admin/security")){
+    WebModuleOpenButton(route,colors,label="Hitelesített webes adminfelület megnyitása ›")
+   }
   }
   else snapshot?.let{data->
    when(route){
@@ -653,6 +656,7 @@ private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
  }
  if(users.size>shown)TextButton(onClick={shown+=40}){Text("További felhasználók ›",color=colors.accent)}
  Text("Új fiók meghívása és jogmódosítás nem érhető el mobilon, amíg nincs hozzá hitelesített szervervégpont.",fontSize=12.sp,color=SoftInk)
+ WebModuleOpenButton("/system-admin/users",colors,label="Meghívás és jogosultságkezelés a weben ›")
  opened?.let{id->data.users.firstOrNull{it.id==id}?.let{user->
   AlertDialog(onDismissRequest={opened=null},title={Text(user.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("Szerepkör: ${if(user.role=="advisor")"Szaktanácsadó" else if(user.role=="farmer")"Gazdálkodó" else "Ismeretlen"}")
@@ -695,6 +699,7 @@ private fun AdminSupport(data:AdminWorkspace,colors:PortalPalette){
   }
  }
  if(indexes.size>shown)TextButton(onClick={shown+=40}){Text("További támogatási feladatok ›",color=colors.accent)}
+ WebModuleOpenButton("/system-admin/support",colors,label="Támogatási javítás megnyitása a weben ›")
  opened?.let{index->data.tasks.getOrNull(index)?.let{task->
   AlertDialog(onDismissRequest={opened=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
    Text("Gazdaság: ${task.farmName}")
@@ -725,6 +730,7 @@ private fun AdminSecurity(data:AdminWorkspace,colors:PortalPalette){
   }
  }
  Text("Ez csak megtekintő nézet; incidensbeavatkozás a webes adminfelületen történik.",color=SoftInk,fontSize=12.sp)
+ WebModuleOpenButton("/system-admin/security",colors,label="Biztonsági intézkedések a weben ›")
  opened?.let{index->data.securityEvents.getOrNull(index)?.let{event->
   AlertDialog(onDismissRequest={opened=null},title={Text(event.title)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
    Text("Súlyosság: ${event.severity}")
