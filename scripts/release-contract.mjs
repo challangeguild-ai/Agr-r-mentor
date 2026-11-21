@@ -33,19 +33,33 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
  const backupScript=get("scripts/Backup-AgrarMentor-Predeploy.ps1");
  const runnerBackup=get(".github/workflows/agrarmentor-encrypted-backup.yml");
  const androidRelease=get(".github/workflows/agrarmentor-android-release.yml");
+ const androidGuards=get("scripts/android-release-guards.mjs");
+ const androidDatabaseChecks=get("scripts/check-android-production-gates.sql");
  const androidBuild=get("android/app/build.gradle.kts");
  const rehearsal=get("scripts/verify_staged_migrations.sql");
  if(!/^on:\s*\n\s+workflow_dispatch:\s*$/m.test(androidRelease)
    ||/^\s+(push|pull_request|schedule):/m.test(androidRelease)
    ||!androidRelease.includes("environment: agrarmentor-release")
+   ||!androidRelease.includes("inputs.database_preflight_confirmed")
    ||!androidRelease.includes("secrets.AGRAR_RELEASE_KEYSTORE_BASE64")
    ||!androidRelease.includes("vars.AGRAR_SUPABASE_PUBLISHABLE_KEY")
+   ||!androidRelease.includes("vars.AGRAR_RELEASE_SIGNING_CERT_SHA256")
+   ||!androidRelease.includes("node ../scripts/android-release-guards.mjs config")
+   ||!androidRelease.includes("node ../scripts/android-release-guards.mjs cert")
    ||!androidRelease.includes('apksigner" verify --verbose')
+   ||!androidRelease.includes("--print-certs")
    ||!androidRelease.includes("assembleRelease")
    ||!androidRelease.includes("testDebugUnitTest")
    ||!androidRelease.includes("app/build/outputs/apk/release/app-release.apk")
    ||!androidBuild.includes('applicationId = "hu.agrarmentor.android"')
-   ||!androidBuild.includes('signingConfigs.getByName("production")'))
+   ||!androidBuild.includes('signingConfigs.getByName("production")')
+   ||!androidGuards.includes('normalizeSigningFingerprint')
+   ||!androidGuards.includes('expected.supabaseProjectId')
+   ||!androidGuards.includes('expected.productionHost')
+   ||!androidDatabaseChecks.includes('BEGIN READ ONLY;')
+   ||!androidDatabaseChecks.includes('verified_task_proof_policy_version()')
+   ||!androidDatabaseChecks.includes('hu_manual_spraying_policy_version()')
+   ||!androidDatabaseChecks.includes('permit_check_attested'))
   problems.push("A natív kiadás nem bizonyítottan kézi, aláírt és az egyetlen Agrár Mentor alkalmazásra céloz.");
  if(!backupScript.includes(`$projectRef = '${targets.supabaseProjectId}'`)
    ||!backupScript.includes('"--remote=$projectRef"')

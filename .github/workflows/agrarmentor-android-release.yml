@@ -13,6 +13,10 @@ on:
         description: "Monoton növekvő Android verziókód"
         required: true
         type: string
+      database_preflight_confirmed:
+        description: "Friss mentés után a check-android-production-gates.sql minden sorában ready=true?"
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -39,6 +43,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - uses: android-actions/setup-android@v4
 
       - name: Android platform és aláírási eszközök
@@ -54,6 +62,10 @@ jobs:
           # Only the reviewed default-branch code may be released.
           [[ "$GITHUB_REF_NAME" == 'main' ]] || {
             echo 'Végleges APK csak a felülvizsgált main ágról adható ki.'
+            exit 1
+          }
+          [[ '${{ inputs.database_preflight_confirmed }}' == 'true' ]] || {
+            echo 'A biztonsági adatbázis-előellenőrzést előbb sikeresen igazolni kell.'
             exit 1
           }
           # This repository is public: the environment metadata can be read
@@ -76,17 +88,14 @@ jobs:
           AGRAR_SUPABASE_URL: ${{ vars.AGRAR_SUPABASE_URL }}
           AGRAR_SUPABASE_PUBLISHABLE_KEY: ${{ vars.AGRAR_SUPABASE_PUBLISHABLE_KEY }}
           AGRAR_WEB_ORIGIN: ${{ vars.AGRAR_WEB_ORIGIN }}
+          AGRAR_RELEASE_SIGNING_CERT_SHA256: ${{ vars.AGRAR_RELEASE_SIGNING_CERT_SHA256 }}
           KEYSTORE_BASE64: ${{ secrets.AGRAR_RELEASE_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.AGRAR_RELEASE_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.AGRAR_RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.AGRAR_RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Érvénytelen stabil verziónév.'; exit 1; }
-          [[ "$VERSION_CODE" =~ ^[1-9][0-9]{0,8}$ ]] || { echo 'Érvénytelen pozitív verziókód.'; exit 1; }
-          [[ "$AGRAR_SUPABASE_URL" =~ ^https://[a-z0-9-]+\.supabase\.co$ ]] || { echo 'Hiányzó vagy érvénytelen Supabase projekt-URL.'; exit 1; }
-          test -n "$AGRAR_SUPABASE_PUBLISHABLE_KEY" || { echo 'Hiányzik a nyilvános Supabase-kulcs.'; exit 1; }
-          [[ "$AGRAR_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9.-]+$ ]] || { echo 'Hiányzik a HTTPS webes alkalmazáscím.'; exit 1; }
+          node ../scripts/android-release-guards.mjs config
           test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Hiányzik a tartós Android-kiadási aláírókulcs vagy jelszava.'; exit 1; }
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/agrarmentor-release.jks"
@@ -111,11 +120,13 @@ jobs:
         env:
           VERSION_NAME: ${{ inputs.version_name }}
           VERSION_CODE: ${{ inputs.version_code }}
+          AGRAR_RELEASE_SIGNING_CERT_SHA256: ${{ vars.AGRAR_RELEASE_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
           apk='app/build/outputs/apk/release/app-release.apk'
           test -s "$apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/agrarmentor-apksigner.txt"
+          node ../scripts/android-release-guards.mjs cert "$RUNNER_TEMP/agrarmentor-apksigner.txt"
           metadata="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | head -n 1)"
           [[ "$metadata" == *"name='hu.agrarmentor.android'"* ]]
           [[ "$metadata" == *"versionCode='$VERSION_CODE'"* ]]

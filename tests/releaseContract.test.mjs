@@ -13,7 +13,7 @@ test("the release contract binds the right GitHub, Vercel and Supabase projects"
  assert.equal(result.targets.vercelProjectId,"prj_DMNfMt71StWzgb7rO839NUnrYEjS");
  assert.equal(result.targets.supabaseProjectId,"qkezhvtwirdsvhzjyvfi");
  assert.equal(result.targets.emailRelease,"2026-11-20-email-v1");
- assert.equal(result.documents.length,18);
+ assert.equal(result.documents.length,20);
  for(const item of result.documents)assert.match(item.sha256,/^[a-f0-9]{64}$/);
  assert.equal(migrationFiles.length,6);
  assert.deepEqual(edgeNames,["invite-farmer","invite-advisor","send-notification-email"]);
@@ -99,10 +99,30 @@ test("the Android release cannot become automatic or unsigned",()=>{
  assert.match(safe,/^on:\s*\n\s+workflow_dispatch:\s*$/m);
  assert.match(safe,/environment: agrarmentor-release/);
  assert.match(safe,/apksigner" verify --verbose/);
+ assert.match(safe,/--print-certs/);
+ assert.match(safe,/AGRAR_RELEASE_SIGNING_CERT_SHA256/);
+ assert.match(safe,/android-release-guards\.mjs cert/);
  assert.doesNotMatch(safe,/^\s+(push|pull_request|schedule):/m);
  const bad=checkReleaseContract(path=>path===".github/workflows/agrarmentor-android-release.yml"
   ?safe.replace('apksigner" verify --verbose','apksigner" version')
   :read(path));
  assert.equal(bad.ok,false);
  assert.ok(bad.problems.some(p=>p.includes("natív kiadás")));
+});
+
+test("Android release cannot bypass the pinned certificate or production database gate",()=>{
+ const safe=read(".github/workflows/agrarmentor-android-release.yml");
+ const compromised=checkReleaseContract(path=>path===".github/workflows/agrarmentor-android-release.yml"
+  ?safe.replace('node ../scripts/android-release-guards.mjs cert', 'echo unverified-certificate')
+  :read(path));
+ assert.equal(compromised.ok,false);
+ assert.ok(compromised.problems.some(p=>p.includes("natív kiadás")));
+ const sql=read("scripts/check-android-production-gates.sql");
+ assert.match(sql,/^BEGIN READ ONLY;$/m);
+ assert.match(sql,/^ROLLBACK;$/m);
+ assert.doesNotMatch(sql,/\b(update|insert|delete|create|alter|drop)\s+(table|function|trigger|into)\b/i);
+ const broken=checkReleaseContract(path=>path==="scripts/check-android-production-gates.sql"
+  ?sql.replace("hu_manual_spraying_policy_version()", "no_hu_policy_gate()")
+  :read(path));
+ assert.equal(broken.ok,false);
 });

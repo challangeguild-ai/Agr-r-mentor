@@ -7,6 +7,10 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/agrarmentor-android.yml'
+      - '.github/workflows/agrarmentor-android-release.yml'
+      - 'scripts/android-release-guards.mjs'
+      - 'scripts/check-android-production-gates.sql'
+      - 'scripts/release-targets.json'
   workflow_dispatch:
 
 permissions:
@@ -41,4 +45,6 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Natív Kotlin tesztek és ellenőrző fordítás
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+        # The unsigned release is compiled and tested but NEVER uploaded here.
+        # Only the protected, signed, manually approved workflow may publish an APK.
+        run: ./gradlew --no-daemon testDebugUnitTest testReleaseUnitTest assembleDebug assembleRelease
