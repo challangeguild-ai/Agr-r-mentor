@@ -41,6 +41,17 @@ if ($LASTEXITCODE -ne 0 -or $inspection.Trim() -ne "/$containerName|true") {
     throw "A visszaállított helyi konténer nem fut: $containerName"
 }
 
+# This rollback rehearsal was written for the PRE-November-19 backup.
+# A current production restore has five of these migration names already in
+# history (including a historic version of the GPS proof). Replaying all six
+# there is not a valid rehearsal and can silently mask schema drift.
+$migrationList = ($migrationNames | ForEach-Object { "'$(($_ -replace '\.sql$', ''))'" }) -join ','
+$historySql = "select count(*) from supabase_migrations.schema_migrations where name in ($migrationList);"
+$appliedCount = & docker exec $containerName psql -X -A -t -U postgres -d postgres -c $historySql
+if ($LASTEXITCODE -ne 0 -or "$appliedCount".Trim() -ne '0') {
+    throw 'Ez NEM a migrációk előtti helyi mentés, vagy a migrációs napló nem ellenőrizhető. A hat SQL újbóli futtatása tilos; külön előre irányuló javító migráció és friss helyi próba szükséges.'
+}
+
 Write-Host 'Ellenőrzés: kizárólag a visszaállított HELYI Docker-adatbázis.'
 Write-Host 'A hat migracio egyetlen tranzakcioban fut, a vegen ROLLBACK tortenik.'
 

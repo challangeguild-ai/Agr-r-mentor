@@ -35,6 +35,8 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
  const androidRelease=get(".github/workflows/agrarmentor-android-release.yml");
  const androidGuards=get("scripts/android-release-guards.mjs");
  const androidDatabaseChecks=get("scripts/check-android-production-gates.sql");
+ const androidMigrationHistory=get("scripts/read-android-migration-history.sql");
+ const androidMigrationAudit=get("scripts/audit-android-migration-history.mjs");
  const androidBuild=get("android/app/build.gradle.kts");
  const rehearsal=get("scripts/verify_staged_migrations.sql");
  if(!/^on:\s*\n\s+workflow_dispatch:\s*$/m.test(androidRelease)
@@ -59,7 +61,12 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
    ||!androidDatabaseChecks.includes('BEGIN READ ONLY;')
    ||!androidDatabaseChecks.includes('verified_task_proof_policy_version()')
    ||!androidDatabaseChecks.includes('hu_manual_spraying_policy_version()')
-   ||!androidDatabaseChecks.includes('permit_check_attested'))
+   ||!androidDatabaseChecks.includes('permit_check_attested')
+   ||!androidMigrationHistory.includes('BEGIN READ ONLY;')
+   ||!androidMigrationHistory.includes('md5(statements[1])')
+   ||!androidMigrationAudit.includes('known_older_proof_without_marker')
+   ||!powershell.includes('$appliedCount')
+   ||!powershell.includes('A hat SQL újbóli futtatása tilos'))
   problems.push("A natív kiadás nem bizonyítottan kézi, aláírt és az egyetlen Agrár Mentor alkalmazásra céloz.");
  if(!backupScript.includes(`$projectRef = '${targets.supabaseProjectId}'`)
    ||!backupScript.includes('"--remote=$projectRef"')

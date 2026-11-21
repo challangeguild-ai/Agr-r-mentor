@@ -13,7 +13,7 @@ test("the release contract binds the right GitHub, Vercel and Supabase projects"
  assert.equal(result.targets.vercelProjectId,"prj_DMNfMt71StWzgb7rO839NUnrYEjS");
  assert.equal(result.targets.supabaseProjectId,"qkezhvtwirdsvhzjyvfi");
  assert.equal(result.targets.emailRelease,"2026-11-20-email-v1");
- assert.equal(result.documents.length,20);
+ assert.equal(result.documents.length,22);
  for(const item of result.documents)assert.match(item.sha256,/^[a-f0-9]{64}$/);
  assert.equal(migrationFiles.length,6);
  assert.deepEqual(edgeNames,["invite-farmer","invite-advisor","send-notification-email"]);
