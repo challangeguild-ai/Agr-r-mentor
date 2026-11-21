@@ -2,6 +2,7 @@ import "server-only";
 import {createAdminClient} from "@/lib/supabase/admin";
 import {
  fetchHungaroMetDaily,
+ fetchHungaroMetDailyStationIds,
  fetchHungaroMetStations,
  HUNGAROMET_DAILY_DESCRIPTION_URL
 } from "@/lib/weather/hungaromet";
@@ -9,7 +10,7 @@ import {fieldPoint,fetchAllWeatherFields,weatherSyncStatus,planWeatherTimelineCh
 import {latestMeasuredDate,nearbyStations} from "@/lib/weather/stationSelection";
 
 const MAX_STATION_DISTANCE_KM=35;
-const MAX_STATION_CANDIDATES=3;
+const MAX_STATION_CANDIDATES=8;
 const LOOKBACK_DAYS=45;
 const FRESHNESS_TOLERANCE_DAYS=3;
 const STATION_FETCH_CONCURRENCY=5;
@@ -58,8 +59,19 @@ export async function syncOfficialFieldWeather(){
   }
 
   const stations=await fetchHungaroMetStations();
+  let selectableStations=stations;
+  let stationCatalogueWarning=false;
+  try{
+   const publishedDailyIds=await fetchHungaroMetDailyStationIds();
+   const publishedStations=stations.filter(station=>publishedDailyIds.has(station.stationNumber));
+   if(!publishedStations.length)throw new Error("Az aktív és publikált állomások közös listája üres.");
+   selectableStations=publishedStations;
+  }catch(error){
+   stationCatalogueWarning=true;
+   console.warn("HungaroMet station catalogue unavailable; using current stations",error);
+  }
   const assignments=mappable.map(({field,point})=>({
-   field,point,candidates:nearbyStations(stations,point.lat,point.lng,MAX_STATION_DISTANCE_KM,MAX_STATION_CANDIDATES)
+   field,point,candidates:nearbyStations(selectableStations,point.lat,point.lng,MAX_STATION_DISTANCE_KM,MAX_STATION_CANDIDATES)
   })).filter(assignment=>assignment.candidates.length>0);
   const stationTooFar=mappable.length-assignments.length;
 
@@ -86,7 +98,7 @@ export async function syncOfficialFieldWeather(){
    }
   }
   // Try the nearest first; only download more stations where no recent daily
-  // precipitation was measured. Each field stays within 35 km and 3 attempts.
+  // precipitation was measured. Each field stays within 35 km and 8 attempts.
   let unresolved=assignments;
   for(let tier=0;tier<MAX_STATION_CANDIDATES&&unresolved.length;tier++){
    await fetchUnseenStations(unresolved.flatMap(a=>a.candidates[tier]?[a.candidates[tier].station.stationNumber]:[]));
@@ -173,6 +185,7 @@ export async function syncOfficialFieldWeather(){
   const skippedFields=totalFields-fieldsSynced;
   const status=weatherSyncStatus(totalFields,fieldsSynced,stationErrors.length,staleFields);
   const warnings=[
+   ...(stationCatalogueWarning?[{reason:"A HungaroMet napi állományjegyzéke nem volt elérhető, ezért az aktív állomástörzsből választottunk",count:1}]:[]),
    ...(missingLocation?[{reason:"Nincs használható térképi hely",count:missingLocation}]:[]),
    ...(stationTooFar?[{reason:"Nincs mérőállomás 35 km-en belül",count:stationTooFar}]:[]),
    ...(unavailableFields?[{reason:"Az állomás adatlekérése sikertelen",count:unavailableFields}]:[]),
