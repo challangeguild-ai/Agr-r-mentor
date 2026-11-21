@@ -11,7 +11,10 @@ internal fun safeWebModuleUrl(origin:String,path:String):String?{
   "/admin/inspections",
   "/admin/visits",
   "/system-admin/weather",
-  "/system-admin/backup"
+  "/system-admin/backup",
+  "/system-admin/users",
+  "/system-admin/support",
+  "/system-admin/security"
  ))return null
  val uri=runCatching{java.net.URI(origin)}.getOrNull()?:return null
  if(uri.scheme!="https"||uri.host.isNullOrBlank()||uri.port !in setOf(-1,443)||
