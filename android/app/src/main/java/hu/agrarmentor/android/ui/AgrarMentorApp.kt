@@ -36,6 +36,8 @@ import hu.agrarmentor.android.auth.SignInResult
 import hu.agrarmentor.android.auth.SupabaseAuthGateway
 import hu.agrarmentor.android.data.FieldRepository
 import hu.agrarmentor.android.data.FieldSummary
+import hu.agrarmentor.android.data.FieldRainSummary
+import hu.agrarmentor.android.data.FieldWeatherRepository
 import hu.agrarmentor.android.data.FarmerWorkspaceRepository
 import hu.agrarmentor.android.data.FieldTaskCompletion
 import hu.agrarmentor.android.data.GeneralTaskCompletion
@@ -55,6 +57,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.text.NumberFormat
+import java.util.Locale
 
 private val CanvasCream=Color(0xFFF7F5EE)
 private val CardWhite=Color(0xFFFFFEFC)
@@ -626,8 +630,13 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
 private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val mapRepository=remember{MapFieldsRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val weatherRepository=remember{FieldWeatherRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var detail by remember(fieldId){mutableStateOf<MobileFieldDetail?>(null)}
  var mappedField by remember(fieldId,session.userId){mutableStateOf<NativeMapField?>(null)}
+ var rain by remember(fieldId,session.userId){mutableStateOf<FieldRainSummary?>(null)}
+ var rainLoading by remember(fieldId){mutableStateOf(true)}
+ var rainFailed by remember(fieldId){mutableStateOf(false)}
+ var rainRevision by remember(fieldId){mutableIntStateOf(0)}
  var mapLoading by remember(fieldId){mutableStateOf(true)}
  var mapFailed by remember(fieldId){mutableStateOf(false)}
  var mapRevision by remember(fieldId){mutableIntStateOf(0)}
@@ -646,6 +655,13 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
   catch(_:Exception){mapFailed=true}
   finally{mapLoading=false}
  }
+ LaunchedEffect(fieldId,session.accessToken,rainRevision){
+  rainLoading=true;rainFailed=false;rain=null
+  try{rain=weatherRepository.load(session,fieldId)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){rainFailed=true}
+  finally{rainLoading=false}
+ }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
   TextButton(onClick={onNavigate(NavigationCatalog.fieldDetailBackRoute(session.role))}){
    Text(if(session.role==PortalRole.ADVISOR)"← Vissza a térképhez" else "← Vissza a táblákhoz",color=colors.accent)
@@ -657,6 +673,16 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
     Text(field.name,color=DarkText,fontSize=22.sp,fontWeight=FontWeight.Bold)
     Text("${field.areaHa} ha · ${field.crop}",color=DarkText)
     Text(field.farmName,color=MutedText,fontSize=12.sp)
+   }
+   Card(colors){
+    Text("Tábla adatai",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
+    Text("Állapot: ${when(field.status){"inactive"->"Inaktív";"archived"->"Archivált";else->"Aktív"}}",color=DarkText,fontSize=13.sp)
+    field.settlement?.let{Text("Település: $it",color=DarkText,fontSize=13.sp)}
+    field.parcelNumber?.let{Text("Helyrajzi szám: $it",color=DarkText,fontSize=13.sp)}
+    field.meparBlockId?.let{Text("MePAR blokk: $it",color=DarkText,fontSize=13.sp)}
+    field.cropYear?.let{Text("Gazdasági év: $it",color=DarkText,fontSize=13.sp)}
+    field.sowingDate?.let{Text("Vetés: ${huDate(it)}",color=DarkText,fontSize=13.sp)}
+    field.notes?.let{Text("Megjegyzés: $it",color=DarkText,fontSize=13.sp)}
    }
    Card(colors){
     Text("Legutóbbi szemle",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
@@ -675,6 +701,29 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
     else field.operations.take(8).forEach{op->Text("• ${operationLabel(op.type)} · ${huDate(op.date)}",fontSize=13.sp,color=DarkText)}
    }
    Card(colors){
+    Text("Csapadéknapló · HungaroMet",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
+    if(rainLoading)CircularProgressIndicator(color=colors.accent)
+    else if(rainFailed){
+     Text("A csapadékmérések most nem érhetők el. A többi táblaadat megtekinthető.",color=MutedText,fontSize=12.sp)
+     TextButton(onClick={rainRevision++}){Text("Mérések újrapróbálása",color=colors.accent)}
+    }else rain?.let{summary->
+     Text("7 nap: ${rainDisplay(summary.rain7,summary.measuredDays7)} · ${summary.rainyDays7} esős nap (${summary.measuredDays7}/7 mért)",color=DarkText,fontSize=14.sp)
+     Text("30 nap: ${rainDisplay(summary.rain30,summary.measuredDays30)} · ${summary.rainyDays30} esős nap (${summary.measuredDays30}/30 mért)",color=DarkText,fontSize=14.sp)
+     val last=summary.latest
+     if(last==null){
+      Text("Az elmúlt 30 napból nincs érvényes mérés. Az időjárási szinkron után itt jelennek meg az adatok.",color=MutedText,fontSize=12.sp)
+     }else{
+      Text("Legutóbbi mérés: ${huDate(last.date.toString())} · ${last.station?:last.provider}",color=colors.accent,fontSize=12.sp)
+      last.distanceKm?.let{Text("Mérőállomás távolsága: ${rainNumber(it)} km",color=MutedText,fontSize=12.sp)}
+      Text("Utolsó mért eső: ${summary.lastRain?.let{"${rainNumber(it.millimeters)} mm · ${huDate(it.date.toString())}"}?:"nincs eső a rendelkezésre álló mérésekben"}",color=DarkText,fontSize=12.sp)
+      summary.measurements.take(5).forEach{measurement->
+       Text("${huDate(measurement.date.toString())}: ${rainNumber(measurement.millimeters)} mm${if(measurement.millimeters>0)" · esős nap" else " · csapadékmentes"}",color=MutedText,fontSize=12.sp)
+      }
+     }
+     Text("A 0 mm mért csapadékmentes nap; a hiányzó napot nem számoljuk nullának. A mérés közeli állomásról származik, nem magáról a tábláról.",color=MutedText,fontSize=12.sp)
+    }
+   }
+   Card(colors){
     Text("Földtábla a térképen",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     if(mapLoading)CircularProgressIndicator(color=colors.accent)
     else if(mapFailed){
@@ -686,6 +735,7 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
      else{
       NativeFieldMap(listOf(fieldMap))
       Text(if(fieldMap.boundary!=null)"Rögzített poligon – csak megtekintés" else "Rögzített helypont – poligon még nincs",color=colors.accent,fontSize=12.sp)
+      field.geometrySource?.let{source->Text("Rögzített forrásjelölés: ${when(source){"cadastral"->"Kataszter";"mepar"->"MePAR";"external"->"Külső adat";else->"Kézi"}} (nem hitelesítési igazolás)",color=MutedText,fontSize=12.sp)}
      }
     }
     Text("OpenFreeMap / OpenStreetMap térkép. A poligon itt nem szerkeszthető és nem hiteles földmérési adat; műholdréteg még nincs.",fontSize=12.sp,color=MutedText)
@@ -693,6 +743,11 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
   }
  }
 }
+
+private fun rainNumber(value:Double):String=NumberFormat.getNumberInstance(Locale.forLanguageTag("hu-HU"))
+ .apply{maximumFractionDigits=1}.format(value)
+
+private fun rainDisplay(total:Double,days:Int)=if(days>0)"${rainNumber(total)} mm" else "Nincs mérés"
 
 @Composable
 internal fun LoadError(colors:PortalPalette,onRetry:()->Unit){

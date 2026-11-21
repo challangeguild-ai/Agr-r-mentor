@@ -23,7 +23,7 @@ function exactHttpsOrigin(value,expectedHost){
  }catch{return false}
 }
 
-function isPublicSupabaseKey(value){
+export function isPublicSupabaseKey(value){
  if(typeof value!=="string")return false;
  if(/^sb_publishable_[a-zA-Z0-9_-]{10,}$/.test(value))return true;
  const parts=value.split(".");
@@ -32,6 +32,18 @@ function isPublicSupabaseKey(value){
   const claims=JSON.parse(Buffer.from(parts[1],"base64url").toString("utf8"));
   return claims.role==="anon"&&typeof claims.iss==="string";
  }catch{return false}
+}
+
+/** Debug test APKs may omit configuration only when clearly labelled as demo. */
+export function validateAndroidTestConfig(env,expected=targets){
+ const errors=[];
+ if(!exactHttpsOrigin(env.AGRAR_SUPABASE_URL,`${expected.supabaseProjectId}.supabase.co`))
+  errors.push("A teszt-APK Supabase URL-je nem a jóváhagyott Agrár Mentor projekt.");
+ if(!isPublicSupabaseKey(env.AGRAR_SUPABASE_PUBLISHABLE_KEY))
+  errors.push("A teszt-APK kizárólag publishable/anon kulccsal kapcsolódhat.");
+ if(!exactHttpsOrigin(env.AGRAR_WEB_ORIGIN,expected.productionHost))
+  errors.push("A teszt-APK webes eredetcíme nem megfelelő.");
+ return errors;
 }
 
 export function validateAndroidReleaseConfig(env,expected=targets){
@@ -88,6 +100,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const mode=process.argv[2];
  let problems;
  if(mode==="config")problems=validateAndroidReleaseConfig(process.env);
+ else if(mode==="test-config")problems=validateAndroidTestConfig(process.env);
  else if(mode==="environment"&&process.argv.length===5){
   try{problems=validateReleaseEnvironment(
    JSON.parse(readFileSync(process.argv[3],"utf8")),
@@ -97,7 +110,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  else if(mode==="cert"&&process.argv.length===4){
   const result=checkSignedApkCertificate(readFileSync(process.argv[3],"utf8"),process.env.AGRAR_RELEASE_SIGNING_CERT_SHA256);
   problems=result.ok?[]:[result.reason];
- }else problems=["Használat: node scripts/android-release-guards.mjs config | environment <env-json> <branch-json> | cert <apksigner-kimenet>" ];
+ }else problems=["Használat: node scripts/android-release-guards.mjs config | test-config | environment <env-json> <branch-json> | cert <apksigner-kimenet>" ];
  if(problems.length){for(const problem of problems)process.stderr.write(`KIADÁSI ZÁR: ${problem}\n`);process.exitCode=1}
  else process.stdout.write("Android kiadási ellenőrzés: rendben.\n");
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {checkSignedApkCertificate,normalizeSigningFingerprint,validateAndroidReleaseConfig,validateReleaseEnvironment} from "../scripts/android-release-guards.mjs";
+import {checkSignedApkCertificate,normalizeSigningFingerprint,validateAndroidReleaseConfig,validateAndroidTestConfig,validateReleaseEnvironment} from "../scripts/android-release-guards.mjs";
 
 const digest="ab".repeat(32);
 const valid={
@@ -29,6 +29,15 @@ test("an APK may contain a public key but never a service-role or secret key",()
  assert.equal(validateAndroidReleaseConfig({...valid,AGRAR_SUPABASE_PUBLISHABLE_KEY:`abc.${service}.signature`}).length,1);
  assert.equal(validateAndroidReleaseConfig({...valid,AGRAR_SUPABASE_PUBLISHABLE_KEY:"sb_secret_REDACTEDREDACTED"}).length,1);
  assert.equal(validateAndroidReleaseConfig({...valid,AGRAR_SUPABASE_PUBLISHABLE_KEY:""}).length,1);
+});
+
+test("connected DEBUG test APK requires the pinned project and a public key but not release signing",()=>{
+ assert.deepEqual(validateAndroidTestConfig(valid),[]);
+ assert.equal(validateAndroidTestConfig({...valid,AGRAR_SUPABASE_PUBLISHABLE_KEY:""}).length,1);
+ assert.equal(validateAndroidTestConfig({...valid,AGRAR_SUPABASE_PUBLISHABLE_KEY:"sb_secret_this_must_never_be_in_an_apk"}).length,1);
+ assert.equal(validateAndroidTestConfig({...valid,AGRAR_SUPABASE_URL:"https://unrelated.supabase.co"}).length,1);
+ assert.equal(validateAndroidTestConfig({...valid,AGRAR_WEB_ORIGIN:"http://agr-r-mentor.vercel.app"}).length,1);
+ assert.deepEqual(validateAndroidTestConfig({...valid,VERSION_NAME:"0.1.0-dev",AGRAR_RELEASE_SIGNING_CERT_SHA256:""}),[]);
 });
 
 test("only the pinned single-signing-certificate fingerprint is accepted",()=>{

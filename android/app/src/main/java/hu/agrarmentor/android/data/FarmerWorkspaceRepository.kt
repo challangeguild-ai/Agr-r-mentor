@@ -37,6 +37,13 @@ data class MobileFieldDetail(
  val areaHa:String,
  val crop:String,
  val status:String,
+ val settlement:String?,
+ val parcelNumber:String?,
+ val meparBlockId:String?,
+ val cropYear:String?,
+ val sowingDate:String?,
+ val notes:String?,
+ val geometrySource:String?,
  val condition:String?,
  val inspectedAt:String?,
  val recommendation:String?,
@@ -64,11 +71,11 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
  suspend fun field(session:AuthorizedSession,fieldId:String):MobileFieldDetail = withContext(Dispatchers.IO){
   // Never interpolate an untrusted path or query fragment into PostgREST filters.
   require(validMapFieldId(fieldId)){"Érvénytelen táblaazonosító."}
-  val field=fetch("fields?select=id,name,farm_id,area_ha,current_crop,status&id=eq.$fieldId&limit=1",session.accessToken)
+  val field=fetch("fields?select=id,name,farm_id,area_ha,current_crop,status,settlement,parcel_number,mepar_block_id,crop_year,sowing_date,notes,geometry_source&id=eq.$fieldId&limit=1",session.accessToken)
    .optJSONObject(0)?:error("A földtábla nem érhető el.")
   val farmId=field.getString("farm_id")
   require(validMapFieldId(farmId)){"Érvénytelen gazdaságazonosító."}
-  val farm=fetch("farms?select=id,name&id=eq.$farmId&limit=1",session.accessToken).optJSONObject(0)
+  val farm=fetch("farms?select=id,name,settlement&id=eq.$farmId&limit=1",session.accessToken).optJSONObject(0)
   val latest=fetch("inspections?select=condition,inspected_at,recommendation&field_id=eq.$fieldId&order=inspected_at.desc,id.desc&limit=1",session.accessToken).optJSONObject(0)
   val names=mapOf(fieldId to field.optString("name","Földtábla"))
   val tasks=fetchAll("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&field_id=eq.$fieldId&order=created_at.desc,id.desc",session.accessToken)
@@ -81,6 +88,13 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
    areaHa=if(field.isNull("area_ha"))"—" else field.optString("area_ha"),
    crop=field.optString("current_crop").ifBlank{"Nincs kultúra"},
    status=field.optString("status","active"),
+   settlement=field.optNullable("settlement")?:farm?.optNullable("settlement"),
+   parcelNumber=field.optNullable("parcel_number"),
+   meparBlockId=field.optNullable("mepar_block_id"),
+   cropYear=field.optNullable("crop_year"),
+   sowingDate=field.optNullable("sowing_date"),
+   notes=field.optNullable("notes"),
+   geometrySource=field.optNullable("geometry_source"),
    condition=latest?.optString("condition"),
    inspectedAt=latest?.optNullable("inspected_at"),
    recommendation=latest?.optNullable("recommendation"),
