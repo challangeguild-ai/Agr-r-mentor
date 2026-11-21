@@ -31,7 +31,8 @@ test("recommendation entry and official-use checks are reachable from advisor we
  assert.match(tasks,/OperationTaskPlanForm/);
  assert.match(form,/matchingCatalogCrop\(/);
  assert.match(form,/setUseId\(id\);setDose\(""\)/);
- assert.match(form,/uses\.length===0/);
+ assert.match(form,/fieldId&&uses\.length===0&&!error/);
+ assert.match(form,/fields\.length===0/);
  assert.match(form,/!crop\|\|!productId\|\|!useId\|\|!dose\.trim\(\)/);
  assert.match(action,/plannedDose<=0/);
  assert.match(action,/productUseBlockingReason/);
