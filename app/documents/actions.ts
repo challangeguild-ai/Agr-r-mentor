@@ -11,8 +11,8 @@ export async function registerDocument(input:{farm_id:string|null;field_id:strin
   if(!input.title.trim())throw new Error("A dokumentum megnevezése kötelező.");
   if(!input.farm_id&&!input.field_id)throw new Error("Gazdaság vagy földtábla kiválasztása kötelező.");
 
-  const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
-  const advisor=profile?.role==="advisor";
+  const{data:profile}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
+  const advisor=profile?.role==="advisor"&&profile?.system_role!=="admin";
   let farmId=input.farm_id;
 
   if(input.field_id){
@@ -39,17 +39,29 @@ export async function deleteDocument(documentId:string){
   const supabase=await createClient();
   const{data:{user}}=await supabase.auth.getUser();
   if(!user)throw new Error("A munkamenet lejárt. Jelentkezz be újra.");
+  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(documentId))throw new Error("Érvénytelen dokumentumazonosító.");
   const{data:doc}=await supabase.from("documents").select("id,farm_id,storage_path,uploaded_by").eq("id",documentId).maybeSingle();
   if(!doc)throw new Error("A dokumentum nem található.");
-  const{data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
-  if(profile?.role!=="advisor"){
+  const{data:profile}=await supabase.from("profiles").select("role,system_role").eq("id",user.id).maybeSingle();
+  const advisor=profile?.role==="advisor"&&profile?.system_role!=="admin";
+  if(!advisor){
+    if(profile?.role!=="farmer"||doc.uploaded_by!==user.id)throw new Error("Csak a saját feltöltésed törölhető.");
     const{data:farm}=await supabase.from("farms").select("id").eq("id",doc.farm_id).eq("owner_id",user.id).maybeSingle();
     if(!farm)throw new Error("Ehhez a dokumentumhoz nincs jogosultságod.");
   }
-  const{error}=await supabase.from("documents").delete().eq("id",documentId);
-  if(error)throw new Error(error.message);
-  const storage=await supabase.storage.from("documents").remove([doc.storage_path]);
-  if(storage.error)console.warn("A dokumentum rekordja törölve, a fájl takarítása sikertelen:",storage.error.message);
+  if(!doc.storage_path?.startsWith(`${doc.uploaded_by}/`)||doc.storage_path.split("/").some((part:string)=>!part||part==="."||part===".."||part.includes("\\")))
+    throw new Error("A fájl tárolási útvonala nem ellenőrizhető.");
+  const{data:deleted,error}=await supabase.from("documents").delete().eq("id",documentId)
+    .eq("uploaded_by",doc.uploaded_by).eq("storage_path",doc.storage_path).select("id").maybeSingle();
+  if(error||!deleted)throw new Error(error?.message||"A törlést a szerver nem igazolta. Frissítsd a listát.");
+  let warning:string|null=null;
+  try{
+    const storage=await supabase.storage.from("documents").remove([doc.storage_path]);
+    if(storage.error)throw storage.error;
+  }catch(error){
+    console.warn("A dokumentum rekordja törölve, a fájl takarítása nem igazolható:",error);
+    warning="A dokumentum törölve, de a tárolt fájl eltávolítása nem igazolható. Kérd a rendszeradminisztrátor segítségét.";
+  }
   revalidatePath("/documents");revalidatePath("/invoices");revalidatePath("/admin/documents");
-  return {ok:true};
+  return {ok:true,warning};
 }

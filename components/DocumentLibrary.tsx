@@ -8,7 +8,7 @@ import styles from "./DocumentLibrary.module.css";
 const labels:Record<string,string>={talajvizsgalat:"Talajvizsgálat",permetezes:"Permetezés",szerzodes:"Szerződés",szamla:"Számla",foto:"Fotó",egyeb:"Egyéb"};
 function fileSize(v:number|null|undefined){if(!v)return"—";if(v<1024)return`${v} B`;if(v<1024*1024)return`${(v/1024).toFixed(1)} KB`;return`${(v/1024/1024).toFixed(1)} MB`}
 
-export function DocumentLibrary({items}:{items:any[]}){
+export function DocumentLibrary({items,currentUserId,canDeleteAll=false}:{items:any[];currentUserId:string;canDeleteAll?:boolean}){
  const router=useRouter();
  const[query,setQuery]=useState(""),[category,setCategory]=useState("all"),[scope,setScope]=useState("all"),[busy,setBusy]=useState<string|null>(null);
  const categoryTabs=useMemo(()=>{const counts=new Map<string,number>();items.forEach(d=>{const key=String(d.category||"egyeb");counts.set(key,(counts.get(key)||0)+1)});return[...counts.entries()].sort((a,b)=>(labels[a[0]]||a[0]).localeCompare(labels[b[0]]||b[0],"hu"))},[items]);
@@ -16,7 +16,7 @@ export function DocumentLibrary({items}:{items:any[]}){
  const visible=useMemo(()=>items.filter(d=>{const q=query.trim().toLocaleLowerCase("hu-HU");const hay=[d.title,d.notes,d.file_name,d.fields?.name,d.farms?.name,labels[d.category]].filter(Boolean).join(" ").toLocaleLowerCase("hu-HU");const scopeMatch=scope==="all"||(scope.startsWith("field:")&&d.field_id===scope.slice(6))||(scope.startsWith("farm:")&&d.farm_id===scope.slice(5));return(category==="all"||d.category===category)&&scopeMatch&&(!q||hay.includes(q))}),[items,query,category,scope]);
 
  async function openDoc(d:any){setBusy(`open-${d.id}`);const supabase=createClient();const{data,error}=await supabase.storage.from("documents").createSignedUrl(d.storage_path,60);setBusy(null);if(error||!data?.signedUrl){alert("A dokumentum megnyitása sikertelen.");return}window.open(data.signedUrl,"_blank","noopener,noreferrer")}
- async function deleteDoc(d:any){if(!confirm(`Biztosan törlöd ezt a dokumentumot?\n\n${d.title}`))return;setBusy(`delete-${d.id}`);try{await deleteDocument(d.id);router.refresh()}catch(error){alert(`A dokumentum törlése sikertelen: ${error instanceof Error?error.message:"Ismeretlen hiba"}`)}finally{setBusy(null)}}
+ async function deleteDoc(d:any){if(!confirm(`Biztosan véglegesen törlöd ezt a dokumentumot és a fájlját?\n\n${d.title}`))return;setBusy(`delete-${d.id}`);try{const result=await deleteDocument(d.id);if(result.warning)alert(result.warning);router.refresh()}catch(error){alert(`A dokumentum törlése sikertelen: ${error instanceof Error?error.message:"Ismeretlen hiba"}`)}finally{setBusy(null)}}
 
  return <>
   <div className={styles.categoryTabs}><button type="button" className={category==="all"?styles.categoryActive:""} onClick={()=>setCategory("all")}>Összes <span>{items.length}</span></button>{categoryTabs.map(([key,count])=><button type="button" key={key} className={category===key?styles.categoryActive:""} onClick={()=>setCategory(key)}>{labels[key]||key} <span>{count}</span></button>)}</div>
@@ -35,7 +35,7 @@ export function DocumentLibrary({items}:{items:any[]}){
     <span className={styles.scope}>{d.fields?.name||d.farms?.name||"—"}</span>
     <time>{new Date(d.created_at).toLocaleDateString("hu-HU")}</time>
     <span className={styles.size}>{fileSize(d.file_size)}</span>
-    <div className={styles.actions}><button type="button" onClick={()=>openDoc(d)} disabled={busy===`open-${d.id}`}>Megnyitás</button><button type="button" className={styles.deleteButton} onClick={()=>deleteDoc(d)} disabled={busy===`delete-${d.id}`}>•••</button></div>
+    <div className={styles.actions}><button type="button" onClick={()=>openDoc(d)} disabled={!!busy}>Megnyitás</button>{(canDeleteAll||d.uploaded_by===currentUserId)&&<button type="button" className={styles.deleteButton} onClick={()=>deleteDoc(d)} disabled={!!busy}>Törlés</button>}</div>
    </article>)}</div>
   </div>}
  </>;

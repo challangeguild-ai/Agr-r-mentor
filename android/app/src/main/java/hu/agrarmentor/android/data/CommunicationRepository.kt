@@ -37,11 +37,13 @@ data class AdvisorReport(
  val category:String,val severity:String,val createdAt:String,
  val updatedAt:String,val reply:String?,val attachments:List<ReportAttachment> = emptyList()
 )
-data class ReportDecisionResult(val alreadySaved:Boolean,val warnings:List<String>)
+data class ReportDecisionResult(val alreadySaved:Boolean,val warnings:List<String>,val taskId:String?=null)
+private data class ReportTaskSaveOutcome(val id:String,val warnings:List<String>)
 data class MobileDocument(
  val id:String,val title:String,val fileName:String,val category:String,
- val storagePath:String,val createdAt:String,val notes:String?
+ val storagePath:String,val createdAt:String,val notes:String?,val uploadedBy:String
 )
+data class DocumentDeletionResult(val warning:String?)
 data class DocumentFarm(val id:String,val name:String)
 data class DocumentField(val id:String,val name:String,val farmId:String)
 data class DocumentScopes(val farms:List<DocumentFarm>,val fields:List<DocumentField>)
@@ -241,17 +243,26 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   }finally{connection.disconnect()}
  }
 
- suspend fun decideReport(session:AuthorizedSession,report:AdvisorReport,reply:String,close:Boolean):ReportDecisionResult=withContext(Dispatchers.IO){
+ suspend fun decideReport(session:AuthorizedSession,report:AdvisorReport,reply:String,close:Boolean,
+  task:AdvisorReportTaskInput?=null):ReportDecisionResult=withContext(Dispatchers.IO){
   require(session.role==hu.agrarmentor.android.model.PortalRole.ADVISOR)
   require(uuid(report.id).isNotBlank()&&uuid(report.fieldId).isNotBlank()&&uuid(report.farmerId).isNotBlank())
   require(ReportWorkflowRules.canRespond(report.status,close,reply)){"A bejelentés már lezárt, vagy érvénytelen a válasz."}
-  val original=getArray("rest/v1/farmer_reports?select=id,status,advisor_reply,updated_at,farmer_id,field_id&id=eq.${report.id}&limit=1",session).singleOrNull()
+  require(task==null||!close&&AdvisorReportTaskRules.validate(task)){"A teendő neve, határideje vagy prioritása érvénytelen."}
+  val original=getArray("rest/v1/farmer_reports?select=id,status,advisor_reply,updated_at,farmer_id,field_id,replied_by&id=eq.${report.id}&limit=1",session).singleOrNull()
    ?:error("A bejelentés nem található.")
   require(original.optString("farmer_id")==report.farmerId&&original.optString("field_id")==report.fieldId)
   if(original.optString("status")=="closed"&&close)return@withContext ReportDecisionResult(true,emptyList())
   if(original.optString("status")=="closed")error("Lezárt bejelentésre nem válaszolhatsz.")
-  if(!close&&original.optString("status")=="reviewed"&&original.optString("advisor_reply")==reply.trim())
-   return@withContext ReportDecisionResult(true,emptyList())
+  if(!close&&original.optString("status")=="reviewed"&&original.optString("advisor_reply")==reply.trim()){
+   if(task==null)return@withContext ReportDecisionResult(true,emptyList())
+   require(original.optString("replied_by")==session.userId){"Csak a saját, korábban mentett válaszodhoz folytathatsz teendőt."}
+   return@withContext runCatching{
+    val saved=saveReportTask(session,report,reply,task)
+    ReportDecisionResult(true,saved.warnings,saved.id)
+   }
+    .getOrElse{ReportDecisionResult(true,listOf("A válasz korábban elmentve, de a teendő mentése nem igazolható. Ellenőrizd a teendőlistát."))}
+  }
   require(original.optString("updated_at")==report.updatedAt){"A bejelentés időközben módosult. Frissítsd a listát."}
   val now=Instant.now().toString()
   val changes=if(close)JSONObject().put("status","closed").put("closed_at",now).put("updated_at",now)
@@ -264,24 +275,127 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   val warnings=mutableListOf<String>()
   val eventKind=if(close)"report_closed"else"advisor_reply"
   val title=if(close)"Bejelentés lezárva"else"Szaktanácsadói válasz"
+  val eventKey="report:${report.id}:${if(close)"closed"else"reply"}"
   runCatching{
    request("POST","rest/v1/timeline_events",session,JSONObject()
     .put("farm_id",report.farmId).put("field_id",report.fieldId).put("event_type",eventKind)
     .put("title",title).put("description",if(close)report.title else reply.trim())
     .put("event_at",now).put("created_by",session.userId).put("source_id",report.id))
   }.onFailure{warnings.add("Az idővonal frissítése nem igazolható.")}
-  runCatching{
+  val noticeConfirmed=runCatching{
    request("POST","rest/v1/notifications",session,JSONObject().put("user_id",report.farmerId)
     .put("kind",eventKind).put("title",if(close)"Bejelentés lezárva"else"Szaktanácsadói válasz érkezett")
     .put("message",report.title).put("href","/fields/${report.fieldId}")
-    .put("event_key","report:${report.id}:${if(close)"closed"else"reply"}"))
-  }.onFailure{warnings.add("A gazdálkodói értesítés nem igazolható.")}
-  ReportDecisionResult(false,warnings)
+    .put("event_key",eventKey))
+  }.onFailure{warnings.add("A gazdálkodói értesítés nem igazolható.")}.isSuccess
+  if(noticeConfirmed){
+   runCatching{
+    val emailText=if(close)"A(z) „${report.title}” bejelentés lezárásra került."
+     else "${report.title}\n\n${reply.trim()}"
+    val body=JSONObject().put("target_user_id",report.farmerId)
+     .put("subject",if(close)"Bejelentés lezárva"else"Szaktanácsadói válasz érkezett")
+     .put("message",emailText.take(5000)).put("href","/fields/${report.fieldId}")
+     .put("event_key",eventKey)
+    val result=JSONObject(request("POST","functions/v1/send-notification-email",session,body))
+    check(result.optBoolean("sent")){"Az e-mail kézbesítése nem igazolható."}
+   }.onFailure{warnings.add("A gazdálkodónak küldött e-mail nem igazolható.")}
+  }else warnings.add("Az e-mail nem indult el, mert a belső értesítés nem igazolható.")
+  var taskId:String?=null
+  if(task!=null){
+   runCatching{
+    val saved=saveReportTask(session,report,reply,task)
+    taskId=saved.id;warnings.addAll(saved.warnings)
+   }
+    .onFailure{warnings.add("A válasz mentve, de a teendő mentése nem igazolható. Ellenőrizd a teendőlistát, mielőtt új feladatot indítanál.")}
+  }
+  ReportDecisionResult(false,warnings,taskId)
+ }
+
+ /** Deterministic task ID and read-back avoid a duplicate after network timeout or process restart. */
+ private fun saveReportTask(session:AuthorizedSession,report:AdvisorReport,reply:String,input:AdvisorReportTaskInput):ReportTaskSaveOutcome{
+  require(session.role==PortalRole.ADVISOR&&AdvisorReportTaskRules.validate(input))
+  val taskId=AdvisorReportTaskRules.stableId(report.id,reply)
+  val dueDate=input.dueDate?.takeIf{it.isNotBlank()}
+  val title=input.title.trim()
+  val path="rest/v1/tasks?select=id,created_by,assigned_to,farm_id,field_id,title,description,due_date,priority&id=eq.$taskId&limit=1"
+  fun checkSaved():Boolean{
+   val saved=getArray(path,session).singleOrNull()?:return false
+   require(saved.optString("created_by")==session.userId&&saved.optString("assigned_to")==report.farmerId&&
+    saved.optString("farm_id")==report.farmId&&saved.optString("field_id")==report.fieldId&&
+    saved.optString("title")==title&&saved.optString("description")==reply.trim()&&
+    saved.nullable("due_date")==dueDate&&saved.optString("priority")==input.priority){
+    "A korábbi válaszhoz tartozó teendő adatai eltérnek. Ne hozz létre újabbat."
+   }
+   return true
+  }
+  if(!checkSaved()){
+   val body=JSONObject().put("id",taskId).put("farm_id",report.farmId).put("field_id",report.fieldId)
+    .put("title",title).put("description",reply.trim()).put("priority",input.priority)
+    .put("due_date",dueDate?:JSONObject.NULL).put("status","open")
+    .put("assigned_to",report.farmerId).put("created_by",session.userId)
+   try{request("POST","rest/v1/tasks",session,body,"return=representation")}
+   catch(e:Exception){if(!runCatching{checkSaved()}.getOrDefault(false))throw e}
+  }
+  check(checkSaved()){"A teendő mentését nem sikerült igazolni."}
+  val noticeKey="task:$taskId:report"
+  val warnings=mutableListOf<String>()
+  val noticeConfirmed=runCatching{
+   val noticeAlready=getArray("rest/v1/notifications?select=id&user_id=eq.${uuid(report.farmerId)}&event_key=eq.$noticeKey&limit=1",session).isNotEmpty()
+   if(!noticeAlready){
+    val notice=JSONObject().put("user_id",report.farmerId).put("kind","task")
+     .put("title","Új teendő a szaktanácsadói válaszhoz").put("message",title)
+     .put("href","/fields/${report.fieldId}").put("event_key",noticeKey)
+    request("POST","rest/v1/notifications",session,notice)
+   }
+  }.onFailure{warnings.add("A teendő belső értesítése nem igazolható.")}.isSuccess
+  if(noticeConfirmed){
+   runCatching{
+    val message="$title${dueDate?.let{"\nHatáridő: $it"}?:""}\n${reply.trim()}".take(5000)
+    val email=JSONObject().put("target_user_id",report.farmerId)
+     .put("subject",if(input.priority=="urgent")"Sürgős új teendő"else"Új teendő a szaktanácsadói válaszhoz")
+     .put("message",message).put("href","/fields/${report.fieldId}").put("event_key",noticeKey)
+    val result=JSONObject(request("POST","functions/v1/send-notification-email",session,email))
+    check(result.optBoolean("sent")){"A teendő e-mailje nem igazolható."}
+   }.onFailure{warnings.add("A teendő e-mailes értesítése nem igazolható.")}
+  }else warnings.add("A teendő e-mailje a belső értesítés hiánya miatt nem indult el.")
+  return ReportTaskSaveOutcome(taskId,warnings)
  }
 
  suspend fun documents(session:AuthorizedSession):List<MobileDocument> = withContext(Dispatchers.IO){
-  getAll("rest/v1/documents?select=id,title,file_name,category,storage_path,created_at,notes&order=created_at.desc,id.desc",session)
-   .map{row->MobileDocument(row.getString("id"),row.optString("title"),row.optString("file_name"),row.optString("category"),row.optString("storage_path"),row.optString("created_at"),row.nullable("notes"))}
+  getAll("rest/v1/documents?select=id,title,file_name,category,storage_path,created_at,notes,uploaded_by&order=created_at.desc,id.desc",session)
+   .map{row->MobileDocument(row.getString("id"),row.optString("title"),row.optString("file_name"),row.optString("category"),row.optString("storage_path"),row.optString("created_at"),row.nullable("notes"),row.optString("uploaded_by"))}
+ }
+
+ /** Irreversible action: verify the exact RLS-visible row and storage path before deletion. */
+ suspend fun deleteDocument(session:AuthorizedSession,document:MobileDocument):DocumentDeletionResult=withContext(Dispatchers.IO){
+  val docId=uuid(document.id)
+  require(DocumentDeletionRules.canDelete(session.role,session.userId,document.uploadedBy)){
+   "Csak a saját feltöltésed törölhető, illetve szaktanácsadóként a jogosult dokumentum."
+  }
+  require(DocumentDeletionRules.safeStoredPath(document.uploadedBy,document.storagePath)){
+   "A fájl tárolási útvonala nem ellenőrizhető."
+  }
+  val current=getArray("rest/v1/documents?select=id,uploaded_by,storage_path&id=eq.$docId&limit=1",session).singleOrNull()
+   ?:error("A dokumentumot időközben törölték. Frissítsd a listát.")
+  require(current.optString("uploaded_by")==document.uploadedBy&&current.optString("storage_path")==document.storagePath){
+   "A dokumentum időközben megváltozott. Frissítsd a listát."
+  }
+  val expectedPath=URLEncoder.encode(document.storagePath,"UTF-8")
+  val deletePath="rest/v1/documents?id=eq.$docId&uploaded_by=eq.${uuid(document.uploadedBy)}&storage_path=eq.$expectedPath"
+  val removed=try{JSONArray(request("DELETE",deletePath,session,null,"return=representation")).length()==1}
+   catch(e:Exception){
+    // A timeout after COMMIT is not a license to send a second destructive request.
+    val remaining=runCatching{getArray("rest/v1/documents?select=id&id=eq.$docId&limit=1",session)}.getOrNull()
+    if(remaining==null||remaining.isNotEmpty())throw e
+    true
+   }
+  check(removed){"A törlést a szerver nem igazolta. Frissítsd a dokumentumtárat."}
+  val encodedPath=document.storagePath.split('/').joinToString("/"){URLEncoder.encode(it,"UTF-8").replace("+","%20")}
+  val warning=runCatching{request("DELETE","storage/v1/object/documents/$encodedPath",session,null)}
+   .exceptionOrNull()?.let{
+    "A dokumentum nyilvántartási sora törölve, de a tárolt fájl eltávolítása nem igazolható. Jelezd a rendszeradminisztrátornak."
+   }
+  DocumentDeletionResult(warning)
  }
 
  /** Farmers see owned farms, advisors see RLS-authorized farms; Storage/REST validate on write. */

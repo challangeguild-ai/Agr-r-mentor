@@ -19,7 +19,7 @@ export default async function DocumentsPage(){
  const fieldIds=(fields??[]).map(f=>f.id);
  let documents:any[]=[];
  if(farmIds.length||fieldIds.length){
-  let q=supabase.from("documents").select("id,title,category,notes,storage_path,file_name,media_type,file_size,created_at,farm_id,field_id,farms(name),fields(name)").order("created_at",{ascending:false});
+  let q=supabase.from("documents").select("id,title,category,notes,storage_path,file_name,media_type,file_size,created_at,farm_id,field_id,uploaded_by,farms(name),fields(name)").order("created_at",{ascending:false});
   if(farmIds.length&&fieldIds.length)q=q.or(`farm_id.in.(${farmIds.join(",")}),field_id.in.(${fieldIds.join(",")})`);
   else if(farmIds.length)q=q.in("farm_id",farmIds);else q=q.in("field_id",fieldIds);
   const{data}=await q;documents=data??[];
@@ -41,7 +41,7 @@ export default async function DocumentsPage(){
 
    <section className={styles.libraryCard}>
     <div className={styles.libraryHead}><div><h2>Dokumentumtár</h2><p>{documents.length} dokumentum</p></div></div>
-    <DocumentLibrary items={documents}/>
+    <DocumentLibrary items={documents} currentUserId={user.id}/>
    </section>
   </main>
  </div>;

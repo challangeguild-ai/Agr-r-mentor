@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.BuildConfig
 import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.CommunicationRepository
+import hu.agrarmentor.android.data.DocumentDeletionRules
 import hu.agrarmentor.android.data.DocumentScopes
 import hu.agrarmentor.android.data.DocumentUploadInput
 import hu.agrarmentor.android.data.DocumentUploadRules
@@ -310,6 +311,9 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf<String?>(null)}
  var opening by remember{mutableStateOf<String?>(null)}
+ var deleting by remember{mutableStateOf<String?>(null)}
+ var deleteCandidate by remember{mutableStateOf<MobileDocument?>(null)}
+ var actionError by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
  var shownCount by remember(session.userId,onlyInvoices){mutableIntStateOf(100)}
  val canUpload=DocumentUploadRules.canUpload(session.role)
@@ -358,6 +362,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
   Text(if(onlyInvoices)"A dokumentumtár számla kategóriájú iratai" else if(session.role==PortalRole.ADVISOR)"Az ügyfelek hozzáférhető dokumentumtára" else "A gazdaságod dokumentumtára",color=GrayText,fontSize=13.sp)
   if(uploadNotice!=null)Text(uploadNotice!!,color=colors.accent,fontSize=13.sp)
+  if(actionError!=null)Text(actionError!!,color=Danger,fontSize=13.sp)
   if(canUpload){
    Button(onClick={
     if(!repo.hasPendingDocument()){
@@ -389,21 +394,46 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
     }
     if(!doc.notes.isNullOrBlank())Text(doc.notes,color=MainInk,fontSize=13.sp)
     Button(onClick={
-     opening=doc.id;error=null
+     opening=doc.id;actionError=null
      scope.launch{
       try{
        val url=repo.signedDocumentUrl(session,doc.storagePath)
        context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
-      }catch(_:Exception){error="A dokumentum megnyitása sikertelen. Ellenőrizd a hozzáférést."}
+      }catch(_:Exception){actionError="A dokumentum megnyitása sikertelen. Ellenőrizd a hozzáférést."}
       finally{opening=null}
      }
-    },enabled=opening==null,colors=ButtonDefaults.buttonColors(containerColor=colors.accent),shape=RoundedCornerShape(10.dp)){
+    },enabled=opening==null&&deleting==null,colors=ButtonDefaults.buttonColors(containerColor=colors.accent),shape=RoundedCornerShape(10.dp)){
      Text(if(opening==doc.id)"Megnyitás…" else "Dokumentum megnyitása")
+    }
+    if(DocumentDeletionRules.canDelete(session.role,session.userId,doc.uploadedBy)){
+     OutlinedButton(onClick={deleteCandidate=doc;actionError=null},enabled=opening==null&&deleting==null){
+      Text("Dokumentum törlése",color=Danger)
+     }
     }
    }
   }
   if(visible.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További dokumentumok")}
   }
+ }
+ if(deleteCandidate!=null){
+  val target=deleteCandidate!!
+  AlertDialog(
+   onDismissRequest={if(deleting==null)deleteCandidate=null},
+   title={Text("Dokumentum végleges törlése")},
+   text={Text("Biztosan törlöd a(z) „${target.title}” dokumentumot és a tárolt fájlját? Ez a művelet nem vonható vissza.")},
+   confirmButton={TextButton(onClick={
+    deleting=target.id;actionError=null
+    scope.launch{
+     try{
+      val result=repo.deleteDocument(session,target)
+      uploadNotice=result.warning?:"A dokumentum és a fájl törlése visszaigazolva."
+      deleteCandidate=null;revision++
+     }catch(e:Exception){actionError=e.message?:"A dokumentum törlése nem sikerült."}
+     finally{deleting=null}
+    }
+   },enabled=deleting==null){Text(if(deleting!=null)"Törlés…"else"Végleges törlés",color=Danger)}},
+   dismissButton={TextButton(onClick={deleteCandidate=null},enabled=deleting==null){Text("Mégsem")}}
+  )
  }
  if(showUpload&&canUpload){
   AlertDialog(onDismissRequest={if(!uploadBusy)showUpload=false},title={Text("Dokumentum feltöltése")},

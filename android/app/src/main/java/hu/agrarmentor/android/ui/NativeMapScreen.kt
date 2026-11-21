@@ -44,6 +44,7 @@ internal fun NativeMapScreen(session:AuthorizedSession,colors:PortalPalette,onNa
  var loading by remember{mutableStateOf(true)}
  var failed by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
+ var shownCount by remember(session.userId){mutableIntStateOf(100)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;failed=false
   try{fields=repo.load(session)}catch(_:Exception){failed=true}
@@ -57,12 +58,15 @@ internal fun NativeMapScreen(session:AuthorizedSession,colors:PortalPalette,onNa
   else{
    NativeFieldMap(fields)
    Text("${fields.size} földtábla · ${fields.count{it.boundary!=null}} poligonnal · ${fields.count{NativeMapGeoJson.center(it)!=null}} elhelyezve",color=colors.accent,fontSize=13.sp)
-   fields.forEach{field->
+   fields.take(shownCount).forEach{field->
     Card(colors,onClick={onNavigate("/fields/${field.id}")}){
      Text(field.name,color=Color(0xFF1D3026))
      Text(field.farmName,color=Color(0xFF6C7D72),fontSize=12.sp)
      TextButton(onClick={onNavigate("/fields/${field.id}")}){Text("Adatlap");androidx.compose.material3.Icon(Icons.Default.ChevronRight,null)}
     }
+   }
+   if(fields.size>shownCount)TextButton(onClick={shownCount+=100}){
+    Text("További földtáblák (${fields.size-shownCount} hátra)")
    }
   }
  }
