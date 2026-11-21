@@ -22,6 +22,7 @@ import hu.agrarmentor.android.auth.AuthorizedSession
 import hu.agrarmentor.android.data.MapFieldsRepository
 import hu.agrarmentor.android.data.NativeMapField
 import hu.agrarmentor.android.data.NativeMapGeoJson
+import kotlinx.coroutines.CancellationException
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -47,7 +48,9 @@ internal fun NativeMapScreen(session:AuthorizedSession,colors:PortalPalette,onNa
  var shownCount by remember(session.userId){mutableIntStateOf(100)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;failed=false
-  try{fields=repo.load(session)}catch(_:Exception){failed=true}
+  try{fields=repo.load(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){failed=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(10.dp)){
@@ -95,6 +98,14 @@ internal fun NativeFieldMap(fields:List<NativeMapField>){
    }
   }
   owner.lifecycle.addObserver(observer)
+  // The owner is usually RESUMED before a navigated-to map enters composition.
+  // Do not depend on a future ON_START/ON_RESUME event to start MapLibre.
+  if(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)&&!started){
+   mapView.onStart();started=true
+  }
+  if(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)&&!resumed){
+   mapView.onResume();resumed=true
+  }
   onDispose{
    owner.lifecycle.removeObserver(observer)
    if(resumed)mapView.onPause()
