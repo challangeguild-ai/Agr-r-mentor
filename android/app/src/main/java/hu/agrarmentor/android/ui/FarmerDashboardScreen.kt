@@ -41,20 +41,17 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
  }
 
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Card(colors,background=colors.accent){
-   Text("Gazdaságod egy pillantásra",color=Color.White,fontSize=21.sp,fontWeight=FontWeight.Bold)
-   Text("Aktuális táblák, figyelmeztetések és teendők",color=Color.White.copy(alpha=.88f),fontSize=13.sp)
-  }
+  PortalHero("Gazdaságod egy pillantásra","Aktuális földtáblák, figyelmeztetések és teendők",colors,onClick={onNavigate("/fields")})
   if(busy)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else overview?.let{data->
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Box(Modifier.weight(1f)){OverviewMetric("Összterület",String.format(Locale.forLanguageTag("hu-HU"),"%.1f ha",data.totalAreaHa),colors)}
-    Box(Modifier.weight(1f)){OverviewMetric("Aktív tábla",data.activeFieldsCount.toString(),colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Összterület",String.format(Locale.forLanguageTag("hu-HU"),"%.1f ha",data.totalAreaHa),colors){onNavigate("/fields")}}
+    Box(Modifier.weight(1f)){PortalMetric("Aktív tábla",data.activeFieldsCount.toString(),colors){onNavigate("/fields")}}
    }
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Box(Modifier.weight(1f)){OverviewMetric("Nyitott teendő",data.openTasksCount.toString(),colors)}
-    Box(Modifier.weight(1f)){OverviewMetric("Figyelmet igényel",data.attentionFieldsCount.toString(),colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Nyitott teendő",data.openTasksCount.toString(),colors){onNavigate("/tasks")}}
+    Box(Modifier.weight(1f)){PortalMetric("Figyelmet igényel",data.attentionFieldsCount.toString(),colors){onNavigate("/fields")}}
    }
    if(data.criticalFieldsCount>0||data.overdueTasksCount>0){
     Card(colors,border=ErrorRed){
@@ -63,8 +60,8 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
       Spacer(Modifier.width(8.dp))
       Text("Fontos figyelmeztetések",color=MainText,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
      }
-     if(data.criticalFieldsCount>0)Text("${data.criticalFieldsCount} kritikus állapotú tábla",color=ErrorRed,fontSize=13.sp)
-     if(data.overdueTasksCount>0)Text("${data.overdueTasksCount} lejárt teendő",color=ErrorRed,fontSize=13.sp)
+     if(data.criticalFieldsCount>0)DashboardLink("${data.criticalFieldsCount} kritikus állapotú tábla",colors){onNavigate("/fields")}
+     if(data.overdueTasksCount>0)DashboardLink("${data.overdueTasksCount} lejárt teendő",colors){onNavigate("/daily-work")}
     }
    }
    Card(colors){
@@ -85,9 +82,14 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
     Text("Következő teendők",color=MainText,fontWeight=FontWeight.Bold,fontSize=17.sp)
     if(data.priorityTasks.isEmpty())Text("Nincs nyitott elvégzendő feladat.",fontSize=13.sp,color=SupportingText)
     data.priorityTasks.forEach{task->
-     Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
-      Text(task.title,color=MainText,fontWeight=FontWeight.SemiBold,fontSize=14.sp)
-      Text("${task.fieldName} · ${huDate(task.dueDate)} · ${taskStatus(task.status)}",color=SupportingText,fontSize=12.sp)
+     Card(colors,onClick={onNavigate("/tasks")}){
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
+        Text(task.title,color=MainText,fontWeight=FontWeight.SemiBold,fontSize=14.sp)
+        Text("${task.fieldName} · ${huDate(task.dueDate)} · ${taskStatus(task.status)}",color=SupportingText,fontSize=12.sp)
+       }
+       Icon(Icons.Default.ChevronRight,contentDescription="Teendők megnyitása",tint=colors.accent)
+      }
      }
     }
     if(data.waitingReviewCount>0)Text("Ellenőrzésre beküldve: ${data.waitingReviewCount}",color=colors.accent,fontSize=12.sp)
@@ -97,14 +99,6 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
    Text("Az adatok a belépett felhasználó jogosultsága szerint töltődnek be.",fontSize=12.sp,color=SupportingText)
    OutlinedButton(onClick={revision++}){Text("Adatok frissítése",color=colors.accent)}
   }
- }
-}
-
-@Composable
-private fun OverviewMetric(label:String,value:String,colors:PortalPalette){
- Card(colors){
-  Text(label,fontSize=12.sp,color=SupportingText,maxLines=2)
-  Text(value,fontSize=22.sp,color=colors.accent,fontWeight=FontWeight.ExtraBold,maxLines=1)
  }
 }
 

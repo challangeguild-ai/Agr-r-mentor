@@ -128,10 +128,15 @@ data class AdminSecurityEvent(
  val occurredAt:String
 )
 
+data class AdminInventoryFarm(val id:String,val name:String)
+data class AdminInventoryField(val id:String,val name:String,val farmName:String)
+
 data class AdminWorkspace(
  val users:List<AdminAccount>,
  val farms:Int,
  val fields:Int,
+ val farmList:List<AdminInventoryFarm>,
+ val fieldList:List<AdminInventoryField>,
  val openReports:Int,
  val tasks:List<AdminSupportTask>,
  val securityEvents:List<AdminSecurityEvent>,
@@ -335,6 +340,8 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
    users=accounts,
    farms=farms.length(),
    fields=fields.length(),
+   farmList=farms.objects().map{row->AdminInventoryFarm(row.getString("id"),row.optString("name","Gazdaság"))},
+   fieldList=fields.objects().map{row->AdminInventoryField(row.getString("id"),row.optString("name","Földtábla"),farmNames[row.optString("farm_id")]?:"Gazdaság")},
    openReports=reports.length(),
    tasks=tasks.objects().map{row->
     AdminSupportTask(

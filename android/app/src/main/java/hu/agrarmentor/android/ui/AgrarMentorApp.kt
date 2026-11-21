@@ -57,17 +57,15 @@ import java.time.format.DateTimeFormatter
 import java.text.NumberFormat
 import java.util.Locale
 
-private val CanvasCream=Color(0xFFF7F5EE)
+private val CanvasCream=AgrarDesign.cream
 private val CardWhite=Color(0xFFFFFEFC)
-private val DarkText=Color(0xFF1D3026)
-private val MutedText=Color(0xFF6C7D72)
+private val DarkText=AgrarDesign.ink
+private val MutedText=AgrarDesign.subdued
 
 internal data class PortalPalette(val accent:Color,val tint:Color,val border:Color)
-private fun palette(role:PortalRole)=when(role){
- PortalRole.FARMER->PortalPalette(Color(0xFF0A613C),Color(0xFFE6F3E7),Color(0xFFD7E5D8))
- PortalRole.ADVISOR->PortalPalette(Color(0xFF2366A3),Color(0xFFE7F1FA),Color(0xFFD7E4ED))
- PortalRole.SYSTEM_ADMIN->PortalPalette(Color(0xFF92313D),Color(0xFFF9E9EC),Color(0xFFE9D6D9))
-}
+private fun palette(role:PortalRole)=PortalPalette(
+ AgrarDesign.green,Color(0xFFE9F3E9),Color(0xFFD9E7DA)
+)
 
 /**
  * Every new application process starts at sign-in. There are no demo users or
@@ -220,28 +218,31 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
   .filter{normalize(it.title).contains(normalize(query.trim()))||normalize(it.group).contains(normalize(query.trim()))}
   .groupBy{it.group}
 
- ModalDrawerSheet(modifier=Modifier.fillMaxHeight().widthIn(max=330.dp),drawerContainerColor=CardWhite){
+ ModalDrawerSheet(modifier=Modifier.fillMaxHeight().widthIn(max=330.dp),drawerContainerColor=AgrarDesign.forest){
   Column(Modifier.fillMaxHeight()){
    Row(Modifier.fillMaxWidth().padding(start=14.dp,end=5.dp,top=16.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
-    androidx.compose.foundation.Image(painterResource(R.drawable.agrar_mentor_logo_on_light),"Agrár Mentor",Modifier.weight(1f).height(52.dp),contentScale=ContentScale.Fit)
-    IconButton(onClick=onClose){Icon(Icons.Default.Close,"Menü bezárása",tint=DarkText)}
+    Box(Modifier.weight(1f).background(CardWhite,RoundedCornerShape(10.dp)).padding(horizontal=8.dp)){
+     androidx.compose.foundation.Image(painterResource(R.drawable.agrar_mentor_logo_on_light),"Agrár Mentor",Modifier.fillMaxWidth().height(52.dp),contentScale=ContentScale.Fit)
+    }
+    IconButton(onClick=onClose){Icon(Icons.Default.Close,"Menü bezárása",tint=Color.White)}
    }
-   Text(role.title.uppercase(),Modifier.padding(horizontal=18.dp,vertical=6.dp),color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)
+   Text(role.title.uppercase(),Modifier.padding(horizontal=18.dp,vertical=6.dp),color=AgrarDesign.gold,fontSize=12.sp,fontWeight=FontWeight.Bold)
    if(role==PortalRole.SYSTEM_ADMIN){
-    Text("ADMIN MÓD · A beavatkozások naplózhatók.",Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=5.dp).background(colors.tint,RoundedCornerShape(9.dp)).padding(10.dp),fontSize=12.sp,color=colors.accent,fontWeight=FontWeight.SemiBold)
+    Text("ADMIN MÓD · A beavatkozások naplózhatók.",Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=5.dp).background(Color.White.copy(alpha=.10f),RoundedCornerShape(9.dp)).padding(10.dp),fontSize=12.sp,color=Color.White,fontWeight=FontWeight.SemiBold)
    }
    OutlinedTextField(
     value=query,onValueChange={query=it},singleLine=true,
-    leadingIcon={Icon(Icons.Default.Search,null)},
-    trailingIcon={if(query.isNotEmpty())IconButton(onClick={query=""}){Icon(Icons.Default.Close,"Keresés törlése")}},
-    placeholder={Text("Menüpont keresése",fontSize=14.sp)},
+    leadingIcon={Icon(Icons.Default.Search,null,tint=Color.White)},
+    trailingIcon={if(query.isNotEmpty())IconButton(onClick={query=""}){Icon(Icons.Default.Close,"Keresés törlése",tint=Color.White)}},
+    placeholder={Text("Menüpont keresése",fontSize=14.sp,color=Color.White.copy(alpha=.75f))},
     modifier=Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),
-    shape=RoundedCornerShape(14.dp)
+    shape=RoundedCornerShape(14.dp),
+    colors=OutlinedTextFieldDefaults.colors(focusedTextColor=Color.White,unfocusedTextColor=Color.White,focusedBorderColor=AgrarDesign.gold,unfocusedBorderColor=Color.White.copy(alpha=.55f))
    )
    LazyColumn(modifier=Modifier.weight(1f),contentPadding=PaddingValues(start=10.dp,end=10.dp,bottom=25.dp)){
     groups.forEach{(group,entries)->
      item(key="group_$group"){
-      Text(group,Modifier.fillMaxWidth().padding(top=14.dp,bottom=7.dp,start=10.dp).background(colors.tint,RoundedCornerShape(9.dp)).padding(9.dp),color=colors.accent,fontWeight=FontWeight.Bold,fontSize=13.sp)
+      Text(group,Modifier.fillMaxWidth().padding(top=14.dp,bottom=7.dp,start=10.dp).background(Color.White.copy(alpha=.1f),RoundedCornerShape(9.dp)).padding(9.dp),color=AgrarDesign.gold,fontWeight=FontWeight.Bold,fontSize=13.sp)
      }
      items(entries,key={it.route}){destination->
       NavigationDrawerItem(
@@ -249,15 +250,18 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
        selected=route==destination.route,
        onClick={onNavigate(destination.route)},
        icon={Icon(if(destination.route.contains("map")||destination.route.contains("fields"))Icons.Default.Map else Icons.Default.ChevronRight,null,modifier=Modifier.size(19.dp))},
-       colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=colors.tint,selectedTextColor=colors.accent,selectedIconColor=colors.accent),
+       colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=Color(0xFF176F49),selectedTextColor=Color.White,selectedIconColor=AgrarDesign.gold,unselectedTextColor=Color.White,unselectedIconColor=Color.White.copy(alpha=.85f)),
        modifier=Modifier.padding(vertical=2.dp)
       )
      }
     }
-    if(groups.isEmpty())item{Text("Nincs ilyen menüpont.",Modifier.padding(20.dp),color=MutedText)}
+    if(groups.isEmpty())item{Text("Nincs ilyen menüpont.",Modifier.padding(20.dp),color=Color.White)}
+    item{
+     androidx.compose.foundation.Image(painterResource(R.drawable.agrar_fields_sunrise),contentDescription="Mezőgazdasági tájkép",modifier=Modifier.fillMaxWidth().height(92.dp).padding(top=16.dp),contentScale=ContentScale.Crop)
+    }
    }
-   HorizontalDivider(color=colors.border)
-   TextButton(onClick=onSignOut,modifier=Modifier.fillMaxWidth().padding(10.dp)){Text("Kijelentkezés",color=colors.accent,fontWeight=FontWeight.Bold)}
+   HorizontalDivider(color=Color.White.copy(alpha=.25f))
+   TextButton(onClick=onSignOut,modifier=Modifier.fillMaxWidth().padding(10.dp)){Text("Kijelentkezés",color=AgrarDesign.gold,fontWeight=FontWeight.Bold)}
   }
  }
 }
@@ -268,6 +272,7 @@ private fun String.normalizeForSearch()=java.text.Normalizer.normalize(this,java
 private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,session:AuthorizedSession,reconnectWarning:Boolean,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
  val title=NavigationCatalog.find(role,route)?.title ?: when {
   route.startsWith("/fields/")->"Tábla részletei"
+  route.startsWith("/operations/")||route.startsWith("/admin/operations/")->"Művelet részletei"
   route.startsWith("/admin/clients/")->"Ügyféldosszié"
   else->"Részletek"
  }
@@ -275,7 +280,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
   item{
    Text(role.title.uppercase(),color=colors.accent,fontSize=11.sp,fontWeight=FontWeight.Bold,letterSpacing=1.4.sp)
    Text(title,color=DarkText,fontSize=28.sp,fontWeight=FontWeight.ExtraBold,lineHeight=33.sp)
-   Text("Agrár Mentor mobilalkalmazás",color=MutedText,fontSize=12.sp)
+   HorizontalDivider(color=colors.border,modifier=Modifier.padding(top=8.dp))
   }
   if(reconnectWarning)item{
    Text("A kapcsolat megszakadt. A munkamenet automatikus megújítása folyamatban van.",color=Color(0xFF985414),fontSize=13.sp)
@@ -288,17 +293,19 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
    }else if(role==PortalRole.FARMER&&route.startsWith("/fields/")&&session!=null){
     item{LiveFieldDetailScreen(route.removePrefix("/fields/").substringBefore('/'),session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/tasks"&&session!=null){
-    item{LiveTasksScreen(session,colors)}
+    item{LiveTasksScreen(session,colors,onNavigate=onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/daily-work"&&session!=null){
-    item{LiveTasksScreen(session,colors,mode=TaskListMode.DUE)}
+    item{LiveTasksScreen(session,colors,mode=TaskListMode.DUE,onNavigate=onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/work"&&session!=null){
-    item{LiveTasksScreen(session,colors,mode=TaskListMode.MINE)}
+    item{LiveTasksScreen(session,colors,mode=TaskListMode.MINE,onNavigate=onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/dispatch"&&session!=null){
     item{TaskDispatchScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/operations/approvals"&&session!=null){
     item{LiveOperationApprovalsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/operations"&&session!=null){
-    item{LiveOperationsScreen(session,colors)}
+    item{LiveOperationsScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.FARMER&&route.startsWith("/operations/")&&session!=null){
+    item{LiveOperationDetailScreen(route.removePrefix("/operations/"),session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/notifications"&&session!=null){
     item{LiveNotificationsScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/messages"&&session!=null){
@@ -322,7 +329,9 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/inspections","/admin/visits")&&session!=null){
     item{AdvisorExtrasScreen(route,session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/operations"&&session!=null){
-    item{LiveOperationsScreen(session,colors)}
+    item{LiveOperationsScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/operations/")&&session!=null){
+    item{LiveOperationDetailScreen(route.removePrefix("/admin/operations/"),session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/documents"&&session!=null){
     item{LiveDocumentsScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/timeline","/admin/machines")&&session!=null){
@@ -349,7 +358,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){
     item{AdvisorClientDossierScreen(route.removePrefix("/admin/clients/"),session,colors,onNavigate)}
-   }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security")&&session!=null){
+   }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security","/system-admin/farms","/system-admin/fields")&&session!=null){
     item{AdminWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin/weather","/system-admin/backup")&&session!=null){
     item{AdvancedWebModuleScreen(route,colors,onNavigate)}
@@ -390,7 +399,7 @@ private fun operationLabel(type:String):String=when(type){
 private enum class TaskListMode{ALL,DUE,MINE}
 
 @Composable
-private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL){
+private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL,onNavigate:(String)->Unit){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val completion=remember{GeneralTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val fieldCompletion=remember{FieldTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
@@ -401,6 +410,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
  var revision by remember{mutableIntStateOf(0)}
  var filter by rememberSaveable{mutableStateOf("Nyitott")}
  var selectedCompletion by remember{mutableStateOf<MobileTask?>(null)}
+ var openedTask by remember{mutableStateOf<MobileTask?>(null)}
  var selectedFieldCompletion by remember{mutableStateOf<MobileTask?>(null)}
  var completionNote by remember{mutableStateOf("")}
  var sending by remember{mutableStateOf(false)}
@@ -443,7 +453,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
   else filtered.forEach{task->
    val critical=task.status!="done"&&(task.priority=="urgent"||task.priority=="high")
    val border=if(critical)Color(0xFFE2AD32)else colors.border
-   Card(colors,border=border){
+   Card(colors,border=border,onClick={openedTask=task}){
     Row(verticalAlignment=Alignment.CenterVertically){
      Column(Modifier.weight(1f)){
       Text(task.title,color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
@@ -465,6 +475,20 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
     }
    }
   }
+ }
+ openedTask?.let{task->
+  AlertDialog(onDismissRequest={openedTask=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text(task.fieldName,fontWeight=FontWeight.Bold)
+   Text("Állapot: ${taskStatus(task.status)}")
+   Text("Határidő: ${huDate(task.dueDate)}")
+   task.description?.let{Text(it)}
+   Text("A tényleges teljesítést a feladatkártya műveleti gombjával lehet beküldeni.",fontSize=12.sp,color=MutedText)
+  }},confirmButton={
+   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+    if(task.fieldId!=null)TextButton(onClick={openedTask=null;onNavigate("/fields/${task.fieldId}")}){Text("Földtábla")}
+    TextButton(onClick={openedTask=null}){Text("Bezárás")}
+   }
+  })
  }
  selectedCompletion?.let{task->
   AlertDialog(
@@ -503,7 +527,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
 }
 
 @Composable
-private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette){
+private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val createRepository=remember{OperationCreateRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var operations by remember{mutableStateOf<List<MobileOperation>>(emptyList())}
@@ -529,7 +553,7 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
   else if(error)LoadError(colors,onRetry={revision++})
   else if(operations.isEmpty())Text("Még nincs rögzített művelet.",color=MutedText)
   else operations.forEach{op->
-   Card(colors){
+   Card(colors,onClick={onNavigate(if(session.role==PortalRole.ADVISOR)"/admin/operations/${op.id}" else "/operations/${op.id}")}){
     Row(verticalAlignment=Alignment.CenterVertically){
      Icon(Icons.Default.DateRange,null,tint=colors.accent)
      Spacer(Modifier.width(10.dp))
@@ -540,7 +564,10 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
     }
     if(!op.product.isNullOrBlank())Text("Anyag: ${op.product}",color=DarkText,fontSize=13.sp)
     if(!op.quantity.isNullOrBlank())Text("Mennyiség: ${op.quantity}",color=MutedText,fontSize=12.sp)
-    Text(when(op.approvalStatus){"pending"->"Jóváhagyásra vár";"approved"->"Jóváhagyva";else->"Bejegyezve"},color=colors.accent,fontWeight=FontWeight.Bold,fontSize=12.sp)
+    Row(verticalAlignment=Alignment.CenterVertically){
+     Text(when(op.approvalStatus){"pending"->"Jóváhagyásra vár";"approved"->"Jóváhagyva";else->"Bejegyezve"},color=colors.accent,fontWeight=FontWeight.Bold,fontSize=12.sp,modifier=Modifier.weight(1f))
+     Icon(Icons.Default.ChevronRight,contentDescription="Művelet megnyitása",tint=colors.accent)
+    }
    }
   }
  }
@@ -549,6 +576,43 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette)
    notice=warning?:"A művelet sikeresen bekerült a naplóba."
    showCreate=false;revision++
   })
+ }
+}
+
+@Composable
+private fun LiveOperationDetailScreen(operationId:String,session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
+ val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ var operation by remember(operationId){mutableStateOf<MobileOperation?>(null)}
+ var loading by remember(operationId){mutableStateOf(true)}
+ var failed by remember(operationId){mutableStateOf(false)}
+ var revision by remember(operationId){mutableIntStateOf(0)}
+ val back=if(session.role==PortalRole.ADVISOR)"/admin/operations" else "/operations"
+ LaunchedEffect(session.accessToken,operationId,revision){
+  loading=true;failed=false
+  try{operation=repository.operations(session).find{it.id==operationId}}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){failed=true}
+  finally{loading=false}
+ }
+ Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+  TextButton(onClick={onNavigate(back)}){Text("← Vissza a műveleti naplóhoz",color=colors.accent)}
+  if(loading)CircularProgressIndicator(color=colors.accent)
+  else if(failed)LoadError(colors,onRetry={revision++})
+  else if(operation==null)Card(colors){Text("Ez a művelet a jelenlegi jogosultsággal nem érhető el.",color=MutedText)}
+  else operation?.let{op->
+   PortalHero(operationLabel(op.type),"${op.fieldName} · ${huDate(op.date)}",colors)
+   Card(colors){
+    Text("Rögzített művelet",fontSize=17.sp,fontWeight=FontWeight.Bold,color=DarkText)
+    Text("Földtábla: ${op.fieldName}",color=DarkText)
+    Text("Dátum: ${huDate(op.date)}",color=DarkText)
+    op.product?.let{Text("Anyag vagy művelet: $it",color=DarkText)}
+    op.quantity?.let{Text("Mennyiség / dózis: $it",color=DarkText)}
+    Text("Jóváhagyás: ${when(op.approvalStatus){"pending"->"Várakozik";"approved"->"Jóváhagyva";else->"Nem jóváhagyásköteles"}}",color=colors.accent,fontWeight=FontWeight.Bold)
+   }
+   if(op.fieldId.isNotBlank())PortalRouteTile("Földtábla adatlapja","A művelethez tartozó tábla megnyitása",colors){onNavigate("/fields/${op.fieldId}")}
+   Text("A teljes műveleti audit és hatósági megfelelőségi részletek az elkülönített, jogosultságvédett webes felületen ellenőrizhetők.",color=MutedText,fontSize=12.sp)
+   WebModuleOpenButton(if(session.role==PortalRole.ADVISOR)"/operations/${op.id}" else "/operations/${op.id}",colors)
+  }
  }
 }
 
@@ -569,6 +633,7 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
  var loading by remember(fieldId){mutableStateOf(true)}
  var error by remember(fieldId){mutableStateOf(false)}
  var revision by remember(fieldId){mutableIntStateOf(0)}
+ var activeTab by rememberSaveable(fieldId){mutableStateOf("Áttekintés")}
  LaunchedEffect(fieldId,session.accessToken,revision){
   loading=true;error=false
   try{detail=repository.field(session,fieldId)}catch(_:Exception){error=true}
@@ -595,11 +660,13 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else detail?.let{field->
-   Card(colors,background=colors.tint){
-    Text(field.name,color=DarkText,fontSize=22.sp,fontWeight=FontWeight.Bold)
-    Text("${field.areaHa} ha · ${field.crop}",color=DarkText)
-    Text(field.farmName,color=MutedText,fontSize=12.sp)
+   PortalHero(field.name,"${field.areaHa} ha · ${field.crop} · ${field.farmName}",colors)
+   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(7.dp)){
+    listOf("Áttekintés","Teendők","Műveletek","Időjárás","Térkép").forEach{tab->
+     FilterChip(selected=activeTab==tab,onClick={activeTab=tab},label={Text(tab)},colors=FilterChipDefaults.filterChipColors(selectedContainerColor=colors.tint,selectedLabelColor=colors.accent))
+    }
    }
+   if(activeTab=="Áttekintés"){
    Card(colors){
     Text("Tábla adatai",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     Text("Állapot: ${when(field.status){"inactive"->"Inaktív";"archived"->"Archivált";else->"Aktív"}}",color=DarkText,fontSize=13.sp)
@@ -616,16 +683,22 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
     if(field.inspectedAt!=null)Text(huDate(field.inspectedAt),color=MutedText,fontSize=12.sp)
     if(!field.recommendation.isNullOrBlank())Text("Szaktanácsadói javaslat: ${field.recommendation}",color=DarkText,fontSize=13.sp)
    }
+   }
+   if(activeTab=="Teendők"){
    Card(colors){
     Text("Teendők (${field.tasks.size})",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     if(field.tasks.isEmpty())Text("Ehhez a táblához nincs teendő.",color=MutedText)
-    else field.tasks.take(8).forEach{task->Text("• ${task.title} · ${taskStatus(task.status)}",fontSize=13.sp,color=DarkText)}
+    else field.tasks.take(20).forEach{task->PortalRouteTile(task.title,"${taskStatus(task.status)} · ${huDate(task.dueDate)}",colors){onNavigate(if(session.role==PortalRole.ADVISOR)"/admin/tasks" else "/tasks")}}
    }
+   }
+   if(activeTab=="Műveletek"){
    Card(colors){
     Text("Műveletek (${field.operations.size})",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     if(field.operations.isEmpty())Text("Még nincs rögzített művelet.",color=MutedText)
-    else field.operations.take(8).forEach{op->Text("• ${operationLabel(op.type)} · ${huDate(op.date)}",fontSize=13.sp,color=DarkText)}
+    else field.operations.take(20).forEach{op->PortalRouteTile(operationLabel(op.type),"${huDate(op.date)} · ${op.product?:"Művelet"}",colors){onNavigate(if(session.role==PortalRole.ADVISOR)"/admin/operations/${op.id}" else "/operations/${op.id}")}}
    }
+   }
+   if(activeTab=="Időjárás"){
    Card(colors){
     Text("Csapadéknapló · HungaroMet",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     if(rainLoading)CircularProgressIndicator(color=colors.accent)
@@ -649,6 +722,8 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
      Text("A 0 mm mért csapadékmentes nap; a hiányzó napot nem számoljuk nullának. A mérés közeli állomásról származik, nem magáról a tábláról.",color=MutedText,fontSize=12.sp)
     }
    }
+   }
+   if(activeTab=="Térkép"){
    Card(colors){
     Text("Földtábla a térképen",color=DarkText,fontSize=17.sp,fontWeight=FontWeight.Bold)
     if(mapLoading)CircularProgressIndicator(color=colors.accent)
@@ -665,6 +740,7 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
      }
     }
     Text("OpenFreeMap / OpenStreetMap térkép. A poligon itt nem szerkeszthető és nem hiteles földmérési adat; műholdréteg még nincs.",fontSize=12.sp,color=MutedText)
+   }
    }
   }
  }

@@ -41,6 +41,7 @@ internal fun AdvisorWorkdayScreen(session:AuthorizedSession,colors:PortalPalette
  var revision by remember{mutableIntStateOf(0)}
  val today=remember{LocalDate.now(ZoneId.of("Europe/Budapest"))}
  var selected by remember{mutableStateOf(today.toString())}
+ var section by remember{mutableStateOf("all")}
  LaunchedEffect(session.accessToken,revision){
   busy=true;error=null
   try{data=repo.load(session)}
@@ -59,13 +60,15 @@ internal fun AdvisorWorkdayScreen(session:AuthorizedSession,colors:PortalPalette
    val overdue=workdayOverdueItems(snapshot.items,today.toString())
    val unscheduled=workdayUnscheduledTasks(snapshot.items)
    Row(horizontalArrangement=Arrangement.spacedBy(9.dp)){
-    Box(Modifier.weight(1f)){Metric("A kiválasztott napon",selectedItems.size,colors)}
-    Box(Modifier.weight(1f)){Metric("Lejárt / elmaradt",overdue.size,colors)}
+    Box(Modifier.weight(1f)){PortalMetric("A kiválasztott napon",selectedItems.size.toString(),colors){section="day"}}
+    Box(Modifier.weight(1f)){PortalMetric("Lejárt / elmaradt",overdue.size.toString(),colors){section="overdue"}}
    }
    Row(horizontalArrangement=Arrangement.spacedBy(9.dp)){
-    Box(Modifier.weight(1f)){Metric("Nyitott jelzések",snapshot.openReports,colors)}
-    Box(Modifier.weight(1f)){Metric("Kritikus táblák",snapshot.criticalFields,colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Nyitott jelzések",snapshot.openReports.toString(),colors){onNavigate("/admin/reports")}}
+    Box(Modifier.weight(1f)){PortalMetric("Kritikus táblák",snapshot.criticalFields.toString(),colors){onNavigate("/admin/map")}}
    }
+   if(section!="all")TextButton(onClick={section="all"}){Text("Teljes munkanap megjelenítése",color=colors.accent)}
+   if(section=="all"||section=="day"){
    Card(colors){
     Text("Következő 7 nap",color=WorkdayInk,fontSize=17.sp,fontWeight=FontWeight.Bold)
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
@@ -81,12 +84,17 @@ internal fun AdvisorWorkdayScreen(session:AuthorizedSession,colors:PortalPalette
    Text("Napi munkaterv · ${huDate(selected)}",color=WorkdayInk,fontSize=17.sp,fontWeight=FontWeight.Bold)
    if(selectedItems.isEmpty())Text("Erre a napra nincs ütemezett szakmai esemény.",color=WorkdayMuted,fontSize=13.sp)
    selectedItems.take(30).forEach{WorkdayItemCard(it,colors,onNavigate)}
+   }
+   if(section=="all"||section=="overdue"){
    Text("Lejárt vagy elmaradt tételek · ${overdue.size}",color=WorkdayInk,fontSize=17.sp,fontWeight=FontWeight.Bold)
    if(overdue.isEmpty())Text("Jelenleg nincs lejárt szakmai tétel.",color=WorkdayMuted,fontSize=13.sp)
    overdue.take(15).forEach{WorkdayItemCard(it,colors,onNavigate)}
+   }
+   if(section=="all"){
    Text("Határidő nélküli feladatok · ${unscheduled.size}",color=WorkdayInk,fontSize=17.sp,fontWeight=FontWeight.Bold)
    if(unscheduled.isEmpty())Text("Minden nyitott feladat rendelkezik határidővel.",color=WorkdayMuted,fontSize=13.sp)
    unscheduled.take(10).forEach{WorkdayItemCard(it,colors,onNavigate)}
+   }
    Card(colors,onClick={onNavigate("/admin/reports")}){
     Text("Gazdálkodói jelzések: ${snapshot.openReports}",fontSize=15.sp,color=colors.accent,fontWeight=FontWeight.Bold)
     Text("Beérkező ügyek megnyitása ›",fontSize=12.sp,color=WorkdayMuted)

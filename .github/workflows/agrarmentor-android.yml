@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/agrarmentor-android-native
+      - 'fix/agrarmentor-native-*'
     paths:
       - 'android/**'
       - '.github/workflows/agrarmentor-android.yml'

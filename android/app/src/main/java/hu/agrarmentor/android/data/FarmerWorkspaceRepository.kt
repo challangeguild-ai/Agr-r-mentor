@@ -23,6 +23,7 @@ data class MobileTask(
 
 data class MobileOperation(
  val id:String,
+ val fieldId:String,
  val fieldName:String,
  val date:String,
  val type:String,
@@ -124,6 +125,7 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   }
   return MobileOperation(
    id=row.getString("id"),
+   fieldId=row.optString("field_id"),
    fieldName=names[row.optString("field_id")]?:"Földtábla",
    date=row.optString("operation_date",""),
    type=row.optString("operation_type","other"),

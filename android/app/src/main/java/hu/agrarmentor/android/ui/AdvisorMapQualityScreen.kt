@@ -27,6 +27,7 @@ internal fun AdvisorMapQualityScreen(session:AuthorizedSession,colors:PortalPale
  var fields by remember(session.accessToken){mutableStateOf<List<MobileFieldQuality>?>(null)}
  var busy by remember(session.accessToken){mutableStateOf(true)}
  var error by remember(session.accessToken){mutableStateOf<String?>(null)}
+ var activeQuality by remember{mutableStateOf<MobileBoundaryQuality?>(null)}
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(session.accessToken,revision){
   busy=true;error=null
@@ -43,20 +44,21 @@ internal fun AdvisorMapQualityScreen(session:AuthorizedSession,colors:PortalPale
    TextButton(onClick={revision++}){Text("Újrapróbálás")}
   }else fields?.let{items->
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    Box(Modifier.weight(1f)){Metric("Hiányzó hely",items.count{it.status==MobileBoundaryQuality.MISSING},colors)}
-    Box(Modifier.weight(1f)){Metric("Csak helypont",items.count{it.status==MobileBoundaryQuality.POINT},colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Hiányzó hely",items.count{it.status==MobileBoundaryQuality.MISSING}.toString(),colors){activeQuality=MobileBoundaryQuality.MISSING}}
+    Box(Modifier.weight(1f)){PortalMetric("Csak helypont",items.count{it.status==MobileBoundaryQuality.POINT}.toString(),colors){activeQuality=MobileBoundaryQuality.POINT}}
    }
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    Box(Modifier.weight(1f)){Metric("Területeltérés",items.count{it.status==MobileBoundaryQuality.WARNING},colors)}
-    Box(Modifier.weight(1f)){Metric("Hibás poligon",items.count{it.status==MobileBoundaryQuality.INVALID},colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Területeltérés",items.count{it.status==MobileBoundaryQuality.WARNING}.toString(),colors){activeQuality=MobileBoundaryQuality.WARNING}}
+    Box(Modifier.weight(1f)){PortalMetric("Hibás poligon",items.count{it.status==MobileBoundaryQuality.INVALID}.toString(),colors){activeQuality=MobileBoundaryQuality.INVALID}}
    }
    Card(colors){
     Text("Poligonnal rögzítve: ${items.count{it.status==MobileBoundaryQuality.BOUNDED}}",color=colors.accent,fontWeight=FontWeight.Bold)
     Text("Összesen ${items.size} betöltött földtábla (egyszerre legfeljebb 1000).",color=QualityMuted,fontSize=12.sp)
    }
    TextButton(onClick={onNavigate("/admin/map/proposals")}){Text("Beküldött határjavaslatok ›",color=colors.accent)}
+   if(activeQuality!=null)TextButton(onClick={activeQuality=null}){Text("Szűrés törlése · minden földtábla",color=colors.accent)}
    if(items.isEmpty())Text("Nincs ellenőrizhető földtábla.",color=QualityMuted)
-   items.forEach{field->
+   items.filter{activeQuality==null||it.status==activeQuality}.forEach{field->
     val warning=field.status in listOf(MobileBoundaryQuality.INVALID,MobileBoundaryQuality.MISSING,MobileBoundaryQuality.WARNING)
     Card(colors,border=if(warning)QualityWarn else colors.border,onClick={onNavigate("/fields/${field.id}")}){
      Text(field.name,color=QualityInk,fontSize=16.sp,fontWeight=FontWeight.Bold)

@@ -52,6 +52,8 @@ object NavigationCatalog {
   MobileDestination("/system-admin","Rendszeráttekintés","Rendszer"),
   MobileDestination("/system-admin/support","Támogatási központ","Rendszer"),
   MobileDestination("/system-admin/users","Felhasználók","Rendszer"),
+ MobileDestination("/system-admin/farms","Gazdaságok","Nyilvántartás"),
+ MobileDestination("/system-admin/fields","Földtáblák","Nyilvántartás"),
   MobileDestination("/system-admin/security","Biztonsági események","Rendszer"),
   MobileDestination("/system-admin/weather","HungaroMet kapcsolat","Rendszer"),
   MobileDestination("/system-admin/backup","Biztonsági mentés","Rendszer")

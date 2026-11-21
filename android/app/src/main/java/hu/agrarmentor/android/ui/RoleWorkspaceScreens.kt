@@ -70,40 +70,31 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
     "/admin/clients","/admin/portfolio"->AdvisorClients(data,colors,onNavigate)
     "/admin/priorities"->AdvisorPriorities(data,colors,onNavigate)
-    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onReviewed={revision++})
+    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onNavigate=onNavigate,onReviewed={revision++})
    }
   }
  }
 }
-
 @Composable
 private fun AdvisorDashboard(data:AdvisorWorkspace,colors:PortalPalette,onNavigate:(String)->Unit){
  val pending=data.tasks.count{it.status=="submitted"}
  val open=data.tasks.count{it.status!="done"&&it.status!="cancelled"}
- Card(colors,background=colors.accent){
-  Text("Mai szakmai áttekintés",color=Color.White,fontSize=22.sp,fontWeight=FontWeight.Bold)
-  Text("Ügyfelek, feladatok és nyitott jelzések",color=Color.White.copy(alpha=.88f),fontSize=13.sp)
+ PortalHero("Mai szakmai áttekintés","Ügyfelek, feladatok és nyitott jelzések",colors,onClick={onNavigate("/admin/daily-work")})
+ Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+  Box(Modifier.weight(1f)){PortalMetric("Ügyfelek",data.clients.size.toString(),colors){onNavigate("/admin/clients")}}
+  Box(Modifier.weight(1f)){PortalMetric("Táblák",data.totalFields.toString(),colors){onNavigate("/admin/map")}}
  }
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Ügyfelek",data.clients.size,colors)}
-  Box(Modifier.weight(1f)){Metric("Táblák",data.totalFields,colors)}
+  Box(Modifier.weight(1f)){PortalMetric("Nyitott teendők",open.toString(),colors){onNavigate("/admin/tasks")}}
+  Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",pending.toString(),colors){onNavigate("/admin/tasks")}}
  }
- Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Nyitott teendők",open,colors)}
-  Box(Modifier.weight(1f)){Metric("Ellenőrzésre vár",pending,colors)}
- }
- Card(colors){
-  Text("Nyitott gazdálkodói jelzések",color=SoftInk,fontSize=14.sp)
-  Text(data.openReports.toString(),color=colors.accent,fontSize=28.sp,fontWeight=FontWeight.Bold)
- }
- listOf("Ügyfelek" to "/admin/clients","Napi teendők" to "/admin/daily-work","Feladatok" to "/admin/tasks").forEach{(title,path)->
-  Card(colors,onClick={onNavigate(path)}){
-   Row(verticalAlignment=Alignment.CenterVertically){
-    Text(title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-    Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
-   }
-  }
- }
+ PortalMetric("Nyitott gazdálkodói jelzések",data.openReports.toString(),colors){onNavigate("/admin/reports")}
+ listOf(
+  Triple("Mai prioritások","Határidők és figyelmet igénylő ügyek","/admin/daily-work"),
+  Triple("Szemlék","Helyszíni állapot és visszaellenőrzés","/admin/inspections"),
+  Triple("Látogatások","Terepi ügyféllátogatások","/admin/visits"),
+  Triple("Műveletek","Ügyfelek műveleti naplója","/admin/operations")
+ ).forEach{(title,description,path)->PortalRouteTile(title,description,colors){onNavigate(path)}}
  Text("Az összesítők a jelenleg elérhető adatokból készülnek.",fontSize=12.sp,color=SoftInk)
 }
 
@@ -236,6 +227,8 @@ internal fun AdvisorTeamScreen(session:AuthorizedSession,colors:PortalPalette){
  var busy by remember(session.accessToken){mutableStateOf(true)}
  var error by remember(session.accessToken){mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ var teamFilter by remember{mutableStateOf("all")}
+ var openedMember by remember{mutableStateOf<AdvisorTeamMember?>(null)}
  LaunchedEffect(session.accessToken,revision){
   busy=true;error=null
   try{team=repo.advisorTeam(session)}
@@ -252,16 +245,17 @@ internal fun AdvisorTeamScreen(session:AuthorizedSession,colors:PortalPalette){
   }else team?.let{members->
    val active=members.filter{it.active}
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Box(Modifier.weight(1f)){Metric("Aktív munkatárs",active.size,colors)}
-    Box(Modifier.weight(1f)){Metric("Vezető / agronómus",active.count{it.memberRole in listOf("manager","agronomist")},colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Aktív munkatárs",active.size.toString(),colors){teamFilter="active"}}
+    Box(Modifier.weight(1f)){PortalMetric("Vezető / agronómus",active.count{it.memberRole in listOf("manager","agronomist")}.toString(),colors){teamFilter="leaders"}}
    }
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Box(Modifier.weight(1f)){Metric("Gépkezelő",active.count{it.memberRole=="operator"},colors)}
-    Box(Modifier.weight(1f)){Metric("Kombájnos",active.count{it.memberRole=="harvester"},colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Gépkezelő",active.count{it.memberRole=="operator"}.toString(),colors){teamFilter="operator"}}
+    Box(Modifier.weight(1f)){PortalMetric("Kombájnos",active.count{it.memberRole=="harvester"}.toString(),colors){teamFilter="harvester"}}
    }
+   if(teamFilter!="all")TextButton(onClick={teamFilter="all"}){Text("Minden munkatárs megjelenítése",color=colors.accent)}
    if(members.isEmpty())Text("Még nincs ügyfélgazdasághoz rendelt munkatárs.",color=SoftInk,fontSize=13.sp)
-   members.forEach{member->
-    Card(colors,border=if(member.active)colors.border else Attention){
+   members.filter{when(teamFilter){"active"->it.active;"leaders"->it.active&&it.memberRole in listOf("manager","agronomist");"operator","harvester"->it.active&&it.memberRole==teamFilter;else->true}}.forEach{member->
+    Card(colors,border=if(member.active)colors.border else Attention,onClick={openedMember=member}){
      Row(verticalAlignment=Alignment.CenterVertically){
       Text(member.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
       Text(if(member.active)"Aktív" else "Felfüggesztve",color=if(member.active)colors.accent else Critical,fontSize=12.sp)
@@ -271,6 +265,12 @@ internal fun AdvisorTeamScreen(session:AuthorizedSession,colors:PortalPalette){
     }
    }
    Text("A munkatársi szerepkör nem helyettesíti a növényvédelmi jogosultság igazolását. A csapattagság szerkesztése a webes felületen történik.",fontSize=12.sp,color=SoftInk)
+   openedMember?.let{member->AlertDialog(onDismissRequest={openedMember=null},title={Text(member.name)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+    Text("Gazdaság: ${member.farmName}")
+    Text("Szerepkör: ${teamRoleLabel(member.memberRole)}")
+    Text("Állapot: ${if(member.active)"Aktív" else "Felfüggesztve"}")
+    member.phone?.let{Text("Telefon: $it")}
+   }},confirmButton={TextButton(onClick={openedMember=null}){Text("Bezárás")}})}
   }
  }
 }
@@ -302,8 +302,8 @@ internal fun AdvisorClientDossierScreen(clientId:String,session:AuthorizedSessio
     Text("${client.farms.size} gazdaság · ${client.farms.sumOf{it.fields.size}} földtábla",color=colors.accent,fontSize=14.sp)
    }
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Box(Modifier.weight(1f)){Metric("Nyitott teendők",client.openTasks,colors)}
-    Box(Modifier.weight(1f)){Metric("Ellenőrzésre vár",client.awaitingReview,colors)}
+    Box(Modifier.weight(1f)){PortalMetric("Nyitott teendők",client.openTasks.toString(),colors){onNavigate("/admin/tasks")}}
+    Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",client.awaitingReview.toString(),colors){onNavigate("/admin/tasks")}}
    }
    if(client.farms.isEmpty())Card(colors){Text("Ehhez az ügyfélhez nincs hozzáférhető gazdaság.",color=SoftInk)}
    client.farms.forEach{farm->
@@ -335,11 +335,12 @@ internal fun AdvisorClientDossierScreen(clientId:String,session:AuthorizedSessio
 }
 
 @Composable
-private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onReviewed:()->Unit){
+private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onNavigate:(String)->Unit,onReviewed:()->Unit){
  val reviewGateway=remember{AdvisorTaskReview(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
  var reviewing by remember{mutableStateOf<Pair<AdvisorTask,Boolean>?>(null)}
+ var openedTask by remember{mutableStateOf<AdvisorTask?>(null)}
  var note by remember{mutableStateOf("")}
  var evidenceConfirmed by remember{mutableStateOf(false)}
  val openedProofs=remember{mutableStateListOf<String>()}
@@ -355,6 +356,10 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
   Card(colors,border=if(attention)Attention else colors.border){
    Text(task.title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
    Text(task.fieldName,color=SoftInk,fontSize=12.sp)
+   Row(verticalAlignment=Alignment.CenterVertically){
+    TextButton(onClick={openedTask=task}){Text("Feladat részletei ›",color=colors.accent)}
+    if(task.fieldId!=null)TextButton(onClick={onNavigate("/fields/${task.fieldId}")}){Text("Földtábla ›",color=colors.accent)}
+   }
    Row(horizontalArrangement=Arrangement.SpaceBetween,modifier=Modifier.fillMaxWidth()){
     Text(taskStatus(task.status),color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)
     Text(huDate(task.dueDate),color=if(attention)Critical else SoftInk,fontSize=12.sp)
@@ -400,6 +405,16 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
     }else Text("A feladathoz tartozó ellenőrizhető teljesítési riport nem érhető el.",color=Critical,fontSize=12.sp)
    }
   }
+ }
+ openedTask?.let{task->
+  AlertDialog(onDismissRequest={openedTask=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("Földtábla: ${task.fieldName}")
+   Text("Állapot: ${taskStatus(task.status)}")
+   Text("Határidő: ${huDate(task.dueDate)}")
+   Text("Prioritás: ${task.priority}")
+   if(!task.reportNotes.isNullOrBlank())Text("Végrehajtási megjegyzés: ${task.reportNotes}")
+   Text("Az ellenőrzési döntés a feladatkártyán, a bizonyítékok megtekintése után érhető el.",color=SoftInk,fontSize=12.sp)
+  }},confirmButton={TextButton(onClick={openedTask=null}){Text("Bezárás")}})
  }
  reviewing?.let{(task,approve)->
   AlertDialog(
@@ -462,6 +477,8 @@ internal fun AdminWorkspaceScreen(route:String,session:AuthorizedSession,colors:
     "/system-admin/users"->AdminUsers(data,colors)
     "/system-admin/support"->AdminSupport(data,colors)
     "/system-admin/security"->AdminSecurity(data,colors)
+    "/system-admin/farms"->AdminInventory(data,colors,showFarms=true)
+    "/system-admin/fields"->AdminInventory(data,colors,showFarms=false)
    }
   }
  }
@@ -471,74 +488,130 @@ internal fun AdminWorkspaceScreen(route:String,session:AuthorizedSession,colors:
 private fun AdminDashboard(data:AdminWorkspace,colors:PortalPalette,onNavigate:(String)->Unit){
  val open=data.tasks.count{it.status!="done"&&it.status!="cancelled"}
  val high=data.securityEvents.count{it.riskScore>=70}
- Card(colors,background=colors.accent){
-  Text("Rendszerfelügyelet",color=Color.White,fontWeight=FontWeight.Bold,fontSize=22.sp)
-  Text("Admin támogatási mód · minden beavatkozás naplózandó",color=Color.White.copy(alpha=.9f),fontSize=13.sp)
+ PortalHero("Rendszerfelügyelet","Admin támogatási mód · minden beavatkozás naplózandó",colors,onClick={onNavigate("/system-admin/support")})
+ Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+  Box(Modifier.weight(1f)){PortalMetric("Felhasználók",data.users.size.toString(),colors){onNavigate("/system-admin/users")}}
+  Box(Modifier.weight(1f)){PortalMetric("Gazdaságok",data.farms.toString(),colors){onNavigate("/system-admin/farms")}}
  }
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Felhasználók",data.users.size,colors)}
-  Box(Modifier.weight(1f)){Metric("Gazdaságok",data.farms,colors)}
- }
- Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Táblák",data.fields,colors)}
-  Box(Modifier.weight(1f)){Metric("Nyitott feladatok",open,colors)}
+  Box(Modifier.weight(1f)){PortalMetric("Táblák",data.fields.toString(),colors){onNavigate("/system-admin/fields")}}
+  Box(Modifier.weight(1f)){PortalMetric("Nyitott feladatok",open.toString(),colors){onNavigate("/system-admin/support")}}
  }
  Card(colors){
   Text("Nyitott jelzések: ${data.openReports}",fontSize=14.sp,color=Ink)
   Text(if(data.securityAvailable)"Magas kockázatú események a betöltött listában: $high" else "Biztonsági események: külön hozzáférés szükséges",color=colors.accent,fontSize=13.sp,fontWeight=FontWeight.Bold)
  }
- listOf("Támogatási központ" to "/system-admin/support","Felhasználók" to "/system-admin/users","Biztonsági események" to "/system-admin/security").forEach{(title,path)->
-  Card(colors,onClick={onNavigate(path)}){
-   Row(verticalAlignment=Alignment.CenterVertically){
-    Text(title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-    Icon(Icons.Default.ChevronRight,null,tint=colors.accent)
-   }
-  }
- }
+ listOf(
+  Triple("Támogatási központ","Feladatok és műszaki elakadások","/system-admin/support"),
+  Triple("Felhasználók","Fiók- és szerepköradatok","/system-admin/users"),
+  Triple("Biztonsági események","Kockázati napló áttekintése","/system-admin/security"),
+  Triple("HungaroMet kapcsolat","Szinkronállapot és webes felügyelet","/system-admin/weather"),
+  Triple("Biztonsági mentés","Védett webes rendszerművelet","/system-admin/backup")
+ ).forEach{(title,description,path)->PortalRouteTile(title,description,colors){onNavigate(path)}}
  Text("A számok csak a bejelentkezett admin számára hozzáférhető és betöltött sorokat jelzik.",fontSize=12.sp,color=SoftInk)
 }
 
 @Composable
+private fun AdminInventory(data:AdminWorkspace,colors:PortalPalette,showFarms:Boolean){
+ var search by remember(showFarms){mutableStateOf("")}
+ var shown by remember(showFarms){mutableIntStateOf(50)}
+ var opened by remember(showFarms){mutableStateOf<String?>(null)}
+ val records=if(showFarms)data.farmList.map{Triple(it.id,it.name,"")}
+  else data.fieldList.map{Triple(it.id,it.name,it.farmName)}
+ val filtered=records.filter{it.second.contains(search,true)||it.third.contains(search,true)}
+ Text(if(showFarms)"Hozzáférhető gazdaságok: ${filtered.size}" else "Hozzáférhető földtáblák: ${filtered.size}",color=SoftInk,fontSize=13.sp)
+ OutlinedTextField(value=search,onValueChange={search=it;shown=50},label={Text("Keresés a nyilvántartásban")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ if(filtered.isEmpty())Text("Nincs a keresésnek megfelelő rekord.",color=SoftInk,fontSize=13.sp)
+ filtered.take(shown).forEach{(id,name,farmName)->
+  PortalRouteTile(name,if(showFarms)"Gazdaság adatlapja" else farmName,colors){opened=id}
+ }
+ if(filtered.size>shown)TextButton(onClick={shown+=50}){Text("További ${if(showFarms)"gazdaságok" else "táblák"}",color=colors.accent)}
+ opened?.let{id->
+  val selected=records.firstOrNull{it.first==id}
+  if(selected!=null)AlertDialog(
+   onDismissRequest={opened=null},
+   title={Text(selected.second)},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text(if(showFarms)"Gazdaság" else "Földtábla",fontWeight=FontWeight.Bold)
+    if(!showFarms)Text("Gazdaság: ${selected.third}")
+    Text("Nyilvántartási azonosító: ${selected.first}",fontSize=12.sp)
+    Text("Az adatok kizárólag a bejelentkezett rendszeradmin olvasási jogosultsága szerint jelennek meg.",color=SoftInk,fontSize=12.sp)
+   }},
+   confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}}
+  )
+ }
+}
+
+@Composable
 private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
+ var roleFilter by remember{mutableStateOf<String?>(null)}
+ var opened by remember{mutableStateOf<String?>(null)}
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Gazdálkodók",data.users.count{it.role=="farmer"},colors)}
-  Box(Modifier.weight(1f)){Metric("Szaktanácsadók",data.users.count{it.role=="advisor"},colors)}
+  Box(Modifier.weight(1f)){PortalMetric("Gazdálkodók",data.users.count{it.role=="farmer"}.toString(),colors){roleFilter="farmer"}}
+  Box(Modifier.weight(1f)){PortalMetric("Szaktanácsadók",data.users.count{it.role=="advisor"}.toString(),colors){roleFilter="advisor"}}
  }
  Text("Rendszeradminisztrátorok: ${data.users.count{it.systemRole=="admin"}}",fontSize=13.sp,color=SoftInk)
- data.users.forEach{user->
-  Card(colors){
-   Text(user.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
+ if(roleFilter!=null)TextButton(onClick={roleFilter=null}){Text("Szűrés törlése · ${if(roleFilter=="farmer")"Gazdálkodók" else "Szaktanácsadók"}",color=colors.accent)}
+ data.users.filter{roleFilter==null||it.role==roleFilter}.forEach{user->
+  Card(colors,onClick={opened=user.id}){
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Text(user.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    Icon(Icons.Default.ChevronRight,contentDescription="Fiókrészletek",tint=colors.accent)
+   }
    Text(when(user.role){"advisor"->"Szaktanácsadó";"farmer"->"Gazdálkodó";else->"Ismeretlen szerepkör"},color=SoftInk,fontSize=13.sp)
    if(user.systemRole=="admin")Text("Rendszeradmin jogosultság",fontSize=12.sp,fontWeight=FontWeight.Bold,color=colors.accent)
    if(user.phone!=null)Text(user.phone,color=SoftInk,fontSize=12.sp)
   }
  }
  Text("Új fiók meghívása és jogmódosítás nem érhető el mobilon, amíg nincs hozzá hitelesített szervervégpont.",fontSize=12.sp,color=SoftInk)
+ opened?.let{id->data.users.firstOrNull{it.id==id}?.let{user->
+  AlertDialog(onDismissRequest={opened=null},title={Text(user.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("Szerepkör: ${if(user.role=="advisor")"Szaktanácsadó" else if(user.role=="farmer")"Gazdálkodó" else "Ismeretlen"}")
+   Text("Rendszerjog: ${if(user.systemRole=="admin")"Rendszeradminisztrátor" else "Normál felhasználó"}")
+   user.phone?.let{Text("Telefon: $it")}
+   Text("Fiókazonosító: ${user.id}",fontSize=12.sp,color=SoftInk)
+  }},confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}})
+ }}
 }
 
 @Composable
 private fun AdminSupport(data:AdminWorkspace,colors:PortalPalette){
+ var opened by remember{mutableStateOf<Int?>(null)}
+ var onlyOpen by remember{mutableStateOf(false)}
  val open=data.tasks.count{it.status!="done"&&it.status!="cancelled"}
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){Metric("Betöltött feladat",data.tasks.size,colors)}
-  Box(Modifier.weight(1f)){Metric("Nem lezárt",open,colors)}
+  Box(Modifier.weight(1f)){PortalMetric("Betöltött feladat",data.tasks.size.toString(),colors){onlyOpen=false}}
+  Box(Modifier.weight(1f)){PortalMetric("Nem lezárt",open.toString(),colors){onlyOpen=true}}
  }
  Card(colors,background=colors.tint){
   Text("Admin támogatási mód",color=colors.accent,fontWeight=FontWeight.Bold)
   Text("Feladatállapot javítása indoklással és auditnaplózással történhet. Ebben az első mobilváltozatban nincs állapotmódosítás.",fontSize=13.sp,color=Ink)
  }
- data.tasks.forEach{task->
-  Card(colors){
+ if(onlyOpen)TextButton(onClick={onlyOpen=false}){Text("Összes feladat megjelenítése",color=colors.accent)}
+ data.tasks.forEachIndexed{index,task->
+  if(onlyOpen&&task.status in listOf("done","cancelled"))return@forEachIndexed
+  Card(colors,onClick={opened=index}){
    Text(task.title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
    Text("${task.farmName} · ${task.fieldName}",color=SoftInk,fontSize=12.sp)
    Text("Végrehajtó: ${task.assignee}",color=SoftInk,fontSize=12.sp)
    Text(taskStatus(task.status),color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)
   }
  }
+ opened?.let{index->data.tasks.getOrNull(index)?.let{task->
+  AlertDialog(onDismissRequest={opened=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+   Text("Gazdaság: ${task.farmName}")
+   Text("Földtábla: ${task.fieldName}")
+   Text("Végrehajtó: ${task.assignee}")
+   Text("Állapot: ${taskStatus(task.status)}")
+   Text("Prioritás: ${task.priority}")
+   Text("Állapotmódosítás a hitelesített webes támogatási felületen végezhető.",fontSize=12.sp,color=SoftInk)
+  }},confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}})
+ }}
 }
 
 @Composable
 private fun AdminSecurity(data:AdminWorkspace,colors:PortalPalette){
+ var opened by remember{mutableStateOf<Int?>(null)}
  if(!data.securityAvailable){
   Card(colors){
    Icon(Icons.Default.Warning,null,tint=colors.accent)
@@ -546,20 +619,20 @@ private fun AdminSecurity(data:AdminWorkspace,colors:PortalPalette){
    Text("A mobilalkalmazás nem kér és nem tárol rendszerszintű titkos kulcsot.",color=SoftInk,fontSize=12.sp)
   }
  }else if(data.securityEvents.isEmpty())Text("Nincs betöltött biztonsági esemény.",color=SoftInk)
- else data.securityEvents.forEach{event->
-  Card(colors,border=if(event.riskScore>=70)Critical else colors.border){
+ else data.securityEvents.forEachIndexed{index,event->
+  Card(colors,border=if(event.riskScore>=70)Critical else colors.border,onClick={opened=index}){
    Text(event.title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
    Text("Kockázati pont: ${event.riskScore} · ${event.severity}",fontSize=13.sp,color=if(event.riskScore>=70)Critical else SoftInk)
    Text(huDate(event.occurredAt),color=SoftInk,fontSize=12.sp)
   }
  }
  Text("Ez csak megtekintő nézet; incidensbeavatkozás a webes adminfelületen történik.",color=SoftInk,fontSize=12.sp)
-}
-
-@Composable
-internal fun Metric(label:String,value:Int,colors:PortalPalette){
- Card(colors){
-  Text(label,color=SoftInk,fontSize=12.sp,maxLines=2)
-  Text(value.toString(),color=colors.accent,fontSize=24.sp,fontWeight=FontWeight.ExtraBold)
- }
+ opened?.let{index->data.securityEvents.getOrNull(index)?.let{event->
+  AlertDialog(onDismissRequest={opened=null},title={Text(event.title)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+   Text("Súlyosság: ${event.severity}")
+   Text("Kockázati pont: ${event.riskScore}")
+   Text("Időpont: ${event.occurredAt}")
+   Text("A beavatkozás a webes rendszeradmin felületen végezhető, auditálással.",fontSize=12.sp,color=SoftInk)
+  }},confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}})
+ }}
 }

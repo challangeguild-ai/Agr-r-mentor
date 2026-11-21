@@ -40,4 +40,11 @@ class NavigationCatalogTest {
   assertEquals("/admin/map",NavigationCatalog.fieldDetailBackRoute(PortalRole.ADVISOR))
   assertEquals("/system-admin",NavigationCatalog.fieldDetailBackRoute(PortalRole.SYSTEM_ADMIN))
  }
+ @Test fun adminInventoryLinksAreNativeAndRestrictedToSystemAdmins(){
+  for(path in listOf("/system-admin/farms","/system-admin/fields")){
+   assertTrue(NavigationCatalog.admin.any{it.route==path})
+   assertFalse(NavigationCatalog.advisor.any{it.route==path})
+   assertFalse(NavigationCatalog.farmer.any{it.route==path})
+  }
+ }
 }
