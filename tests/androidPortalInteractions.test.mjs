@@ -71,3 +71,38 @@ test("field tabs and operation cards open native details for both authorized rol
  assert.match(web,/WebModuleOpenButton\(route,colors\)/);
  assert.match(web,/safeWebModuleUrl\(BuildConfig\.WEB_ORIGIN,path\)/);
 });
+
+test("advisor priority task opens its own details instead of an unrelated list",()=>{
+ assert.match(workspace,/Card\(colors,onClick=\{onNavigate\("\/admin\/tasks\/\$\{task\.id\}"\)\}\)/);
+ assert.match(main,/route\.startsWith\("\/admin\/tasks\/"\)/);
+ assert.match(workspace,/selectedTaskId=route\.removePrefix\("\/admin\/tasks\/"\)/);
+ assert.match(workspace,/openedTask=data\.tasks\.firstOrNull\{it\.id==selectedTaskId\}/);
+});
+
+test("large record lists support searches and bounded initial rendering",()=>{
+ assert.match(workspace,/private fun AdvisorClients[\s\S]*?filtered\.take\(shown\)/);
+ assert.match(workspace,/private fun AdvisorTasks[\s\S]*?tasks\.take\(shown\)/);
+ assert.match(workspace,/private fun AdminUsers[\s\S]*?users\.take\(shown\)/);
+ assert.match(workspace,/private fun AdminSupport[\s\S]*?indexes\.take\(shown\)/);
+ assert.match(main,/private fun LiveTasksScreen[\s\S]*?filtered\.take\(shown\)/);
+ assert.match(main,/private fun LiveOperationsScreen[\s\S]*?filtered\.take\(shown\)/);
+});
+
+test("admin farm card drills into associated fields and their actual metadata",()=>{
+ const repo=read("android/app/src/main/java/hu/agrarmentor/android/data/RoleWorkspaceRepository.kt");
+ assert.match(repo,/data class AdminInventoryField\([\s\S]*?farmId:String/);
+ assert.match(repo,/fields\?select=id,name,farm_id,area_ha,current_crop,settlement,status/);
+ assert.match(workspace,/data\.fieldList\.filter\{it\.farmId==id\}/);
+ assert.match(workspace,/onNavigate\("\/system-admin\/fields\/\$\{farm\.id\}"\)/);
+ assert.match(main,/route\.startsWith\("\/system-admin\/fields\/"\)/);
+ assert.match(workspace,/field\.areaHa\?\.let\{Text\("Terület: \$it ha"\)\}/);
+});
+
+test("web operation audit button has a strictly validated route",()=>{
+ const link=read("android/app/src/main/java/hu/agrarmentor/android/data/WebModuleLink.kt");
+ const linkTest=read("android/app/src/test/java/hu/agrarmentor/android/data/WebModuleLinkTest.kt");
+ assert.match(main,/WebModuleOpenButton\("\/operations\/\$\{op\.id\}",colors\)/);
+ assert.match(link,/validMapFieldId\(path\.removePrefix\("\/operations\/"\)\)/);
+ assert.match(linkTest,/\/operations\/\.\.\/\.\.\/system-admin\/backup/);
+ assert.doesNotMatch(main,/AdvisorWorkspaceScreen\("\/admin",session,colors,onNavigate\)/);
+});

@@ -275,7 +275,9 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
  val title=NavigationCatalog.find(role,route)?.title ?: when {
   route.startsWith("/fields/")->"Tábla részletei"
   route.startsWith("/operations/")||route.startsWith("/admin/operations/")->"Művelet részletei"
+  route.startsWith("/admin/tasks/")->"Feladat részletei"
   route.startsWith("/admin/clients/")->"Ügyféldosszié"
+  route.startsWith("/system-admin/fields/")->"Gazdaság földtáblái"
   else->"Részletek"
  }
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(13.dp)){
@@ -354,13 +356,11 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{AdvisorCatalogScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/map/import"&&session!=null){
     item{AdvancedWebModuleScreen(route,colors,onNavigate)}
-   }else if(role==PortalRole.ADVISOR&&route=="/admin/backup"&&session!=null){
-    item{AdvisorWorkspaceScreen("/admin",session,colors,onNavigate)}
-   }else if(role==PortalRole.ADVISOR&&route in listOf("/admin","/admin/clients","/admin/portfolio","/admin/tasks","/admin/daily-work","/admin/priorities")&&session!=null){
+   }else if(role==PortalRole.ADVISOR&&(route in listOf("/admin","/admin/clients","/admin/portfolio","/admin/tasks","/admin/daily-work","/admin/priorities")||route.startsWith("/admin/tasks/"))&&session!=null){
     item{AdvisorWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route.startsWith("/admin/clients/")&&session!=null){
     item{AdvisorClientDossierScreen(route.removePrefix("/admin/clients/"),session,colors,onNavigate)}
-   }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security","/system-admin/farms","/system-admin/fields")&&session!=null){
+   }else if(role==PortalRole.SYSTEM_ADMIN&&(route in listOf("/system-admin","/system-admin/support","/system-admin/users","/system-admin/security","/system-admin/farms","/system-admin/fields")||route.startsWith("/system-admin/fields/"))&&session!=null){
     item{AdminWorkspaceScreen(route,session,colors,onNavigate)}
    }else if(role==PortalRole.SYSTEM_ADMIN&&route in listOf("/system-admin/weather","/system-admin/backup")&&session!=null){
     item{AdvancedWebModuleScreen(route,colors,onNavigate)}
@@ -417,9 +417,13 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
  var completionNote by remember{mutableStateOf("")}
  var sending by remember{mutableStateOf(false)}
  var completionMessage by remember{mutableStateOf<String?>(null)}
+ var search by remember(mode){mutableStateOf("")}
+ var shown by remember(mode){mutableIntStateOf(40)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
-  try{tasks=repository.tasks(session)}catch(_:Exception){error=true}
+  try{tasks=repository.tasks(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){error=true}
   finally{loading=false}
  }
  val today=LocalDate.now(java.time.ZoneId.of("Europe/Budapest")).toString()
@@ -429,7 +433,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
   TaskListMode.DUE->task.status in listOf("open","in_progress")&&(
    (task.dueDate!=null&&task.dueDate.take(10)<=today)||task.priority in listOf("high","urgent"))
  }}
- val filtered=scoped.filter{task->when(filter){
+ val filtered=scoped.filter{task->(task.title.contains(search,true)||task.fieldName.contains(search,true))&&when(filter){
   "Nyitott"->task.status!="done"&&task.status!="submitted"&&task.status!="cancelled"
   "Ellenőrzésre vár"->task.status=="submitted"
   "Befejezett"->task.status=="done"
@@ -449,10 +453,12 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
     }
    }
   }
+  OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Teendő vagy földtábla keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+  if(!loading&&!error)Text("${filtered.size} találat",fontSize=12.sp,color=MutedText)
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else if(filtered.isEmpty())Text("Ebben a nézetben nincs teendő.",color=MutedText)
-  else filtered.forEach{task->
+  else filtered.take(shown).forEach{task->
    val critical=task.status!="done"&&(task.priority=="urgent"||task.priority=="high")
    val border=if(critical)Color(0xFFE2AD32)else colors.border
    Card(colors,border=border,onClick={openedTask=task}){
@@ -477,6 +483,7 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
     }
    }
   }
+  if(!loading&&!error&&filtered.size>shown)TextButton(onClick={shown+=40}){Text("További teendők ›",color=colors.accent)}
  }
  openedTask?.let{task->
   AlertDialog(onDismissRequest={openedTask=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -538,9 +545,13 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette,
  var revision by remember{mutableIntStateOf(0)}
  var showCreate by remember{mutableStateOf(false)}
  var notice by remember{mutableStateOf<String?>(null)}
+ var search by remember{mutableStateOf("")}
+ var shown by remember{mutableIntStateOf(40)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
-  try{operations=repository.operations(session)}catch(_:Exception){error=true}
+  try{operations=repository.operations(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){error=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(11.dp)){
@@ -551,10 +562,13 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette,
     Text("Új művelet rögzítése")
    }
   }
+  OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Művelet vagy földtábla keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+  val filtered=operations.filter{it.fieldName.contains(search,true)||operationLabel(it.type).contains(search,true)||it.product?.contains(search,true)==true}
+  if(!loading&&!error)Text("${filtered.size} találat",fontSize=12.sp,color=MutedText)
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
-  else if(operations.isEmpty())Text("Még nincs rögzített művelet.",color=MutedText)
-  else operations.forEach{op->
+  else if(filtered.isEmpty())Text(if(operations.isEmpty())"Még nincs rögzített művelet." else "Nincs a keresésnek megfelelő művelet.",color=MutedText)
+  else filtered.take(shown).forEach{op->
    Card(colors,onClick={onNavigate(if(session.role==PortalRole.ADVISOR)"/admin/operations/${op.id}" else "/operations/${op.id}")}){
     Row(verticalAlignment=Alignment.CenterVertically){
      Icon(Icons.Default.DateRange,null,tint=colors.accent)
@@ -572,6 +586,7 @@ private fun LiveOperationsScreen(session:AuthorizedSession,colors:PortalPalette,
     }
    }
   }
+  if(!loading&&!error&&filtered.size>shown)TextButton(onClick={shown+=40}){Text("További műveletek ›",color=colors.accent)}
  }
  if(showCreate&&session.role==PortalRole.FARMER){
   OperationCreateDialog(session,colors,createRepository,onDismiss={showCreate=false},onSaved={warning->
@@ -613,7 +628,7 @@ private fun LiveOperationDetailScreen(operationId:String,session:AuthorizedSessi
    }
    if(op.fieldId.isNotBlank())PortalRouteTile("Földtábla adatlapja","A művelethez tartozó tábla megnyitása",colors){onNavigate("/fields/${op.fieldId}")}
    Text("A teljes műveleti audit és hatósági megfelelőségi részletek az elkülönített, jogosultságvédett webes felületen ellenőrizhetők.",color=MutedText,fontSize=12.sp)
-   WebModuleOpenButton(if(session.role==PortalRole.ADVISOR)"/operations/${op.id}" else "/operations/${op.id}",colors)
+   WebModuleOpenButton("/operations/${op.id}",colors)
   }
  }
 }
@@ -638,7 +653,9 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
  var activeTab by rememberSaveable(fieldId){mutableStateOf("Áttekintés")}
  LaunchedEffect(fieldId,session.accessToken,revision){
   loading=true;error=false
-  try{detail=repository.field(session,fieldId)}catch(_:Exception){error=true}
+  try{detail=repository.field(session,fieldId)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){error=true}
   finally{loading=false}
  }
  LaunchedEffect(fieldId,session.accessToken,mapRevision){
@@ -771,7 +788,9 @@ private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNa
  var filter by rememberSaveable{mutableStateOf("Aktív")}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=null
-  try{fields=repository.load(session)}catch(_:Exception){error="A táblákat nem sikerült betölteni. Ellenőrizd a kapcsolatot és próbáld újra."}
+  try{fields=repository.load(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){error="A táblákat nem sikerült betölteni. Ellenőrizd a kapcsolatot és próbáld újra."}
   finally{loading=false}
  }
  val shown=fields.filter{field->when(filter){

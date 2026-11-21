@@ -129,7 +129,10 @@ data class AdminSecurityEvent(
 )
 
 data class AdminInventoryFarm(val id:String,val name:String)
-data class AdminInventoryField(val id:String,val name:String,val farmName:String)
+data class AdminInventoryField(
+ val id:String,val name:String,val farmId:String,val farmName:String,
+ val areaHa:String?,val crop:String?,val settlement:String?,val status:String?
+)
 
 data class AdminWorkspace(
  val users:List<AdminAccount>,
@@ -319,7 +322,7 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
   require(session.role==PortalRole.SYSTEM_ADMIN){"A rendszeradmin-felülethez rendszeradmin jogosultság szükséges."}
   val people=readAll("profiles?select=id,full_name,role,system_role,phone&order=id.asc",session)
   val farms=readAll("farms?select=id,name&order=id.asc",session)
-  val fields=readAll("fields?select=id,name,farm_id&order=id.asc",session)
+  val fields=readAll("fields?select=id,name,farm_id,area_ha,current_crop,settlement,status&order=id.asc",session)
   val tasks=read("tasks?select=id,title,field_id,farm_id,assigned_to,status,priority&order=created_at.desc&limit=120",session)
   val reports=readAll("farmer_reports?select=id,status&status=neq.closed&order=id.asc",session)
   val events=runCatching{read("security_events?select=event_type,severity,risk_score,created_at&order=created_at.desc&limit=60",session)}
@@ -341,7 +344,11 @@ class RoleWorkspaceRepository(private val baseUrl:String,private val publishable
    farms=farms.length(),
    fields=fields.length(),
    farmList=farms.objects().map{row->AdminInventoryFarm(row.getString("id"),row.optString("name","Gazdaság"))},
-   fieldList=fields.objects().map{row->AdminInventoryField(row.getString("id"),row.optString("name","Földtábla"),farmNames[row.optString("farm_id")]?:"Gazdaság")},
+   fieldList=fields.objects().map{row->AdminInventoryField(
+    row.getString("id"),row.optString("name","Földtábla"),row.optString("farm_id"),
+    farmNames[row.optString("farm_id")]?:"Gazdaság",row.optional("area_ha"),
+    row.optional("current_crop"),row.optional("settlement"),row.optional("status")
+   )},
    openReports=reports.length(),
    tasks=tasks.objects().map{row->
     AdminSupportTask(
