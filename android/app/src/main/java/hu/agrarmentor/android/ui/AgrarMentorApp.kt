@@ -62,10 +62,12 @@ private val CardWhite=Color(0xFFFFFEFC)
 private val DarkText=AgrarDesign.ink
 private val MutedText=AgrarDesign.subdued
 
-internal data class PortalPalette(val accent:Color,val tint:Color,val border:Color)
-private fun palette(role:PortalRole)=PortalPalette(
- AgrarDesign.green,Color(0xFFE9F3E9),Color(0xFFD9E7DA)
-)
+internal data class PortalPalette(val accent:Color,val tint:Color,val border:Color,val drawer:Color)
+private fun palette(role:PortalRole)=when(role){
+ PortalRole.FARMER->PortalPalette(Color(0xFF0A613C),Color(0xFFE6F3E7),Color(0xFFD7E5D8),Color(0xFF073F2B))
+ PortalRole.ADVISOR->PortalPalette(Color(0xFF2366A3),Color(0xFFE7F1FA),Color(0xFFD7E4ED),Color(0xFF153A60))
+ PortalRole.SYSTEM_ADMIN->PortalPalette(Color(0xFF92313D),Color(0xFFF9E9EC),Color(0xFFE9D6D9),Color(0xFF64232F))
+}
 
 /**
  * Every new application process starts at sign-in. There are no demo users or
@@ -218,7 +220,7 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
   .filter{normalize(it.title).contains(normalize(query.trim()))||normalize(it.group).contains(normalize(query.trim()))}
   .groupBy{it.group}
 
- ModalDrawerSheet(modifier=Modifier.fillMaxHeight().widthIn(max=330.dp),drawerContainerColor=AgrarDesign.forest){
+ ModalDrawerSheet(modifier=Modifier.fillMaxHeight().widthIn(max=330.dp),drawerContainerColor=colors.drawer){
   Column(Modifier.fillMaxHeight()){
    Row(Modifier.fillMaxWidth().padding(start=14.dp,end=5.dp,top=16.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
     Box(Modifier.weight(1f).background(CardWhite,RoundedCornerShape(10.dp)).padding(horizontal=8.dp)){
@@ -250,7 +252,7 @@ private fun RoleDrawer(role:PortalRole,route:String,colors:PortalPalette,onNavig
        selected=route==destination.route,
        onClick={onNavigate(destination.route)},
        icon={Icon(if(destination.route.contains("map")||destination.route.contains("fields"))Icons.Default.Map else Icons.Default.ChevronRight,null,modifier=Modifier.size(19.dp))},
-       colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=Color(0xFF176F49),selectedTextColor=Color.White,selectedIconColor=AgrarDesign.gold,unselectedTextColor=Color.White,unselectedIconColor=Color.White.copy(alpha=.85f)),
+       colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=colors.accent,selectedTextColor=Color.White,selectedIconColor=AgrarDesign.gold,unselectedTextColor=Color.White,unselectedIconColor=Color.White.copy(alpha=.85f)),
        modifier=Modifier.padding(vertical=2.dp)
       )
      }

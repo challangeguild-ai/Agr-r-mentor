@@ -22,10 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.agrarmentor.android.R
 
-/** One agricultural design language for all three authenticated roles. */
+/** Shared layout and controls; each authenticated role retains its own colors. */
 internal object AgrarDesign {
- val forest=Color(0xFF073F2B)
- val green=Color(0xFF07583A)
  val gold=Color(0xFFE5B64F)
  val cream=Color(0xFFF8F7F2)
  val ink=Color(0xFF1D3026)
@@ -38,7 +36,7 @@ internal fun PortalHero(title:String,subtitle:String,colors:PortalPalette,onClic
  val base=Modifier.fillMaxWidth().height(154.dp).clip(shape)
  Box(if(onClick==null)base else base.clickable(onClick=onClick)){
   Image(painterResource(R.drawable.agrar_fields_sunrise),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-  Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(AgrarDesign.forest.copy(alpha=.98f),AgrarDesign.forest.copy(alpha=.72f),Color.Transparent))))
+  Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(colors.drawer.copy(alpha=.98f),colors.drawer.copy(alpha=.75f),Color.Transparent))))
   Column(Modifier.align(Alignment.BottomStart).padding(18.dp).fillMaxWidth(.86f),verticalArrangement=Arrangement.spacedBy(6.dp)){
    Text(title,color=Color.White,fontWeight=FontWeight.ExtraBold,fontSize=21.sp,lineHeight=25.sp)
    Text(subtitle,color=Color.White.copy(alpha=.93f),fontSize=12.sp,lineHeight=17.sp)

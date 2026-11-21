@@ -13,11 +13,17 @@ const workspace=read(`${ui}/RoleWorkspaceScreens.kt`);
 const nav=read("android/app/src/main/java/hu/agrarmentor/android/model/NavigationCatalog.kt");
 const theme=read(`${ui}/PortalDesign.kt`);
 
-test("all role portals share the agricultural green visual system and real sign-in gate",()=>{
- assert.match(main,/private fun palette\(role:PortalRole\)=PortalPalette\(/);
- assert.match(main,/AgrarDesign\.green/);
+test("roles share the reference layout but keep green, blue and burgundy palettes",()=>{
+ assert.match(main,/private fun palette\(role:PortalRole\)=when\(role\)/);
+ for(const role of ["FARMER","ADVISOR","SYSTEM_ADMIN"]){
+  assert.match(main,new RegExp(`PortalRole\\.${role}->PortalPalette\\(`));
+ }
+ assert.match(main,/0xFF0A613C/); // farmer green
+ assert.match(main,/0xFF2366A3/); // advisor blue
+ assert.match(main,/0xFF92313D/); // administrator burgundy
  assert.match(main,/if\(session==null\)\{\s*SignInScreen\(/);
- assert.match(main,/ModalDrawerSheet\([^\n]+drawerContainerColor=AgrarDesign\.forest/);
+ assert.match(main,/ModalDrawerSheet\([^\n]+drawerContainerColor=colors\.drawer/);
+ assert.match(theme,/colors\.drawer\.copy/);
  assert.match(theme,/R\.drawable\.agrar_fields_sunrise/);
  assert.ok(existsSync(join(root,"android/app/src/main/res/drawable-nodpi/agrar_fields_sunrise.webp")));
 });
