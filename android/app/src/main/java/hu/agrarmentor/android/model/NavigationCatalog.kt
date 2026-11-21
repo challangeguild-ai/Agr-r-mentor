@@ -81,4 +81,11 @@ object NavigationCatalog {
  }
 
  fun find(role:PortalRole,route:String):MobileDestination? = menu(role).find{it.route==route}
+
+ /** Field details are shared between farmers and advisors, but their list roots differ. */
+ fun fieldDetailBackRoute(role:PortalRole):String=when(role){
+  PortalRole.FARMER->"/fields"
+  PortalRole.ADVISOR->"/admin/map"
+  PortalRole.SYSTEM_ADMIN->"/system-admin"
+ }
 }

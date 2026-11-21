@@ -632,7 +632,9 @@ private fun LiveFieldDetailScreen(fieldId:String,session:AuthorizedSession,color
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  TextButton(onClick={onNavigate("/fields")}){Text("← Vissza a táblákhoz",color=colors.accent)}
+  TextButton(onClick={onNavigate(NavigationCatalog.fieldDetailBackRoute(session.role))}){
+   Text(if(session.role==PortalRole.ADVISOR)"← Vissza a térképhez" else "← Vissza a táblákhoz",color=colors.accent)
+  }
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else detail?.let{field->

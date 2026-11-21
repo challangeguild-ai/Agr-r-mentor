@@ -35,4 +35,9 @@ class NavigationCatalogTest {
   assertFalse(NavigationCatalog.advisor.any{it.route=="/admin/backup"})
   assertTrue(NavigationCatalog.admin.any{it.route=="/system-admin/backup"})
  }
+ @Test fun fieldDetailsReturnToTheProperRoleMap(){
+  assertEquals("/fields",NavigationCatalog.fieldDetailBackRoute(PortalRole.FARMER))
+  assertEquals("/admin/map",NavigationCatalog.fieldDetailBackRoute(PortalRole.ADVISOR))
+  assertEquals("/system-admin",NavigationCatalog.fieldDetailBackRoute(PortalRole.SYSTEM_ADMIN))
+ }
 }
