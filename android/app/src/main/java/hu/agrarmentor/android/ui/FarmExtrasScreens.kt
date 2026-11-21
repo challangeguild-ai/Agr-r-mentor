@@ -18,6 +18,7 @@ import hu.agrarmentor.android.data.MobileFarm
 import hu.agrarmentor.android.data.MobileMachine
 import hu.agrarmentor.android.data.MobileTeamMember
 import hu.agrarmentor.android.data.MobileTimelineEvent
+import hu.agrarmentor.android.data.validMapFieldId
 
 private val TextInk=Color(0xFF1D3026)
 private val Subtle=Color(0xFF6C7D72)
@@ -32,6 +33,7 @@ internal fun LiveFarmExtrasScreen(route:String,session:AuthorizedSession,colors:
  var loading by remember{mutableStateOf(true)}
  var failed by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
+ var shownCount by remember(route){mutableIntStateOf(100)}
  LaunchedEffect(route,session.accessToken,revision){
   loading=true;failed=false
   try{
@@ -51,7 +53,7 @@ internal fun LiveFarmExtrasScreen(route:String,session:AuthorizedSession,colors:
    "/farms"->{
     Text("A hozzáférhető gazdaságaid adatai",color=Subtle,fontSize=13.sp)
     if(farms.isEmpty())Text("Még nincs elérhető gazdaság.",color=Subtle)
-    farms.forEach{farm->
+    farms.take(shownCount).forEach{farm->
      Card(colors){
       Text(farm.name,color=TextInk,fontWeight=FontWeight.Bold,fontSize=17.sp)
       if(farm.settlement!=null)Text(farm.settlement,color=Subtle)
@@ -59,12 +61,13 @@ internal fun LiveFarmExtrasScreen(route:String,session:AuthorizedSession,colors:
       TextButton(onClick={onNavigate("/fields")}){Text("Földtáblák");Icon(Icons.Default.ChevronRight,null)}
      }
     }
+    if(farms.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További gazdaságok")}
    }
    "/machines"->{
     val due=machines.count{it.active&&it.hours!=null&&it.nextService!=null&&it.nextService-it.hours<=50.0}
     Text("${machines.count{it.active}} aktív gép · $due gép szervizhatárhoz közel",color=Subtle,fontSize=13.sp)
     if(machines.isEmpty())Text("Még nincs nyilvántartott gép.",color=Subtle)
-    machines.forEach{machine->
+    machines.take(shownCount).forEach{machine->
      val service=machine.hours!=null&&machine.nextService!=null&&machine.nextService-machine.hours<=50.0
      Card(colors,border=if(service)Color(0xFFE5AC21)else colors.border){
       Row(verticalAlignment=Alignment.CenterVertically){
@@ -77,11 +80,12 @@ internal fun LiveFarmExtrasScreen(route:String,session:AuthorizedSession,colors:
       Text("Üzemóra: ${machine.hours?.toString()?:"—"} · Következő szerviz: ${machine.nextService?.toString()?:"—"}",color=if(service)Color(0xFF985414)else Subtle,fontSize=13.sp)
      }
     }
+    if(machines.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További gépek")}
    }
    "/team"->{
     Text("${team.count{it.active}} aktív munkatárs",color=Subtle,fontSize=13.sp)
     if(team.isEmpty())Text("Még nincs látható munkatárs.",color=Subtle)
-    team.forEach{member->
+    team.take(shownCount).forEach{member->
      Card(colors){
       Row(verticalAlignment=Alignment.CenterVertically){
        Column(Modifier.weight(1f)){
@@ -92,20 +96,22 @@ internal fun LiveFarmExtrasScreen(route:String,session:AuthorizedSession,colors:
       }
      }
     }
+    if(team.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További munkatársak")}
    }
    "/timeline"->{
-    Text("Legutóbbi ${timeline.size} gazdasági esemény",color=Subtle,fontSize=13.sp)
+    Text("Összesen ${timeline.size} gazdasági esemény",color=Subtle,fontSize=13.sp)
     if(timeline.isEmpty())Text("Még nincs megjeleníthető esemény.",color=Subtle)
-    timeline.forEach{event->
+    timeline.take(shownCount).forEach{event->
      Card(colors){
       Text(event.title,color=TextInk,fontSize=16.sp,fontWeight=FontWeight.Bold)
       Text("${eventTypeLabel(event.eventType)} · ${huDate(event.date)}",color=colors.accent,fontSize=12.sp)
       if(event.description!=null)Text(event.description,color=Subtle,fontSize=13.sp)
-      if(event.fieldId?.matches(Regex("[a-fA-F0-9-]{36}"))==true){
+      if(event.fieldId?.let{validMapFieldId(it)}==true){
        TextButton(onClick={onNavigate("/fields/${event.fieldId}")}){Text("Tábla megnyitása");Icon(Icons.Default.ChevronRight,null)}
       }
      }
     }
+    if(timeline.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További események")}
    }
   }
  }

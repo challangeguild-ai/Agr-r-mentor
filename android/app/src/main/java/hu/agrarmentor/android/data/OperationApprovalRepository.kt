@@ -25,12 +25,12 @@ class OperationApprovalRepository(private val baseUrl:String,private val publish
  suspend fun approvals(session:AuthorizedSession):List<OperationApproval> = withContext(Dispatchers.IO){
   require(session.role==PortalRole.FARMER)
   val user=uuid(session.userId)
-  val operations=read("field_operations?select=id,farm_id,field_id,operation_date,operation_type,product_name,regulatory_category,crop,target,dose,dose_unit,operator_name,approval_required,approval_status,approved_at,requested_approver_id,updated_at&requested_approver_id=eq.$user&approval_required=eq.true&order=operation_date.desc&limit=250",session)
+  val operations=readAll("field_operations?select=id,farm_id,field_id,operation_date,operation_type,product_name,regulatory_category,crop,target,dose,dose_unit,operator_name,approval_required,approval_status,approved_at,requested_approver_id,updated_at&requested_approver_id=eq.$user&approval_required=eq.true&order=operation_date.desc,id.desc",session)
   if(operations.isEmpty())return@withContext emptyList()
   // Approvers can see assigned operations even when they are not the farm owner.
-  val farmNames=runCatching{read("farms?select=id,name&limit=1000",session)
+  val farmNames=runCatching{readAll("farms?select=id,name&order=id.asc",session)
    .associate{it.getString("id") to it.optString("name","Gazdaság")}}.getOrDefault(emptyMap())
-  val fieldNames=runCatching{read("fields?select=id,name&limit=1000",session)
+  val fieldNames=runCatching{readAll("fields?select=id,name&order=id.asc",session)
    .associate{it.getString("id") to it.optString("name","Földtábla")}}.getOrDefault(emptyMap())
   operations.map{row->OperationApproval(
    row.getString("id"),row.getString("farm_id"),farmNames[row.optString("farm_id")]?:"Gazdaság",
@@ -89,6 +89,9 @@ class OperationApprovalRepository(private val baseUrl:String,private val publish
   return (0 until json.length()).map{json.getJSONObject(it)}
  }
 
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
+
  private fun request(method:String,path:String,session:AuthorizedSession,body:JSONObject?,prefer:String?=null):String{
   require(baseUrl.startsWith("https://")&&publishableKey.isNotBlank())
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
@@ -106,7 +109,7 @@ class OperationApprovalRepository(private val baseUrl:String,private val publish
  }
 
  private fun uuid(value:String):String{
-  require(value.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}
+  require(validMapFieldId(value)){"Érvénytelen azonosító."}
   return value
  }
  private fun JSONObject.optional(key:String):String?=if(isNull(key))null else optString(key).ifBlank{null}

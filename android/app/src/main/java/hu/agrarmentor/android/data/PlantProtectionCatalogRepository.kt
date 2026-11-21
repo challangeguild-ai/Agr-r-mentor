@@ -38,7 +38,7 @@ class PlantProtectionCatalogRepository(private val baseUrl:String,private val pu
  }
 
  suspend fun uses(session:AuthorizedSession,productId:String):List<PlantUse> = withContext(Dispatchers.IO){
-  read("plant_protection_uses?select=id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,restrictions&product_id=eq.${uuid(productId)}&order=crop.asc&limit=1000",session)
+  readAll("plant_protection_uses?select=id,product_id,crop,target,dose_min,dose_max,dose_unit,application_method,restrictions&product_id=eq.${uuid(productId)}&order=crop.asc,id.asc",session)
    .map(::use)
  }
 
@@ -49,7 +49,7 @@ class PlantProtectionCatalogRepository(private val baseUrl:String,private val pu
  }
 
  suspend fun approvers(session:AuthorizedSession,farmId:String):List<PlantApprover> = withContext(Dispatchers.IO){
-  val assignments=read("farm_plant_protection_approvers?select=user_id,active,valid_until&farm_id=eq.${uuid(farmId)}&active=eq.true&limit=100",session)
+  val assignments=readAll("farm_plant_protection_approvers?select=user_id,active,valid_until&farm_id=eq.${uuid(farmId)}&active=eq.true&order=user_id.asc",session)
   val today=LocalDate.now(ZoneId.of("Europe/Budapest"))
   assignments.mapNotNull{assigned->
    if(!OperationApprovalRules.activeFarmAssignment(assigned.optBoolean("active"),assigned.optional("valid_until"),today))return@mapNotNull null
@@ -122,10 +122,13 @@ class PlantProtectionCatalogRepository(private val baseUrl:String,private val pu
    (0 until array.length()).map{array.getJSONObject(it)}
   }finally{conn.disconnect()}
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
  private fun JSONObject.number(key:String):Double?=if(isNull(key))null else optDouble(key).takeIf{it.isFinite()}
  private fun JSONObject.optional(key:String):String?=if(isNull(key))null else optString(key).ifBlank{null}
  private fun uuid(value:String):String{
-  require(value.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}
+  require(validMapFieldId(value)){"Érvénytelen azonosító."}
   return value
  }
 }

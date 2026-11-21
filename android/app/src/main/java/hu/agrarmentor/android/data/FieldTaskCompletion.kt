@@ -128,7 +128,7 @@ class FieldTaskCompletion(private val baseUrl:String,private val publishableKey:
   }
  }
 
- private fun requireUuid(value:String){require(value.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}}
+ private fun requireUuid(value:String){require(validMapFieldId(value)){"Érvénytelen azonosító."}}
  private fun decimal(text:String):Double?{
   val trimmed=text.trim().replace(',','.')
   if(trimmed.isEmpty())return null

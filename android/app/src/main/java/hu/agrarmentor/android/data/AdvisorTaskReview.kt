@@ -13,7 +13,7 @@ import java.net.URLEncoder
 class AdvisorTaskReview(private val baseUrl:String,private val publishableKey:String){
  suspend fun review(session:AuthorizedSession,task:AdvisorTask,approve:Boolean,note:String) = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR)
-  require(task.id.matches(Regex("[a-fA-F0-9-]{36}")))
+  require(validMapFieldId(task.id))
   require(task.status=="submitted"&&task.reportDate!=null&&task.reportReviewStatus=="pending"){
    "Csak ellenőrzésre váró, olvasható teljesítési riport bírálható el."
   }
@@ -37,7 +37,7 @@ class AdvisorTaskReview(private val baseUrl:String,private val publishableKey:St
   }finally{connection.disconnect()}
   // Do not roll back a committed review because delivery of a notification fails.
   val recipient=task.assignedTo
-  if(recipient!=null&&recipient.matches(Regex("[a-fA-F0-9-]{36}")))runCatching{
+  if(recipient!=null&&validMapFieldId(recipient))runCatching{
    val notification=JSONObject().put("user_id",recipient)
     .put("kind",if(approve)"task_verified"else"task_revision")
     .put("title",if(approve)"Munka visszaigazolva"else"Munka javításra visszaküldve")
@@ -59,6 +59,7 @@ class AdvisorTaskReview(private val baseUrl:String,private val publishableKey:St
  /** One-minute URL; Storage RLS must allow the advisor to read the proof. */
  suspend fun photoUrl(session:AuthorizedSession,task:AdvisorTask):String=withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR)
+  require(validMapFieldId(task.id)&&task.assignedTo?.let{validMapFieldId(it)}==true){"Érvénytelen munkavégzési azonosító."}
   val path=task.evidence?.photoPath?:error("Hiányzik a hitelesíthető helyszíni fotó.")
   require(task.assignedTo!=null&&path.startsWith("${task.assignedTo}/task-proofs/${task.id}/"))
   val encoded=path.split('/').also{segments->require(segments.all{it.isNotBlank()&&it!="."&&it!=".."})}

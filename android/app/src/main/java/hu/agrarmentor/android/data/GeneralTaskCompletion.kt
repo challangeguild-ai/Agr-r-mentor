@@ -20,7 +20,7 @@ class GeneralTaskCompletion(private val baseUrl:String,private val publishableKe
   require(task.status in listOf("open","in_progress")){"Ez a feladat nem küldhető be."}
   val trimmed=notes.trim()
   require(trimmed.length in 3..1500){"A megjegyzés 3–1500 karakter lehet."}
-  require(task.id.matches(Regex("[a-fA-F0-9-]{36}")))
+  require(validMapFieldId(task.id))
   val date=LocalDate.now(ZoneId.of("Europe/Budapest")).toString()
   val body=JSONObject().put("p_task_id",task.id).put("p_notes",trimmed).put("p_operation_date",date)
   val connection=(URL("${baseUrl.trimEnd('/')}/rest/v1/rpc/submit_general_task_execution").openConnection() as HttpURLConnection).apply{

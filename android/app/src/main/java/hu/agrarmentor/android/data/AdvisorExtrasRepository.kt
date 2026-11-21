@@ -18,7 +18,7 @@ data class MobileAdvisorRecord(
 class AdvisorExtrasRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun load(route:String,session:AuthorizedSession):List<MobileAdvisorRecord> = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR){"Szaktanácsadói jogosultság szükséges."}
-  val fields=read("fields?select=id,name&limit=1000",session)
+  val fields=readAll("fields?select=id,name&order=id.asc",session)
    .associate{it.getString("id") to it.optString("name")}
   val rows=when(route){
    "/admin/inspections"->read("inspections?select=field_id,condition,notes,recommendation,inspected_at&order=inspected_at.desc&limit=150",session)
@@ -66,6 +66,9 @@ class AdvisorExtrasRepository(private val baseUrl:String,private val publishable
    (0 until rows.length()).map{rows.getJSONObject(it)}
   }finally{connection.disconnect()}
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private fun JSONObject.optional(name:String):String?=if(isNull(name))null else optString(name).ifBlank{null}
 }

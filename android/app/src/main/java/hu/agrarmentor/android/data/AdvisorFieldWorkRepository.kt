@@ -77,11 +77,11 @@ internal fun decodeMobileAdvisorVisit(raw:String?):AdvisorVisitData?=runCatching
 class AdvisorFieldWorkRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun scopes(session:AuthorizedSession):AdvisorFieldWorkScopes=withContext(Dispatchers.IO){
   advisorOnly(session)
-  val farms=read("farms?select=id,name&order=name.asc&limit=1000",session)
+  val farms=readAll("farms?select=id,name&order=name.asc,id.asc",session)
    .map{AdvisorFieldWorkFarm(it.getString("id"),it.optString("name","Gazdaság"))}
-  val ids=farms.map{it.id}.toSet()
-  val fields=read("fields?select=id,farm_id,name&order=name.asc&limit=1000",session)
-   .filter{it.optString("farm_id") in ids}
+  val fields=farms.map{it.id}.chunked(50).flatMap{ids->
+   readAll("fields?select=id,farm_id,name&farm_id=in.(${ids.joinToString(",")})&order=name.asc,id.asc",session)
+  }.sortedWith(compareBy<JSONObject>{it.optString("name")}.thenBy{it.getString("id")})
    .map{AdvisorFieldWorkField(it.getString("id"),it.getString("farm_id"),it.optString("name","Földtábla"))}
   AdvisorFieldWorkScopes(farms,fields)
  }
@@ -197,6 +197,9 @@ class AdvisorFieldWorkRepository(private val baseUrl:String,private val publisha
   val rows=JSONArray(body)
   return (0 until rows.length()).map{rows.getJSONObject(it)}
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private fun request(method:String,path:String,session:AuthorizedSession,body:JSONObject?,prefer:String?):String{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{

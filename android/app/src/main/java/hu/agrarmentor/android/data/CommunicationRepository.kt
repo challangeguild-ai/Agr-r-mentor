@@ -70,27 +70,32 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  fun hasPendingDocument():Boolean=pendingDocument!=null
  suspend fun notifications(session:AuthorizedSession):List<MobileNotification> = withContext(Dispatchers.IO){
   val user=uuid(session.userId)
-  getArray("rest/v1/notifications?select=id,title,message,kind,href,created_at,read_at&user_id=eq.$user&order=created_at.desc&limit=100",session)
+  getAll("rest/v1/notifications?select=id,title,message,kind,href,created_at,read_at&user_id=eq.$user&order=created_at.desc,id.desc",session)
    .map{row->MobileNotification(row.getString("id"),row.optString("title"),row.optString("message"),row.optString("kind"),row.nullable("href"),row.optString("created_at"),row.nullable("read_at"))}
  }
 
  suspend fun markNotificationRead(session:AuthorizedSession,id:String) = withContext(Dispatchers.IO){
-  request("PATCH","rest/v1/notifications?id=eq.${uuid(id)}&user_id=eq.${uuid(session.userId)}",session,JSONObject().put("read_at",Instant.now().toString()))
+  val notificationId=uuid(id)
+  val userId=uuid(session.userId)
+  request("PATCH","rest/v1/notifications?id=eq.$notificationId&user_id=eq.$userId",session,JSONObject().put("read_at",Instant.now().toString()))
+  val saved=getArray("rest/v1/notifications?select=id,read_at&id=eq.$notificationId&user_id=eq.$userId&limit=1",session).singleOrNull()
+  check(saved?.nullable("read_at")!=null){"Az értesítés olvasottsága nem igazolható."}
   Unit
  }
 
  suspend fun messages(session:AuthorizedSession):List<MobileMessage> = withContext(Dispatchers.IO){
-  val rows=getArray("rest/v1/farmer_reports?select=id,title,message,status,advisor_reply,field_id,created_at,category,severity&farmer_id=eq.${uuid(session.userId)}&order=created_at.desc&limit=100",session)
-  val media=reportAttachments(session)
+  val rows=getAll("rest/v1/farmer_reports?select=id,title,message,status,advisor_reply,field_id,created_at,category,severity&farmer_id=eq.${uuid(session.userId)}&order=created_at.desc,id.desc",session)
+  val media=reportAttachments(session,rows.map{it.getString("id")})
   rows.map{row->MobileMessage(row.getString("id"),row.optString("title"),row.optString("message"),row.optString("status"),row.nullable("advisor_reply"),row.nullable("field_id"),row.optString("created_at"),row.optString("category","other"),row.optString("severity","normal"),media[row.getString("id")].orEmpty())}
  }
 
  suspend fun reportFields(session:AuthorizedSession):List<ReportField> = withContext(Dispatchers.IO){
   val owner=uuid(session.userId)
-  val farmIds=getArray("rest/v1/farms?select=id&owner_id=eq.$owner&limit=1000",session).map{it.getString("id")}.toSet()
+  val farmIds=getAll("rest/v1/farms?select=id&owner_id=eq.$owner&order=id.asc",session).map{it.getString("id")}
   if(farmIds.isEmpty())return@withContext emptyList()
-  getArray("rest/v1/fields?select=id,name,farm_id&order=name.asc&limit=1000",session)
-   .filter{it.optString("farm_id") in farmIds}
+  farmIds.chunked(50).flatMap{ids->
+   getAll("rest/v1/fields?select=id,name,farm_id&farm_id=in.(${ids.joinToString(",")})&order=name.asc,id.asc",session)
+  }.sortedWith(compareBy<JSONObject>{it.optString("name")}.thenBy{it.getString("id")})
    .map{ReportField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
  }
 
@@ -159,10 +164,11 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
 
  suspend fun advisorReports(session:AuthorizedSession):List<AdvisorReport> = withContext(Dispatchers.IO){
   require(session.role==hu.agrarmentor.android.model.PortalRole.ADVISOR)
-  val farms=getArray("rest/v1/farms?select=id,owner_id&limit=1000",session).associateBy{it.getString("id")}
-  val fields=getArray("rest/v1/fields?select=id,name,farm_id&limit=1000",session).associateBy{it.getString("id")}
-  val media=reportAttachments(session)
-  getArray("rest/v1/farmer_reports?select=id,title,message,status,field_id,farmer_id,category,severity,created_at,updated_at,advisor_reply&order=created_at.desc&limit=250",session).mapNotNull{r->
+  val farms=getAll("rest/v1/farms?select=id,owner_id&order=id.asc",session).associateBy{it.getString("id")}
+  val fields=getAll("rest/v1/fields?select=id,name,farm_id&order=id.asc",session).associateBy{it.getString("id")}
+  val reports=getAll("rest/v1/farmer_reports?select=id,title,message,status,field_id,farmer_id,category,severity,created_at,updated_at,advisor_reply&order=created_at.desc,id.desc",session)
+  val media=reportAttachments(session,reports.map{it.getString("id")})
+  reports.mapNotNull{r->
    val field=fields[r.optString("field_id")]?:return@mapNotNull null
    val farmId=field.optString("farm_id");val owner=farms[farmId]?.optString("owner_id")
    if(owner!=r.optString("farmer_id"))return@mapNotNull null
@@ -173,8 +179,10 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   }
  }
 
- private fun reportAttachments(session:AuthorizedSession):Map<String,List<ReportAttachment>> =
-  getArray("rest/v1/farmer_report_media?select=report_id,storage_path,file_name,media_type,mime_type,size_bytes&order=created_at.asc&limit=1000",session)
+ private fun reportAttachments(session:AuthorizedSession,reportIds:List<String>):Map<String,List<ReportAttachment>> =
+  reportIds.map{uuid(it)}.chunked(40).flatMap{ids->
+   getAll("rest/v1/farmer_report_media?select=report_id,storage_path,file_name,media_type,mime_type,size_bytes&report_id=in.(${ids.joinToString(",")})&order=created_at.asc,id.asc",session)
+  }
    .map{row->ReportAttachment(row.getString("report_id"),row.getString("storage_path"),row.optString("file_name"),
     row.optString("mime_type"),row.optString("media_type"),if(row.isNull("size_bytes"))null else row.optLong("size_bytes"))}
    .groupBy{it.reportId}
@@ -272,7 +280,7 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  }
 
  suspend fun documents(session:AuthorizedSession):List<MobileDocument> = withContext(Dispatchers.IO){
-  getArray("rest/v1/documents?select=id,title,file_name,category,storage_path,created_at,notes&order=created_at.desc&limit=100",session)
+  getAll("rest/v1/documents?select=id,title,file_name,category,storage_path,created_at,notes&order=created_at.desc,id.desc",session)
    .map{row->MobileDocument(row.getString("id"),row.optString("title"),row.optString("file_name"),row.optString("category"),row.optString("storage_path"),row.optString("created_at"),row.nullable("notes"))}
  }
 
@@ -280,15 +288,14 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  suspend fun documentScopes(session:AuthorizedSession):DocumentScopes=withContext(Dispatchers.IO){
   require(DocumentUploadRules.canUpload(session.role))
   val farmsPath=if(session.role==PortalRole.FARMER){
-   "rest/v1/farms?select=id,name&owner_id=eq.${uuid(session.userId)}&order=name.asc&limit=1000"
-  }else "rest/v1/farms?select=id,name&order=name.asc&limit=1000"
-  val farms=getArray(farmsPath,session)
+   "rest/v1/farms?select=id,name&owner_id=eq.${uuid(session.userId)}&order=name.asc,id.asc"
+  }else "rest/v1/farms?select=id,name&order=name.asc,id.asc"
+  val farms=getAll(farmsPath,session)
    .map{DocumentFarm(it.getString("id"),it.optString("name","Gazdaság"))}
-  val accessible=farms.map{it.id}.toSet()
-  val fields=if(accessible.isEmpty())emptyList() else
-   getArray("rest/v1/fields?select=id,name,farm_id&order=name.asc&limit=1000",session)
-    .filter{it.optString("farm_id") in accessible}
-    .map{DocumentField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
+  val fields=farms.map{it.id}.chunked(50).flatMap{ids->
+   getAll("rest/v1/fields?select=id,name,farm_id&farm_id=in.(${ids.joinToString(",")})&order=name.asc,id.asc",session)
+  }.sortedWith(compareBy<JSONObject>{it.optString("name")}.thenBy{it.getString("id")})
+   .map{DocumentField(it.getString("id"),it.optString("name","Földtábla"),it.getString("farm_id"))}
   DocumentScopes(farms,fields)
  }
 
@@ -395,7 +402,12 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   require(profile.phone.length<=40&&profile.city.length<=120&&profile.jobTitle.length<=120)
   val body=JSONObject().put("full_name",profile.name.trim())
    .put("phone",profile.phone.trim()).put("city",profile.city.trim()).put("job_title",profile.jobTitle.trim())
-  request("PATCH","rest/v1/profiles?id=eq.${uuid(session.userId)}",session,body)
+  val userId=uuid(session.userId)
+  request("PATCH","rest/v1/profiles?id=eq.$userId",session,body)
+  val saved=getArray("rest/v1/profiles?select=full_name,phone,city,job_title&id=eq.$userId&limit=1",session).singleOrNull()
+  check(saved!=null&&saved.optString("full_name")==profile.name.trim()&&
+   saved.nullable("phone").orEmpty()==profile.phone.trim()&&saved.nullable("city").orEmpty()==profile.city.trim()&&
+   saved.nullable("job_title").orEmpty()==profile.jobTitle.trim()){"A profil módosítását nem sikerült igazolni."}
   Unit
  }
 
@@ -403,6 +415,9 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
   val rows=JSONArray(request("GET",path,session,null))
   return (0 until rows.length()).map{rows.getJSONObject(it)}
  }
+
+ private fun getAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->getArray(pagedPath,session)}
 
  private fun request(method:String,path:String,session:AuthorizedSession,body:JSONObject?,prefer:String?=null):String{
   require(baseUrl.startsWith("https://")&&publishableKey.isNotBlank())
@@ -423,7 +438,7 @@ class CommunicationRepository(private val baseUrl:String,private val publishable
  }
 
  private fun uuid(value:String):String{
-  require(value.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}
+  require(validMapFieldId(value)){"Érvénytelen azonosító."}
   return value
  }
 

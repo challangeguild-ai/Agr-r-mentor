@@ -49,16 +49,16 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
  suspend fun tasks(session:AuthorizedSession):List<MobileTask> = withContext(Dispatchers.IO){
   // RLS permits the farm owner to see their farm's tasks, including those
   // assigned to colleagues. The previous assigned_to filter hid these tasks.
-  val rows=fetch("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&order=updated_at.desc&limit=250",session.accessToken)
+  val rows=fetchAll("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&order=updated_at.desc,id.desc",session.accessToken)
   val fieldNames=fieldNames(session.accessToken)
-  rows.objects().map{row->task(row,fieldNames)}
+  rows.map{row->task(row,fieldNames)}
  }
 
  suspend fun operations(session:AuthorizedSession):List<MobileOperation> = withContext(Dispatchers.IO){
   val fieldNames=fieldNames(session.accessToken)
   if(fieldNames.isEmpty())return@withContext emptyList()
-  val rows=fetch("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&order=operation_date.desc&limit=250",session.accessToken)
-  rows.objects().filter{it.optString("field_id") in fieldNames}.map{row->operation(row,fieldNames)}
+  val rows=fetchAll("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&order=operation_date.desc,id.desc",session.accessToken)
+  rows.filter{it.optString("field_id") in fieldNames}.map{row->operation(row,fieldNames)}
  }
 
  suspend fun field(session:AuthorizedSession,fieldId:String):MobileFieldDetail = withContext(Dispatchers.IO){
@@ -69,12 +69,12 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   val farmId=field.getString("farm_id")
   require(validMapFieldId(farmId)){"Érvénytelen gazdaságazonosító."}
   val farm=fetch("farms?select=id,name&id=eq.$farmId&limit=1",session.accessToken).optJSONObject(0)
-  val latest=fetch("inspections?select=condition,inspected_at,recommendation&field_id=eq.$fieldId&order=inspected_at.desc&limit=1",session.accessToken).optJSONObject(0)
+  val latest=fetch("inspections?select=condition,inspected_at,recommendation&field_id=eq.$fieldId&order=inspected_at.desc,id.desc&limit=1",session.accessToken).optJSONObject(0)
   val names=mapOf(fieldId to field.optString("name","Földtábla"))
-  val tasks=fetch("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&field_id=eq.$fieldId&order=created_at.desc&limit=50",session.accessToken)
-   .objects().map{row->task(row,names)}
-  val operations=fetch("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&field_id=eq.$fieldId&order=operation_date.desc&limit=50",session.accessToken)
-   .objects().map{row->operation(row,names)}
+  val tasks=fetchAll("tasks?select=id,title,field_id,due_date,priority,status,description,task_kind,assigned_to&field_id=eq.$fieldId&order=created_at.desc,id.desc",session.accessToken)
+   .map{row->task(row,names)}
+  val operations=fetchAll("field_operations?select=id,field_id,operation_date,operation_type,product_name,subtype,dose,dose_unit,quantity,quantity_unit,approval_status&field_id=eq.$fieldId&order=operation_date.desc,id.desc",session.accessToken)
+   .map{row->operation(row,names)}
   MobileFieldDetail(
    name=field.optString("name","Földtábla"),
    farmName=farm?.optString("name","Gazdaság")?:"Gazdaság",
@@ -123,6 +123,9 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   "fields?select=id,name&order=id.asc"
  ){pagePath->fetch(pagePath,token).objects()}
   .associate{it.getString("id") to it.optString("name","Földtábla")}
+
+ private fun fetchAll(path:String,token:String):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->fetch(pagedPath,token).objects()}
 
  private fun fetch(path:String,token:String):JSONArray{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{

@@ -33,6 +33,7 @@ import hu.agrarmentor.android.data.MobileDocument
 import hu.agrarmentor.android.data.MobileMessage
 import hu.agrarmentor.android.data.MobileNotification
 import hu.agrarmentor.android.data.MobileProfile
+import hu.agrarmentor.android.data.validMapFieldId
 import hu.agrarmentor.android.data.ReportField
 import hu.agrarmentor.android.data.ReportMediaInput
 import hu.agrarmentor.android.data.ReportMediaRules
@@ -54,6 +55,7 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
  var error by remember{mutableStateOf<String?>(null)}
  var savingId by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ var shownCount by remember(session.userId){mutableIntStateOf(100)}
  val scope=rememberCoroutineScope()
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=null
@@ -65,7 +67,8 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error!=null)LoadError(colors,onRetry={revision++})
   else if(entries.isEmpty())Text("Még nincs értesítésed.",color=GrayText)
-  else entries.forEach{notification->
+  else {
+  entries.take(shownCount).forEach{notification->
    Card(colors,background=if(notification.readAt==null)colors.tint else Color.White){
     Row(verticalAlignment=Alignment.CenterVertically){
      Icon(Icons.Default.Notifications,null,tint=colors.accent)
@@ -79,7 +82,7 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
     if(notification.message.isNotBlank())Text(notification.message,color=MainInk,fontSize=13.sp)
     val destination=notification.href?.substringBefore('?')?.let{path->
      path.takeIf{it in NavigationCatalog.farmer.map{entry->entry.route}}
-      ?:path.takeIf{it.startsWith("/fields/")&&it.removePrefix("/fields/").matches(Regex("[a-fA-F0-9-]{36}"))}
+      ?:path.takeIf{it.startsWith("/fields/")&&validMapFieldId(it.removePrefix("/fields/"))}
     }
     Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
      if(notification.readAt==null)TextButton(
@@ -99,6 +102,8 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
      }
     }
    }
+  }
+  if(entries.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További értesítések")}
   }
  }
 }
@@ -127,6 +132,7 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
  val cameraFiles=remember{mutableStateListOf<File>()}
  var openingMedia by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ var shownCount by remember(session.userId){mutableIntStateOf(100)}
  val scope=rememberCoroutineScope()
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(ReportMediaRules.MAX_ITEMS)){uris->
   try{
@@ -188,7 +194,8 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else if(entries.isEmpty())Text("Még nincs szakmai bejelentésed.",color=GrayText)
-  else entries.forEach{entry->
+  else {
+  entries.take(shownCount).forEach{entry->
    Card(colors,onClick={expanded=if(expanded==entry.id)null else entry.id}){
     Row(verticalAlignment=Alignment.CenterVertically){
      Column(Modifier.weight(1f)){
@@ -219,6 +226,8 @@ internal fun LiveMessagesScreen(session:AuthorizedSession,colors:PortalPalette){
      }
     }else Text("Koppints a beszélgetés megnyitásához",color=GrayText,fontSize=12.sp)
    }
+  }
+  if(entries.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További bejelentések")}
   }
  }
  if(composeReport){
@@ -302,6 +311,7 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
  var error by remember{mutableStateOf<String?>(null)}
  var opening by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
+ var shownCount by remember(session.userId,onlyInvoices){mutableIntStateOf(100)}
  val canUpload=DocumentUploadRules.canUpload(session.role)
  var scopes by remember(session.userId){mutableStateOf(DocumentScopes(emptyList(),emptyList()))}
  var showUpload by remember{mutableStateOf(false)}
@@ -366,7 +376,8 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
    Text(error!!,color=Danger)
    OutlinedButton(onClick={revision++}){Text("Újrapróbálás")}
   }else if(visible.isEmpty())Text(if(onlyInvoices)"Még nincs feltöltött számla." else "Még nincs dokumentum.",color=GrayText)
-  else visible.forEach{doc->
+  else {
+  visible.take(shownCount).forEach{doc->
    Card(colors){
     Row(verticalAlignment=Alignment.CenterVertically){
      Icon(Icons.Default.Description,null,tint=colors.accent)
@@ -390,6 +401,8 @@ internal fun LiveDocumentsScreen(session:AuthorizedSession,colors:PortalPalette,
      Text(if(opening==doc.id)"Megnyitás…" else "Dokumentum megnyitása")
     }
    }
+  }
+  if(visible.size>shownCount)TextButton(onClick={shownCount+=100}){Text("További dokumentumok")}
   }
  }
  if(showUpload&&canUpload){

@@ -16,14 +16,14 @@ data class MobileTimelineEvent(val title:String,val description:String?,val even
 /** Additional role-filtered farmer lists backed by the existing schema. */
 class FarmExtrasRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun farms(session:AuthorizedSession):List<MobileFarm> = withContext(Dispatchers.IO){
-  read("farms?select=id,name,settlement,address&order=name.asc",session).map{
+  readAll("farms?select=id,name,settlement,address&order=name.asc,id.asc",session).map{
    MobileFarm(it.getString("id"),it.optString("name"),it.optional("settlement"),it.optional("address"))
   }
  }
 
  suspend fun machines(session:AuthorizedSession):List<MobileMachine> = withContext(Dispatchers.IO){
   val farms=farms(session).associateBy{it.id}
-  read("machines?select=id,farm_id,name,machine_type,manufacturer,model,current_hours,next_service_hours,active&order=name.asc&limit=250",session).map{row->
+  readAll("machines?select=id,farm_id,name,machine_type,manufacturer,model,current_hours,next_service_hours,active&order=name.asc,id.asc",session).map{row->
    MobileMachine(
     row.optString("name"),farms[row.optString("farm_id")]?.name?:"Gazdaság",row.optString("machine_type"),
     row.optional("manufacturer"),row.optional("model"),row.numberOrNull("current_hours"),row.numberOrNull("next_service_hours"),row.optBoolean("active",true)
@@ -34,11 +34,14 @@ class FarmExtrasRepository(private val baseUrl:String,private val publishableKey
  suspend fun team(session:AuthorizedSession):List<MobileTeamMember> = withContext(Dispatchers.IO){
   val farms=farms(session).associateBy{it.id}
   if(farms.isEmpty())return@withContext emptyList()
-  val farmFilter=farms.keys.joinToString(",")
-  val members=read("farm_members?select=farm_id,user_id,member_role,active&farm_id=in.($farmFilter)&limit=250",session)
+  val members=farms.keys.toList().chunked(50).flatMap{ids->
+   readAll("farm_members?select=farm_id,user_id,member_role,active&farm_id=in.(${ids.joinToString(",")})&order=farm_id.asc,id.asc",session)
+  }
   val people=runCatching{
    val userIds=members.map{it.optString("user_id")}.distinct().filter{it.isNotBlank()}
-   if(userIds.isEmpty())emptyMap()else read("profiles?select=id,full_name&id=in.(${userIds.joinToString(",")})",session)
+   if(userIds.isEmpty())emptyMap()else userIds.chunked(50).flatMap{ids->
+    readAll("profiles?select=id,full_name&id=in.(${ids.joinToString(",")})&order=id.asc",session)
+   }
     .associate{it.getString("id") to it.optString("full_name")}
   }.getOrDefault(emptyMap())
   members.map{row->
@@ -50,7 +53,7 @@ class FarmExtrasRepository(private val baseUrl:String,private val publishableKey
  }
 
  suspend fun timeline(session:AuthorizedSession):List<MobileTimelineEvent> = withContext(Dispatchers.IO){
-  read("timeline_events?select=title,description,event_type,event_at,created_at,field_id&order=event_at.desc&limit=250",session).map{row->
+  readAll("timeline_events?select=title,description,event_type,event_at,created_at,field_id&order=event_at.desc,id.desc",session).map{row->
    MobileTimelineEvent(row.optString("title"),row.optional("description"),row.optString("event_type"),
     row.optional("event_at")?:row.optString("created_at"),row.optional("field_id"))
   }
@@ -68,6 +71,9 @@ class FarmExtrasRepository(private val baseUrl:String,private val publishableKey
    (0 until rows.length()).map{rows.getJSONObject(it)}
   }finally{conn.disconnect()}
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private fun JSONObject.optional(key:String):String?=if(isNull(key))null else optString(key).ifBlank{null}
  private fun JSONObject.numberOrNull(key:String):Double?=if(isNull(key))null else optDouble(key).takeIf{!it.isNaN()}
