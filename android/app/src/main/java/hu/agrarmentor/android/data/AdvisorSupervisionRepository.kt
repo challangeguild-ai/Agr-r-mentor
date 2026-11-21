@@ -52,8 +52,8 @@ internal fun mobileSupervisionActive(config:MobileSupervisionConfig,date:LocalDa
 class AdvisorSupervisionRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun load(session:AuthorizedSession):List<MobileSupervisionFarm> = withContext(Dispatchers.IO){
   requireAdvisor(session)
-  val farms=read("farms?select=id,name&order=name.asc&limit=1000",session)
-  val events=read("timeline_events?select=id,farm_id,description,event_at&event_type=eq.supervision_config&order=event_at.desc&limit=2000",session)
+  val farms=readAll("farms?select=id,name&order=name.asc,id.asc",session)
+  val events=readAll("timeline_events?select=id,farm_id,description,event_at&event_type=eq.supervision_config&order=event_at.desc,id.desc",session)
   val latest=linkedMapOf<String,JSONObject>()
   events.forEach{event->latest.putIfAbsent(event.optString("farm_id"),event)}
   farms.map{farm->
@@ -115,6 +115,9 @@ class AdvisorSupervisionRepository(private val baseUrl:String,private val publis
    (0 until rows.length()).map{rows.getJSONObject(it)}
   }finally{conn.disconnect()}
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private companion object{val UUID_PATTERN=Regex("[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}")}
 }

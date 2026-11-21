@@ -22,20 +22,27 @@ data class DispatchResult(val alreadyExisted:Boolean,val timelineWarning:Boolean
  */
 class TaskDispatchRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun choices(session:AuthorizedSession):DispatchChoices = withContext(Dispatchers.IO){
-  val ownerFarms=read("farms?select=id,name,owner_id&order=name.asc&limit=1000",session)
-  val memberships=read("farm_members?select=farm_id,member_role,active&user_id=eq.${uuid(session.userId)}&active=eq.true&limit=1000",session)
+  val callerId=uuid(session.userId)
+  val ownerFarms=readAll("farms?select=id,name,owner_id&order=name.asc,id.asc",session)
+  val memberships=readAll("farm_members?select=farm_id,member_role,active&user_id=eq.$callerId&active=eq.true&order=farm_id.asc,id.asc",session)
   val manageable=memberships.filter{it.optString("member_role") in listOf("manager","agronomist")}
    .map{it.optString("farm_id")}.toSet()
   val farms=ownerFarms.filter{it.optString("owner_id")==session.userId||it.optString("id") in manageable}
    .map{DispatchFarm(it.getString("id"),it.optString("name"),it.getString("owner_id"))}
   if(farms.isEmpty())return@withContext DispatchChoices(emptyList(),emptyList(),emptyList())
-  val ids=farms.map{uuid(it.id)}.joinToString(",")
-  val fields=read("fields?select=id,name,farm_id&farm_id=in.($ids)&order=name.asc&limit=1000",session)
+  val farmIdGroups=farms.map{uuid(it.id)}.chunked(50)
+  val fields=farmIdGroups.flatMap{group->
+   readAll("fields?select=id,name,farm_id&farm_id=in.(${group.joinToString(",")})&order=name.asc,id.asc",session)
+  }.sortedWith(compareBy<JSONObject>{it.optString("name")}.thenBy{it.getString("id")})
    .map{DispatchField(it.getString("id"),it.optString("name"),it.getString("farm_id"))}
-  val memberRows=read("farm_members?select=farm_id,user_id,active&farm_id=in.($ids)&active=eq.true&limit=1000",session)
+  val memberRows=farmIdGroups.flatMap{group->
+   readAll("farm_members?select=farm_id,user_id,active&farm_id=in.(${group.joinToString(",")})&active=eq.true&order=farm_id.asc,id.asc",session)
+  }
   val memberIds=(farms.map{it.ownerId}+memberRows.map{it.optString("user_id")}).filter{it.isNotBlank()}.distinct()
   val names=if(memberIds.isEmpty())emptyMap()else runCatching{
-   read("profiles?select=id,full_name&id=in.(${memberIds.joinToString(",")})",session)
+   memberIds.map{uuid(it)}.chunked(50).flatMap{ids->
+    readAll("profiles?select=id,full_name&id=in.(${ids.joinToString(",")})&order=id.asc",session)
+   }
     .associate{it.getString("id") to it.optString("full_name")}
   }.getOrDefault(emptyMap())
   val people=(farms.map{farm->DispatchPerson(farm.ownerId,names[farm.ownerId]?.ifBlank{"Gazdálkodó"}?:"Gazdálkodó",farm.id)}+
@@ -103,6 +110,9 @@ class TaskDispatchRepository(private val baseUrl:String,private val publishableK
   return (0 until array.length()).map{array.getJSONObject(it)}
  }
 
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
+
  private fun request(method:String,path:String,session:AuthorizedSession,body:JSONObject?=null,prefer:String?=null):String{
   require(baseUrl.startsWith("https://")&&publishableKey.isNotBlank())
   val connection=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
@@ -120,7 +130,7 @@ class TaskDispatchRepository(private val baseUrl:String,private val publishableK
  }
 
  private fun uuid(raw:String):String{
-  require(raw.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}
+  require(validMapFieldId(raw)){"Érvénytelen azonosító."}
   return raw
  }
 }

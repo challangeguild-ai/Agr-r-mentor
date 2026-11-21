@@ -39,10 +39,12 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
  suspend fun ownedFields(session:AuthorizedSession):List<OperationField> = withContext(Dispatchers.IO){
   require(session.role==PortalRole.FARMER)
   val owner=uuid(session.userId)
-  val farms=read("farms?select=id,name,country_code&owner_id=eq.$owner&limit=1000",session)
+  val farms=readAll("farms?select=id,name,country_code&owner_id=eq.$owner&order=id.asc",session)
    .associateBy{it.getString("id")}
   if(farms.isEmpty())return@withContext emptyList()
-  read("fields?select=id,name,farm_id,area_ha&order=name.asc&limit=1000",session).mapNotNull{field->
+  farms.keys.toList().chunked(50).flatMap{ids->
+   readAll("fields?select=id,name,farm_id,area_ha&farm_id=in.(${ids.joinToString(",")})&order=name.asc,id.asc",session)
+  }.sortedWith(compareBy<JSONObject>{it.optString("name")}.thenBy{it.getString("id")}).mapNotNull{field->
    val farm=farms[field.optString("farm_id")]?:return@mapNotNull null
    OperationField(field.getString("id"),field.optString("name","Földtábla"),farm.getString("id"),
     farm.optString("name","Gazdaság"),if(field.isNull("area_ha"))null else field.optDouble("area_ha"),
@@ -168,6 +170,9 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   return (0 until result.length()).map{result.getJSONObject(it)}
  }
 
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
+
  private fun request(method:String,path:String,session:AuthorizedSession,body:JSONObject?,prefer:String?=null):String{
   require(baseUrl.startsWith("https://")&&publishableKey.isNotBlank())
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
@@ -184,7 +189,7 @@ class OperationCreateRepository(private val baseUrl:String,private val publishab
   }finally{conn.disconnect()}
  }
  private fun uuid(value:String):String{
-  require(value.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen azonosító."}
+  require(validMapFieldId(value)){"Érvénytelen azonosító."}
   return value
  }
  private fun JSONObject.optional(key:String):String?=if(isNull(key))null else optString(key).ifBlank{null}
