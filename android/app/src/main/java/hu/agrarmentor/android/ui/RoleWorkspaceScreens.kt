@@ -59,7 +59,9 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(session.accessToken,revision){
   busy=true;failed=false
-  try{snapshot=repo.advisor(session)}catch(_:Exception){failed=true}
+  try{snapshot=repo.advisor(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){failed=true}
   finally{busy=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -70,8 +72,12 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
     "/admin"->AdvisorDashboard(data,colors,onNavigate)
     "/admin/clients","/admin/portfolio"->AdvisorClients(data,colors,onNavigate)
     "/admin/priorities"->AdvisorPriorities(data,colors,onNavigate)
-    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onNavigate=onNavigate,onReviewed={revision++})
     "/admin/recommendations"->AdvisorTasks(data,colors,session,onlyOpen=false,onNavigate=onNavigate,onReviewed={revision++},onlyPlantProtection=true)
+    "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onNavigate=onNavigate,onReviewed={revision++})
+    "/admin/tasks/review"->AdvisorTasks(data,colors,session,onlyOpen=false,onNavigate=onNavigate,onReviewed={revision++},statusFilter="submitted")
+    else->if(route.startsWith("/admin/tasks/")&&route.removePrefix("/admin/tasks/").isNotBlank()){
+     AdvisorTasks(data,colors,session,onlyOpen=false,onNavigate=onNavigate,onReviewed={revision++},selectedTaskId=route.removePrefix("/admin/tasks/"))
+    }
    }
   }
  }
@@ -87,7 +93,7 @@ private fun AdvisorDashboard(data:AdvisorWorkspace,colors:PortalPalette,onNaviga
  }
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
   Box(Modifier.weight(1f)){PortalMetric("Nyitott teendők",open.toString(),colors){onNavigate("/admin/tasks")}}
-  Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",pending.toString(),colors){onNavigate("/admin/tasks")}}
+  Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",pending.toString(),colors){onNavigate("/admin/tasks/review")}}
  }
  PortalMetric("Nyitott gazdálkodói jelzések",data.openReports.toString(),colors){onNavigate("/admin/reports")}
  listOf(
@@ -125,7 +131,7 @@ private fun AdvisorPriorities(data:AdvisorWorkspace,colors:PortalPalette,onNavig
  }
  if(tasks.isEmpty())Text("Jelenleg nincs soron következő feladat.",color=SoftInk,fontSize=13.sp)
  tasks.take(20).forEach{task->
-  Card(colors,onClick={onNavigate("/admin/tasks")}){
+  Card(colors,onClick={onNavigate("/admin/tasks/${task.id}")}){
    Row(verticalAlignment=Alignment.CenterVertically){
     Column(Modifier.weight(1f)){
      Text(task.title,color=Ink,fontSize=15.sp,fontWeight=FontWeight.Bold)
@@ -136,14 +142,20 @@ private fun AdvisorPriorities(data:AdvisorWorkspace,colors:PortalPalette,onNavig
    task.dueDate?.let{Text("Határidő: ${huDate(it)}",color=SoftInk,fontSize=12.sp)}
   }
  }
- Text("Egy teendő kiválasztása a teljes szaktanácsadói munkalistát nyitja meg.",color=SoftInk,fontSize=12.sp)
+ if(needAttention.size>20)TextButton(onClick={onNavigate("/admin/clients")}){Text("Minden érintett ügyfél megnyitása ›",color=colors.accent)}
+ if(tasks.size>20)TextButton(onClick={onNavigate("/admin/tasks")}){Text("Teljes szakmai feladatlista ›",color=colors.accent)}
 }
 
 @Composable
 private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette,onNavigate:(String)->Unit){
+ var query by remember{mutableStateOf("")}
+ var shown by remember{mutableIntStateOf(40)}
+ val filtered=data.clients.filter{it.name.contains(query,true)||it.phone?.contains(query,true)==true}
  Text("Gazdálkodók – figyelmeztetési sorrendben",fontSize=14.sp,color=SoftInk)
- if(data.clients.isEmpty())Text("Nincs elérhető gazdálkodói ügyfél.",color=SoftInk)
- data.clients.forEach{client->
+ OutlinedTextField(value=query,onValueChange={query=it;shown=40},label={Text("Ügyfél keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ Text("${filtered.size} találat",fontSize=12.sp,color=SoftInk)
+ if(filtered.isEmpty())Text(if(data.clients.isEmpty())"Nincs elérhető gazdálkodói ügyfél." else "Nincs a keresésnek megfelelő ügyfél.",color=SoftInk)
+ filtered.take(shown).forEach{client->
   val severity=when{client.critical>0->Critical;client.attention>0->Attention;else->colors.border}
   Card(colors,border=severity,onClick={onNavigate("/admin/clients/${client.id}")}){
    Row(verticalAlignment=Alignment.CenterVertically){
@@ -160,6 +172,7 @@ private fun AdvisorClients(data:AdvisorWorkspace,colors:PortalPalette,onNavigate
    Text("Ügyféldosszié megnyitása ›",color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
   }
  }
+ if(filtered.size>shown)TextButton(onClick={shown+=40}){Text("További ügyfelek ›",color=colors.accent)}
 }
 
 @Composable
@@ -337,7 +350,7 @@ internal fun AdvisorClientDossierScreen(clientId:String,session:AuthorizedSessio
 }
 
 @Composable
-private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onNavigate:(String)->Unit,onReviewed:()->Unit,onlyPlantProtection:Boolean=false){
+private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onNavigate:(String)->Unit,onReviewed:()->Unit,selectedTaskId:String?=null,statusFilter:String?=null,onlyPlantProtection:Boolean=false){
  val reviewGateway=remember{AdvisorTaskReview(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
@@ -349,7 +362,15 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
  var openingPhoto by remember{mutableStateOf<String?>(null)}
  var sending by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
- val tasks=data.tasks.filter{(!onlyOpen||(it.status!="done"&&it.status!="cancelled"))&&(!onlyPlantProtection||it.plan?.operationType in setOf("spraying","plant_protection"))}
+ var search by remember(onlyOpen){mutableStateOf("")}
+ var shown by remember(onlyOpen){mutableIntStateOf(40)}
+ val tasks=data.tasks.filter{(!onlyOpen||(it.status!="done"&&it.status!="cancelled"))&&
+  (statusFilter==null||it.status==statusFilter)&&
+  (!onlyPlantProtection||it.plan?.operationType in setOf("spraying","plant_protection"))&&
+  (it.title.contains(search,true)||it.fieldName.contains(search,true))}
+ LaunchedEffect(selectedTaskId){
+  if(selectedTaskId!=null)openedTask=data.tasks.firstOrNull{it.id==selectedTaskId}
+ }
  if(onlyPlantProtection){
   Card(colors,background=colors.tint){
    Text("Új permetezési ajánlás kiadása",color=Ink,fontSize=18.sp,fontWeight=FontWeight.Bold)
@@ -359,10 +380,13 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
    TextButton(onClick={onNavigate("/admin/plant-protection-import")}){Text("Hivatalos növényvédőszer-katalógus ›",color=colors.accent)}
   }
  }
- Text(if(onlyPlantProtection)"Kiadott növényvédelmi tervek" else if(onlyOpen)"Napi munkalista" else "Szaktanácsadói munkalista",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Ink)
+ Text(if(onlyPlantProtection)"Kiadott növényvédelmi tervek" else if(statusFilter=="submitted")"Ellenőrzésre váró feladatok" else if(onlyOpen)"Napi munkalista" else "Szaktanácsadói munkalista",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Ink)
+ OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Feladat vagy földtábla keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ Text("${tasks.size} találat",fontSize=12.sp,color=SoftInk)
  if(error!=null)Text(error!!,color=Critical,fontSize=12.sp)
+ if(selectedTaskId!=null&&data.tasks.none{it.id==selectedTaskId})Text("A kiválasztott feladat már nem érhető el. A teljes listában kereshetsz.",color=Critical,fontSize=12.sp)
  if(tasks.isEmpty())Text(if(onlyPlantProtection)"Még nincs kiadott növényvédelmi ajánlás. Az Új ajánlás kiadása gombbal elindíthatod a webes űrlapot." else "Ebben a nézetben nincs feladat.",color=SoftInk)
- tasks.forEach{task->
+ tasks.take(shown).forEach{task->
   val attention=task.priority in listOf("high","urgent")&&task.status!="done"
   Card(colors,border=if(attention)Attention else colors.border){
    Text(task.title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
@@ -422,6 +446,7 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
    }
   }
  }
+ if(tasks.size>shown)TextButton(onClick={shown+=40}){Text("További feladatok ›",color=colors.accent)}
  openedTask?.let{task->
   AlertDialog(onDismissRequest={openedTask=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("Földtábla: ${task.fieldName}")
@@ -485,7 +510,9 @@ internal fun AdminWorkspaceScreen(route:String,session:AuthorizedSession,colors:
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(session.accessToken,revision){
   busy=true;failed=false
-  try{snapshot=repo.admin(session)}catch(_:Exception){failed=true}
+  try{snapshot=repo.admin(session)}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){failed=true}
   finally{busy=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -500,8 +527,11 @@ internal fun AdminWorkspaceScreen(route:String,session:AuthorizedSession,colors:
     "/system-admin/users"->AdminUsers(data,colors)
     "/system-admin/support"->AdminSupport(data,colors)
     "/system-admin/security"->AdminSecurity(data,colors)
-    "/system-admin/farms"->AdminInventory(data,colors,showFarms=true)
-    "/system-admin/fields"->AdminInventory(data,colors,showFarms=false)
+    "/system-admin/farms"->AdminInventory(data,colors,showFarms=true,onNavigate=onNavigate)
+    "/system-admin/fields"->AdminInventory(data,colors,showFarms=false,onNavigate=onNavigate)
+    else->if(route.startsWith("/system-admin/fields/")&&route.removePrefix("/system-admin/fields/").isNotBlank()){
+     AdminInventory(data,colors,showFarms=false,onNavigate=onNavigate,farmIdFilter=route.removePrefix("/system-admin/fields/"))
+    }
    }
   }
  }
@@ -535,33 +565,59 @@ private fun AdminDashboard(data:AdminWorkspace,colors:PortalPalette,onNavigate:(
 }
 
 @Composable
-private fun AdminInventory(data:AdminWorkspace,colors:PortalPalette,showFarms:Boolean){
- var search by remember(showFarms){mutableStateOf("")}
- var shown by remember(showFarms){mutableIntStateOf(50)}
- var opened by remember(showFarms){mutableStateOf<String?>(null)}
- val records=if(showFarms)data.farmList.map{Triple(it.id,it.name,"")}
-  else data.fieldList.map{Triple(it.id,it.name,it.farmName)}
- val filtered=records.filter{it.second.contains(search,true)||it.third.contains(search,true)}
- Text(if(showFarms)"Hozzáférhető gazdaságok: ${filtered.size}" else "Hozzáférhető földtáblák: ${filtered.size}",color=SoftInk,fontSize=13.sp)
- OutlinedTextField(value=search,onValueChange={search=it;shown=50},label={Text("Keresés a nyilvántartásban")},singleLine=true,modifier=Modifier.fillMaxWidth())
- if(filtered.isEmpty())Text("Nincs a keresésnek megfelelő rekord.",color=SoftInk,fontSize=13.sp)
- filtered.take(shown).forEach{(id,name,farmName)->
-  PortalRouteTile(name,if(showFarms)"Gazdaság adatlapja" else farmName,colors){opened=id}
+private fun AdminInventory(data:AdminWorkspace,colors:PortalPalette,showFarms:Boolean,onNavigate:(String)->Unit,farmIdFilter:String?=null){
+ var search by remember(showFarms,farmIdFilter){mutableStateOf("")}
+ var shown by remember(showFarms,farmIdFilter){mutableIntStateOf(50)}
+ var opened by remember(showFarms,farmIdFilter){mutableStateOf<String?>(null)}
+ val currentFarm=data.farmList.firstOrNull{it.id==farmIdFilter}
+ if(farmIdFilter!=null){
+  Text("Gazdaság szerinti szűrés: ${currentFarm?.name?:"Nem elérhető gazdaság"}",color=colors.accent,fontWeight=FontWeight.SemiBold)
+  TextButton(onClick={onNavigate("/system-admin/fields")}){Text("Minden földtábla ›",color=colors.accent)}
  }
- if(filtered.size>shown)TextButton(onClick={shown+=50}){Text("További ${if(showFarms)"gazdaságok" else "táblák"}",color=colors.accent)}
+ val farms=data.farmList.filter{it.name.contains(search,true)}
+ val fields=data.fieldList.filter{(farmIdFilter==null||it.farmId==farmIdFilter)&&
+  (it.name.contains(search,true)||it.farmName.contains(search,true)||it.crop?.contains(search,true)==true)}
+ val count=if(showFarms)farms.size else fields.size
+ Text("${if(showFarms)"Hozzáférhető gazdaságok" else "Hozzáférhető földtáblák"}: $count",color=SoftInk,fontSize=13.sp)
+ OutlinedTextField(value=search,onValueChange={search=it;shown=50},label={Text("Keresés a nyilvántartásban")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ if(count==0)Text("Nincs a keresésnek megfelelő rekord.",color=SoftInk,fontSize=13.sp)
+ if(showFarms)farms.take(shown).forEach{farm->
+  val fieldCount=data.fieldList.count{it.farmId==farm.id}
+  PortalRouteTile(farm.name,"$fieldCount nyilvántartott földtábla",colors){opened=farm.id}
+ }else fields.take(shown).forEach{field->
+  PortalRouteTile(field.name,listOfNotNull(field.farmName,field.areaHa?.let{"$it ha"},field.crop).joinToString(" · "),colors){opened=field.id}
+ }
+ if(count>shown)TextButton(onClick={shown+=50}){Text("További ${if(showFarms)"gazdaságok" else "táblák"} ›",color=colors.accent)}
  opened?.let{id->
-  val selected=records.firstOrNull{it.first==id}
-  if(selected!=null)AlertDialog(
-   onDismissRequest={opened=null},
-   title={Text(selected.second)},
-   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-    Text(if(showFarms)"Gazdaság" else "Földtábla",fontWeight=FontWeight.Bold)
-    if(!showFarms)Text("Gazdaság: ${selected.third}")
-    Text("Nyilvántartási azonosító: ${selected.first}",fontSize=12.sp)
-    Text("Az adatok kizárólag a bejelentkezett rendszeradmin olvasási jogosultsága szerint jelennek meg.",color=SoftInk,fontSize=12.sp)
-   }},
-   confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}}
-  )
+  if(showFarms){
+   val farm=data.farmList.firstOrNull{it.id==id}
+   if(farm!=null){
+    val linked=data.fieldList.filter{it.farmId==id}
+    AlertDialog(onDismissRequest={opened=null},title={Text(farm.name)},text={
+     Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+      Text("Nyilvántartott földtáblák: ${linked.size}",fontWeight=FontWeight.Bold)
+      if(linked.isEmpty())Text("Ehhez a gazdasághoz nincs látható földtábla.",color=SoftInk,fontSize=12.sp)
+      linked.take(15).forEach{field->Text("• ${field.name}${field.areaHa?.let{" · $it ha"}?:""}",fontSize=13.sp)}
+      if(linked.size>15)Text("További ${linked.size-15} tábla a földtábla-listában található.",color=SoftInk,fontSize=12.sp)
+      Text("Gazdaság azonosító: ${farm.id}",color=SoftInk,fontSize=12.sp)
+     }
+    },confirmButton={TextButton(onClick={opened=null;onNavigate("/system-admin/fields/${farm.id}")}){Text("Földtáblák megnyitása",color=colors.accent)}},
+     dismissButton={TextButton(onClick={opened=null}){Text("Bezárás")}})
+   }
+  }else{
+   val field=data.fieldList.firstOrNull{it.id==id}
+   if(field!=null)AlertDialog(onDismissRequest={opened=null},title={Text(field.name)},text={
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+     Text("Gazdaság: ${field.farmName}")
+     field.areaHa?.let{Text("Terület: $it ha")}
+     field.crop?.let{Text("Kultúra: $it")}
+     field.settlement?.let{Text("Település: $it")}
+     field.status?.let{Text("Állapot: $it")}
+     Text("Földtábla-azonosító: ${field.id}",fontSize=12.sp,color=SoftInk)
+     Text("Csak az admin számára olvasható adatok láthatók; módosítás itt nem végezhető.",color=SoftInk,fontSize=12.sp)
+    }
+   },confirmButton={TextButton(onClick={opened=null}){Text("Bezárás")}})
+  }
  }
 }
 
@@ -569,13 +625,22 @@ private fun AdminInventory(data:AdminWorkspace,colors:PortalPalette,showFarms:Bo
 private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
  var roleFilter by remember{mutableStateOf<String?>(null)}
  var opened by remember{mutableStateOf<String?>(null)}
+ var search by remember{mutableStateOf("")}
+ var shown by remember{mutableIntStateOf(40)}
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Box(Modifier.weight(1f)){PortalMetric("Gazdálkodók",data.users.count{it.role=="farmer"}.toString(),colors){roleFilter="farmer"}}
-  Box(Modifier.weight(1f)){PortalMetric("Szaktanácsadók",data.users.count{it.role=="advisor"}.toString(),colors){roleFilter="advisor"}}
+  Box(Modifier.weight(1f)){PortalMetric("Gazdálkodók",data.users.count{it.role=="farmer"&&it.systemRole!="admin"}.toString(),colors){roleFilter="farmer";shown=40}}
+  Box(Modifier.weight(1f)){PortalMetric("Szaktanácsadók",data.users.count{it.role=="advisor"&&it.systemRole!="admin"}.toString(),colors){roleFilter="advisor";shown=40}}
  }
- Text("Rendszeradminisztrátorok: ${data.users.count{it.systemRole=="admin"}}",fontSize=13.sp,color=SoftInk)
- if(roleFilter!=null)TextButton(onClick={roleFilter=null}){Text("Szűrés törlése · ${if(roleFilter=="farmer")"Gazdálkodók" else "Szaktanácsadók"}",color=colors.accent)}
- data.users.filter{roleFilter==null||it.role==roleFilter}.forEach{user->
+ PortalMetric("Rendszeradminisztrátorok",data.users.count{it.systemRole=="admin"}.toString(),colors){roleFilter="admin";shown=40}
+ if(roleFilter!=null)TextButton(onClick={roleFilter=null;shown=40}){
+  Text("Szűrés törlése · ${when(roleFilter){"farmer"->"Gazdálkodók";"advisor"->"Szaktanácsadók";else->"Adminisztrátorok"}}",color=colors.accent)
+ }
+ OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Felhasználó keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ val users=data.users.filter{(roleFilter==null||if(roleFilter=="admin")it.systemRole=="admin" else it.systemRole!="admin"&&it.role==roleFilter)&&
+  (it.name.contains(search,true)||it.phone?.contains(search,true)==true)}
+ Text("${users.size} találat",color=SoftInk,fontSize=12.sp)
+ if(users.isEmpty())Text("Nincs a szűrésnek megfelelő felhasználó.",color=SoftInk,fontSize=12.sp)
+ users.take(shown).forEach{user->
   Card(colors,onClick={opened=user.id}){
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Text(user.name,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
@@ -586,6 +651,7 @@ private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
    if(user.phone!=null)Text(user.phone,color=SoftInk,fontSize=12.sp)
   }
  }
+ if(users.size>shown)TextButton(onClick={shown+=40}){Text("További felhasználók ›",color=colors.accent)}
  Text("Új fiók meghívása és jogmódosítás nem érhető el mobilon, amíg nincs hozzá hitelesített szervervégpont.",fontSize=12.sp,color=SoftInk)
  opened?.let{id->data.users.firstOrNull{it.id==id}?.let{user->
   AlertDialog(onDismissRequest={opened=null},title={Text(user.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -601,6 +667,8 @@ private fun AdminUsers(data:AdminWorkspace,colors:PortalPalette){
 private fun AdminSupport(data:AdminWorkspace,colors:PortalPalette){
  var opened by remember{mutableStateOf<Int?>(null)}
  var onlyOpen by remember{mutableStateOf(false)}
+ var search by remember{mutableStateOf("")}
+ var shown by remember{mutableIntStateOf(40)}
  val open=data.tasks.count{it.status!="done"&&it.status!="cancelled"}
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
   Box(Modifier.weight(1f)){PortalMetric("Betöltött feladat",data.tasks.size.toString(),colors){onlyOpen=false}}
@@ -610,9 +678,15 @@ private fun AdminSupport(data:AdminWorkspace,colors:PortalPalette){
   Text("Admin támogatási mód",color=colors.accent,fontWeight=FontWeight.Bold)
   Text("Feladatállapot javítása indoklással és auditnaplózással történhet. Ebben az első mobilváltozatban nincs állapotmódosítás.",fontSize=13.sp,color=Ink)
  }
- if(onlyOpen)TextButton(onClick={onlyOpen=false}){Text("Összes feladat megjelenítése",color=colors.accent)}
- data.tasks.forEachIndexed{index,task->
-  if(onlyOpen&&task.status in listOf("done","cancelled"))return@forEachIndexed
+ if(onlyOpen)TextButton(onClick={onlyOpen=false;shown=40}){Text("Összes feladat megjelenítése",color=colors.accent)}
+ OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Támogatási feladat keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
+ val indexes=data.tasks.indices.filter{index->val task=data.tasks[index]
+  (!onlyOpen||task.status !in listOf("done","cancelled"))&&
+  (task.title.contains(search,true)||task.farmName.contains(search,true)||task.fieldName.contains(search,true))}
+ Text("${indexes.size} találat",color=SoftInk,fontSize=12.sp)
+ if(indexes.isEmpty())Text("Nincs a szűrésnek megfelelő támogatási feladat.",color=SoftInk,fontSize=12.sp)
+ indexes.take(shown).forEach{index->
+  val task=data.tasks[index]
   Card(colors,onClick={opened=index}){
    Text(task.title,color=Ink,fontSize=16.sp,fontWeight=FontWeight.Bold)
    Text("${task.farmName} · ${task.fieldName}",color=SoftInk,fontSize=12.sp)
@@ -620,6 +694,7 @@ private fun AdminSupport(data:AdminWorkspace,colors:PortalPalette){
    Text(taskStatus(task.status),color=colors.accent,fontSize=12.sp,fontWeight=FontWeight.Bold)
   }
  }
+ if(indexes.size>shown)TextButton(onClick={shown+=40}){Text("További támogatási feladatok ›",color=colors.accent)}
  opened?.let{index->data.tasks.getOrNull(index)?.let{task->
   AlertDialog(onDismissRequest={opened=null},title={Text(task.title)},text={Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
    Text("Gazdaság: ${task.farmName}")

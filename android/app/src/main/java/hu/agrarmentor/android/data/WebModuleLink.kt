@@ -2,7 +2,9 @@ package hu.agrarmentor.android.data
 
 /** Allowlist of known web workflows. Never append an auth token or untrusted route. */
 internal fun safeWebModuleUrl(origin:String,path:String):String?{
- if(path !in setOf(
+ val operationDetail=path.startsWith("/operations/")&&
+  validMapFieldId(path.removePrefix("/operations/"))
+ if(!operationDetail&&path !in setOf(
   "/admin/map/import",
   "/admin/plant-protection-import",
   "/admin/tasks",
