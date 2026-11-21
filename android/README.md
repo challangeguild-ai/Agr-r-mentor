@@ -117,6 +117,12 @@ Szükséges: JDK 17, Android SDK 36, Android Studio, internet a Gradle-függős�
 
 **Release-környezet ellenőrzése (2026-11-20):** az élő GitHub-tárolóban jelenleg csak `Preview` és `Production` environment található. A kiadáshoz külön `agrarmentor-release` environment kell, kötelező jóváhagyóval. A release workflow most már ennek meglétét futás közben is ellenőrzi, és hiányában megszakítja a kiadást. Végleges kiadás kizárólag a felülvizsgált `main` ágról indítható, tehát a fejlesztői ág biztonságos integrálása is kiadási feltétel. A fejlesztői CI teszteli a debug fordítást, de nem tölt fel köztes APK-t. A tartós aláírókulcsot a felhasználónak biztonságosan meg kell őriznie; sem a kulcsot, sem a jelszavát nem tesszük a forráskódba vagy az APK mellé.
 
+### Védett, titkosított adatbázismentés
+
+A `.github/workflows/agrarmentor-encrypted-backup.yml` kizárólag a `main` ágon, a GitHub `agrarmentor-backup` környezetében futtatható. A repository adminisztrátorának előbb létre kell hoznia a környezetet, és **kötelező jóváhagyóval (required reviewers)** kell védenie: ezt a munkafolyamat ellenőrzi, védelem nélkül leáll. Csak ebben a GitHub Environmentben tárolhatók a titkok: `AGRAR_SUPABASE_ACCESS_TOKEN`, `AGRAR_SUPABASE_DB_PASSWORD`, `AGRAR_BACKUP_PASSPHRASE` (külön őrzött, legalább 32 karakteres erős jelszó). A titkokat sem a forráskódba, sem beszélgetésbe nem szabad bemásolni.
+
+A mentés a feltöltés előtt a titkosított fájlt adatfolyamban visszafejtve ellenőrzi a tar-archívum sértetlenségét, és kizárólag a titkosított archívumot tölti fel. Ez **nem PostgreSQL-visszaállítási próba**, és nem jogosít éles migráció futtatására. A munkafolyamatot felülvizsgálat után a `main` ágba kell integrálni. A védett környezet és a titkok jelenleg hiányoznak; sikeres éles mentés még nincs igazolva.
+
 ### Végleges, aláírt Android APK kiadása
 
 A `.github/workflows/agrarmentor-android-release.yml` **kizárólag kézzel indítható** a `agrarmentor-release` GitHub Environment jóváhagyási kapuján keresztül. A munkafolyamat elutasítja a fejlesztői verziónevet, a hiányzó éles Supabase-konfigurációt és az aláírás nélküli APK-t. Sikeres natív teszt és `apksigner verify` után csak az aláírt release APK-t teszi letölthetővé (30 napig). Az alkalmazás csomagazonosítója továbbra is `hu.agrarmentor.android`.

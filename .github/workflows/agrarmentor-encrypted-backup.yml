@@ -19,6 +19,31 @@ jobs:
     environment: agrarmentor-backup
     timeout-minutes: 40
     steps:
+      # GitHub can silently create an unprotected environment if its name is
+      # referenced before an administrator sets up mandatory reviewers.
+      - name: Require the protected AgrarMentor backup environment
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == 'challangeguild-ai/Agr-r-mentor' ]] || {
+            echo 'Backup csak az eredeti Agrár Mentor tárolóban engedélyezett.' >&2
+            exit 1
+          }
+          [[ "$GITHUB_REF_NAME" == 'main' ]] || {
+            echo 'Éles adatmentés csak a felülvizsgált main ágról indítható.' >&2
+            exit 1
+          }
+          environment_json="$(curl --fail --silent --show-error \
+            --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-backup")" || {
+              echo 'A védett agrarmentor-backup környezet nincs konfigurálva.' >&2
+              exit 1
+            }
+          printf '%s' "$environment_json" | jq -e \
+            '.protection_rules[]? | select(.type == "required_reviewers")' > /dev/null || {
+              echo 'Az adatmentéshez kötelező GitHub-jóváhagyó szükséges.' >&2
+              exit 1
+            }
+
       - name: Confirm dependencies and configured secrets
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.AGRAR_SUPABASE_ACCESS_TOKEN }}
@@ -124,6 +149,13 @@ jobs:
             --output "$RUNNER_TEMP/agrarmentor-db-${GITHUB_RUN_ID}.tar.gz.gpg" \
             "$RUNNER_TEMP/agrarmentor-db.tar.gz"
           test -s "$RUNNER_TEMP/agrarmentor-db-${GITHUB_RUN_ID}.tar.gz.gpg"
+          # Check the exact encrypted artifact using the configured passphrase.
+          # Decrypted bytes stream only into tar's integrity checker; no new
+          # plaintext file, console dump or upload is created.
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --quiet --batch --pinentry-mode loopback \
+            --passphrase-fd 0 --decrypt --output - \
+            "$RUNNER_TEMP/agrarmentor-db-${GITHUB_RUN_ID}.tar.gz.gpg" | tar -tzf - > /dev/null
+          echo 'Encrypted backup round-trip: archive integrity verified.'
           # Remove unencrypted material prior to the artifact upload step.
           rm -f -- "$RUNNER_TEMP/agrarmentor-db.tar.gz"
           find "$RUNNER_TEMP/agrarmentor-db" -maxdepth 1 -type f -delete

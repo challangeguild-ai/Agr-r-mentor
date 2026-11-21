@@ -67,9 +67,14 @@ test("a public-repository backup cannot upload database dumps unencrypted",()=>{
  assert.doesNotMatch(workflow,/^\s+(push|pull_request|schedule):/m);
  assert.match(workflow,/permissions:\s*\n\s+contents: read/);
  assert.match(workflow,/environment: agrarmentor-backup/);
+ assert.match(workflow,/environments\/agrarmentor-backup/);
+ assert.match(workflow,/select\(\.type == "required_reviewers"\)/);
+ assert.match(workflow,/GITHUB_REF_NAME/);
  assert.equal((workflow.match(/db dump --remote=qkezhvtwirdsvhzjyvfi/g)||[]).length,3);
  assert.match(workflow,/--symmetric --cipher-algo AES256/);
  assert.match(workflow,/--passphrase-fd 0/);
+ assert.match(workflow,/--decrypt --output -/);
+ assert.match(workflow,/tar -tzf - > \/dev\/null/);
  assert.match(workflow,/path: \$\{\{ runner\.temp \}\}\/agrarmentor-db-\$\{\{ github\.run_id \}\}\.tar\.gz\.gpg/);
  assert.doesNotMatch(workflow,/path:.*\.(?:sql|tar\.gz)\s*$/m);
  assert.match(workflow,/retention-days: 7/);
@@ -81,6 +86,14 @@ test("a public-repository backup cannot upload database dumps unencrypted",()=>{
  });
  assert.equal(compromised.ok,false);
  assert.ok(compromised.problems.some(p=>p.includes("GitHub runner")));
+ const notProtected=checkReleaseContract(path=>path===".github/workflows/agrarmentor-encrypted-backup.yml"
+  ?workflow.replace('select(.type == "required_reviewers")','select(.type == "wait_timer")')
+  :read(path));
+ assert.equal(notProtected.ok,false);
+ const unverified=checkReleaseContract(path=>path===".github/workflows/agrarmentor-encrypted-backup.yml"
+  ?workflow.replace('--decrypt --output -','--list-packets')
+  :read(path));
+ assert.equal(unverified.ok,false);
 });
 
 test("the release verifier is read-only and CI runs a compatible Node version",()=>{

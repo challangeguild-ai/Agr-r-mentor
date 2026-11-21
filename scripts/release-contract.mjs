@@ -78,6 +78,8 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
    && !/^\s+(push|pull_request|schedule|workflow_run):/m.test(runnerBackup);
  const encryptedOnly=runnerBackup.includes("--symmetric --cipher-algo AES256")
    && runnerBackup.includes("--passphrase-fd 0")
+   && runnerBackup.includes("--decrypt --output -")
+   && runnerBackup.includes("tar -tzf - > /dev/null")
    && runnerBackup.includes("actions/upload-artifact@")
    && /path:\s*\$\{\{ runner\.temp \}\}\/agrarmentor-db-\$\{\{ github\.run_id \}\}\.tar\.gz\.gpg/.test(runnerBackup)
    && !/path:\s*.*\.(?:sql|tar\.gz)\s*$/m.test(runnerBackup);
@@ -85,10 +87,13 @@ export function checkReleaseContract(read=(path)=>readFileSync(resolve(root,path
  if(!dispatchOnly||!encryptedOnly||lockedProject.length!==3
    ||lockedProject.some(command=>command!==`db dump --remote=${targets.supabaseProjectId}`)
    ||!runnerBackup.includes("environment: agrarmentor-backup")
+   ||!runnerBackup.includes("GITHUB_REF_NAME")
+   ||!runnerBackup.includes('select(.type == "required_reviewers")')
+   ||!runnerBackup.includes('environments/agrarmentor-backup')
    ||!runnerBackup.includes("test \"${#BACKUP_PASSPHRASE}\" -ge 32" )
    ||!/retention-days:\s*7/.test(runnerBackup)
    ||/\b(?:db\s+push|db\s+reset|migration\s+up|functions\s+deploy)\b/.test(runnerBackup))
-  problems.push("A GitHub runner mentése nem bizonyítottan kézi, célprojektre kötött és csak titkosítva feltölthető.");
+  problems.push("A GitHub runner mentése nem bizonyítottan jóváhagyáshoz kötött, célprojektre rögzített és csak ellenőrzött titkosított archívumot tölthet fel.");
  if(!powershell.includes("supabase_db_AgrarMentor-mentes-2026-11-19")||!powershell.includes("ON_ERROR_STOP=1"))
   problems.push("A teszt nem a védett, helyi Docker-konténerre korlátozódik.");
  if(!/^BEGIN;$/m.test(rehearsal)||!/^ROLLBACK;$/m.test(rehearsal)||/^COMMIT;$/m.test(rehearsal))
