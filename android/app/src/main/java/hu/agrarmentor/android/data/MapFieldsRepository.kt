@@ -35,12 +35,15 @@ class MapFieldsRepository(private val baseUrl:String,private val publishableKey:
  }
 
  suspend fun load(session:AuthorizedSession):List<NativeMapField> = withContext(Dispatchers.IO){
-  val farmNames=read("farms?select=id,name&limit=1000",session)
+  val farmNames=readAll("farms?select=id,name&order=name.asc,id.asc",session)
    .associate{it.getString("id") to it.optString("name")}
-  read("fields?select=id,name,farm_id,center_lat,center_lng,boundary_geojson&order=name.asc&limit=1000",session).map{row->
+  readAll("fields?select=id,name,farm_id,center_lat,center_lng,boundary_geojson&order=name.asc,id.asc",session).map{row->
    mapField(row,farmNames[row.optString("farm_id")]?:"Gazdaság")
   }
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path,pageSize=200){pagedPath->read(pagedPath,session)}
 
  private fun mapField(row:JSONObject,farmName:String):NativeMapField=NativeMapField(
     id=row.getString("id"),

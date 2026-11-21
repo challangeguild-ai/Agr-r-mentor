@@ -63,10 +63,11 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
 
  suspend fun field(session:AuthorizedSession,fieldId:String):MobileFieldDetail = withContext(Dispatchers.IO){
   // Never interpolate an untrusted path or query fragment into PostgREST filters.
-  require(fieldId.matches(Regex("[a-fA-F0-9-]{36}"))){"Érvénytelen táblaazonosító."}
+  require(validMapFieldId(fieldId)){"Érvénytelen táblaazonosító."}
   val field=fetch("fields?select=id,name,farm_id,area_ha,current_crop,status&id=eq.$fieldId&limit=1",session.accessToken)
    .optJSONObject(0)?:error("A földtábla nem érhető el.")
   val farmId=field.getString("farm_id")
+  require(validMapFieldId(farmId)){"Érvénytelen gazdaságazonosító."}
   val farm=fetch("farms?select=id,name&id=eq.$farmId&limit=1",session.accessToken).optJSONObject(0)
   val latest=fetch("inspections?select=condition,inspected_at,recommendation&field_id=eq.$fieldId&order=inspected_at.desc&limit=1",session.accessToken).optJSONObject(0)
   val names=mapOf(fieldId to field.optString("name","Földtábla"))
@@ -118,8 +119,10 @@ class FarmerWorkspaceRepository(private val baseUrl:String,private val publishab
   )
  }
 
- private fun fieldNames(token:String):Map<String,String> = fetch("fields?select=id,name&limit=1000",token)
-  .objects().associate{it.getString("id") to it.optString("name","Földtábla")}
+ private fun fieldNames(token:String):Map<String,String> = collectPostgrestPages(
+  "fields?select=id,name&order=id.asc"
+ ){pagePath->fetch(pagePath,token).objects()}
+  .associate{it.getString("id") to it.optString("name","Földtábla")}
 
  private fun fetch(path:String,token:String):JSONArray{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
