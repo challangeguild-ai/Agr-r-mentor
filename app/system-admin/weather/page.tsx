@@ -33,7 +33,7 @@ export default async function SystemAdminWeatherPage({searchParams}:{searchParam
    <Link href="/system-admin">← Rendszeráttekintés</Link>
   </header>
 
-  <section className={styles.summary}>
+  <section className={styles.summary} data-help-block="admin-weather-summary">
    <article><small>Cron hozzáférési kulcs</small><strong className={cronConfigured?styles.ok:styles.warn}>{cronConfigured?"Beállítva":"CRON_SECRET hiányzik"}</strong><span>A kulcs önmagában nem bizonyít futást</span></article>
    <article><small>Földtáblák</small><strong>{fieldsCount??"—"}</strong><span>Összes nyilvántartott tábla</span></article>
    <article><small>Mérési adatsorok</small><strong>{weatherCount??"—"}</strong><span>Összes rögzített napi mérés</span></article>
@@ -49,7 +49,7 @@ export default async function SystemAdminWeatherPage({searchParams}:{searchParam
    {runsError||weatherError?<p>Nem sikerült kiolvasni a szinkron ellenőrző adatait. {runsError?.message||weatherError?.message}</p>:!lastRun?<p>Még egyetlen szinkronfutás sincs naplózva. A Vercel időzített feladata kizárólag az éles környezetben indul automatikusan; a fejlesztői előnézetben nem. Ellenőrizni kell az éles telepítést és az ottani CRON_SECRET beállítást.</p>:lastRun.status==="failed"?<p>Az utolsó szinkron hibával végződött. A részletek lent, a futásnaplóban láthatók.</p>:lastRun.status==="partial"?<p>Az utolsó szinkron csak részben sikerült. A kihagyott táblák és állomások okai a futásnaplóban láthatók.</p>:hasNoMeasurements?<p>Vannak földtáblák, de még nincs eltárolt napi HungaroMet-mérés. A szinkron tényleges adatbeérkezését ellenőrizni kell.</p>:latestDataOld?<p>A legfrissebb tárolt mérési nap több mint 4 napos. A szinkron ugyan futhatott, de az aktuális csapadékadat még nem igazolt.</p>:<p>Az utolsó szinkron több mint 48 órája indult. Ellenőrizni kell az éles időzítést és a hivatalos adatforrás elérhetőségét.</p>}
   </section>}
 
-  <section className={styles.panel}>
+  <section className={styles.panel} data-help-block="admin-weather-sync">
    <div className={styles.panelHead}><div><span>KÉZI VISSZAELLENŐRZÉS</span><h2>Szinkron futtatása most</h2><p>A kézi futtatás ugyanazt a fail-safe szinkronmotort használja, mint a napi Vercel Cron.</p></div>
     <form action={syncWeatherNow}><button type="submit">HungaroMet szinkron indítása →</button></form>
    </div>
@@ -62,7 +62,7 @@ export default async function SystemAdminWeatherPage({searchParams}:{searchParam
    </div>
   </section>
 
-  <section className={styles.panel}>
+  <section className={styles.panel} data-help-block="admin-weather-history">
    <div className={styles.panelHead}><div><span>ÜZEMELTETÉSI BIZONYÍTÉK</span><h2>Legutóbbi szinkronok</h2></div></div>
    {runs?.length?<div className={styles.runList}>{runs.map(run=><article key={run.id}><div><strong>{run.status==="success"?"Sikeres":run.status==="partial"?"Részleges":run.status==="failed"?"Sikertelen":"Fut"}</strong><small>{fmt(run.started_at)} → {fmt(run.finished_at)}</small></div><dl><div><dt>Táblák</dt><dd>{run.fields_synced??0}/{run.fields_total??0}</dd></div><div><dt>Állomások</dt><dd>{run.stations_requested??0}</dd></div><div><dt>Hibás állomás</dt><dd>{run.stations_failed??0}</dd></div><div><dt>Adatsor</dt><dd>{run.observations_upserted??0}</dd></div><div><dt>Idővonal</dt><dd>{run.timeline_inserted??0}</dd></div></dl>{Array.isArray(run.error_summary)&&run.error_summary.length>0&&<ul style={{paddingLeft:18,margin:"12px 0 0",fontSize:11,lineHeight:1.6,color:"#8a3030"}}>{run.error_summary.map((issue:unknown,i:number)=><li key={i}>{issueText(issue)}</li>)}</ul>}</article>)}</div>:<div className={styles.empty}>Még nincs rögzített időjárási szinkronfutás.</div>}
   </section>

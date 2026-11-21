@@ -69,7 +69,7 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
     <div className={styles.toolbarMeta}><span>{visible.length} bejegyzés</span><BlockHelpButton label="A gazdálkodási napló magyarázata" content={{title:"Műveleti napló",body:"A napló a korábban mentett műveleteket mutatja dátummal, táblával, anyaggal, dózissal, végrehajtóval és jóváhagyási állapottal.",important:"A jóváhagyásra váró tétel még nem lezárt végrehajtási állapot."}}/></div>
    </section>
 
-   <section className={styles.tablePanel}>
+   <section className={styles.tablePanel} data-help-block="operations-journal">
     <div className={styles.tableHead}><span>Dátum</span><span>Tábla</span><span>Művelet</span><span>Input / Anyag</span><span>Mennyiség</span><span>Megjegyzés</span><span>Státusz</span><span/></div>
     <div className={styles.tableBody}>
      {visible.length?visible.map(e=>{const fr=fieldMap.get(e.field_id);const input=e.product_name||e.subtype||"—";const amount=e.dose!=null?`${e.dose} ${e.dose_unit||""}`:e.quantity!=null?`${e.quantity} ${e.quantity_unit||""}`:e.treated_area!=null?`${e.treated_area} ha`:"—";const status=e.approval_status==="pending"?"Jóváhagyásra vár":e.approval_status==="approved"?"Jóváhagyva":"Bejegyezve";return <article className={styles.row} key={e.id}>
@@ -85,7 +85,7 @@ export default async function OperationsPage({searchParams}:{searchParams:SP}){
     </div>
    </section>
 
-   <section id="uj-muvelet" className={styles.formPanel}>
+   <section id="uj-muvelet" className={styles.formPanel} data-help-block="operations-create">
     <div className={styles.formHead}><div><span>ÚJ BEJEGYZÉS</span><h2>Művelet rögzítése</h2></div><BlockHelpButton label="A művelet rögzítésének magyarázata" content={{title:"Új gazdálkodási művelet",body:"Válaszd ki a földtáblát és a művelettípust, majd add meg a végrehajtási adatokat.",important:"Növényvédelemnél a hivatalos dóziskorlát és az esetleges gazdasági jóváhagyás külön ellenőrzendő."}}/></div>
     <OperationForm fields={options} machines={machineOptions} defaultFieldId={safeField} draftOwnerId={user.id}/>
    </section>
