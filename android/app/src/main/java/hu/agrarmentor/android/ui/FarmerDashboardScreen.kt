@@ -51,7 +51,7 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
    }
    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
     Box(Modifier.weight(1f)){PortalMetric("Nyitott teendő",data.openTasksCount.toString(),colors){onNavigate("/tasks")}}
-    Box(Modifier.weight(1f)){PortalMetric("Figyelmet igényel",data.attentionFieldsCount.toString(),colors){onNavigate("/fields")}}
+    Box(Modifier.weight(1f)){PortalMetric("Figyelmet igényel",data.attentionFieldsCount.toString(),colors){onNavigate("/fields/attention")}}
    }
    if(data.criticalFieldsCount>0||data.overdueTasksCount>0){
     Card(colors,border=ErrorRed){
@@ -60,7 +60,7 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
       Spacer(Modifier.width(8.dp))
       Text("Fontos figyelmeztetések",color=MainText,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
      }
-     if(data.criticalFieldsCount>0)DashboardLink("${data.criticalFieldsCount} kritikus állapotú tábla",colors){onNavigate("/fields")}
+     if(data.criticalFieldsCount>0)DashboardLink("${data.criticalFieldsCount} kritikus állapotú tábla",colors){onNavigate("/fields/attention")}
      if(data.overdueTasksCount>0)DashboardLink("${data.overdueTasksCount} lejárt teendő",colors){onNavigate("/daily-work")}
     }
    }
@@ -82,13 +82,13 @@ internal fun FarmerDashboardScreen(session:AuthorizedSession,colors:PortalPalett
     Text("Következő teendők",color=MainText,fontWeight=FontWeight.Bold,fontSize=17.sp)
     if(data.priorityTasks.isEmpty())Text("Nincs nyitott elvégzendő feladat.",fontSize=13.sp,color=SupportingText)
     data.priorityTasks.forEach{task->
-     Card(colors,onClick={onNavigate("/tasks")}){
+     Card(colors,onClick={onNavigate("/tasks/${task.id}")}){
       Row(verticalAlignment=Alignment.CenterVertically){
        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
         Text(task.title,color=MainText,fontWeight=FontWeight.SemiBold,fontSize=14.sp)
         Text("${task.fieldName} · ${huDate(task.dueDate)} · ${taskStatus(task.status)}",color=SupportingText,fontSize=12.sp)
        }
-       Icon(Icons.Default.ChevronRight,contentDescription="Teendők megnyitása",tint=colors.accent)
+       Icon(Icons.Default.ChevronRight,contentDescription="Feladat részletei",tint=colors.accent)
       }
      }
     }

@@ -73,6 +73,7 @@ internal fun AdvisorWorkspaceScreen(route:String,session:AuthorizedSession,color
     "/admin/clients","/admin/portfolio"->AdvisorClients(data,colors,onNavigate)
     "/admin/priorities"->AdvisorPriorities(data,colors,onNavigate)
     "/admin/tasks","/admin/daily-work"->AdvisorTasks(data,colors,session,onlyOpen=route=="/admin/daily-work",onNavigate=onNavigate,onReviewed={revision++})
+    "/admin/tasks/review"->AdvisorTasks(data,colors,session,onlyOpen=false,onNavigate=onNavigate,onReviewed={revision++},statusFilter="submitted")
     else->if(route.startsWith("/admin/tasks/")&&route.removePrefix("/admin/tasks/").isNotBlank()){
      AdvisorTasks(data,colors,session,onlyOpen=false,onNavigate=onNavigate,onReviewed={revision++},selectedTaskId=route.removePrefix("/admin/tasks/"))
     }
@@ -91,7 +92,7 @@ private fun AdvisorDashboard(data:AdvisorWorkspace,colors:PortalPalette,onNaviga
  }
  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
   Box(Modifier.weight(1f)){PortalMetric("Nyitott teendők",open.toString(),colors){onNavigate("/admin/tasks")}}
-  Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",pending.toString(),colors){onNavigate("/admin/tasks")}}
+  Box(Modifier.weight(1f)){PortalMetric("Ellenőrzésre vár",pending.toString(),colors){onNavigate("/admin/tasks/review")}}
  }
  PortalMetric("Nyitott gazdálkodói jelzések",data.openReports.toString(),colors){onNavigate("/admin/reports")}
  listOf(
@@ -347,7 +348,7 @@ internal fun AdvisorClientDossierScreen(clientId:String,session:AuthorizedSessio
 }
 
 @Composable
-private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onNavigate:(String)->Unit,onReviewed:()->Unit,selectedTaskId:String?=null){
+private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:AuthorizedSession,onlyOpen:Boolean,onNavigate:(String)->Unit,onReviewed:()->Unit,selectedTaskId:String?=null,statusFilter:String?=null){
  val reviewGateway=remember{AdvisorTaskReview(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
@@ -362,11 +363,12 @@ private fun AdvisorTasks(data:AdvisorWorkspace,colors:PortalPalette,session:Auth
  var search by remember(onlyOpen){mutableStateOf("")}
  var shown by remember(onlyOpen){mutableIntStateOf(40)}
  val tasks=data.tasks.filter{(!onlyOpen||(it.status!="done"&&it.status!="cancelled"))&&
+  (statusFilter==null||it.status==statusFilter)&&
   (it.title.contains(search,true)||it.fieldName.contains(search,true))}
  LaunchedEffect(selectedTaskId){
   if(selectedTaskId!=null)openedTask=data.tasks.firstOrNull{it.id==selectedTaskId}
  }
- Text(if(onlyOpen)"Napi munkalista" else "Szaktanácsadói munkalista",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Ink)
+ Text(if(statusFilter=="submitted")"Ellenőrzésre váró feladatok" else if(onlyOpen)"Napi munkalista" else "Szaktanácsadói munkalista",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Ink)
  OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Feladat vagy földtábla keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
  Text("${tasks.size} találat",fontSize=12.sp,color=SoftInk)
  if(error!=null)Text(error!!,color=Critical,fontSize=12.sp)

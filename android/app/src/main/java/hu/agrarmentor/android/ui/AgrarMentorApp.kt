@@ -297,8 +297,11 @@ private fun String.normalizeForSearch()=java.text.Normalizer.normalize(this,java
 @Composable
 private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,session:AuthorizedSession,reconnectWarning:Boolean,onNavigate:(String)->Unit,modifier:Modifier=Modifier){
  val title=NavigationCatalog.find(role,route)?.title ?: when {
+  route=="/fields/attention"->"Figyelmet igénylő táblák"
   route.startsWith("/fields/")->"Tábla részletei"
+  route.startsWith("/tasks/")->"Feladat részletei"
   route.startsWith("/operations/")||route.startsWith("/admin/operations/")->"Művelet részletei"
+  route=="/admin/tasks/review"->"Ellenőrzésre váró feladatok"
   route.startsWith("/admin/tasks/")->"Feladat részletei"
   route.startsWith("/admin/clients/")->"Ügyféldosszié"
   route.startsWith("/system-admin/fields/")->"Gazdaság földtáblái"
@@ -318,10 +321,14 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{FarmerDashboardScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/fields"&&session!=null){
     item{LiveFieldsScreen(session,colors,onNavigate)}
+   }else if(role==PortalRole.FARMER&&route=="/fields/attention"&&session!=null){
+    item{LiveFieldsScreen(session,colors,onNavigate,initialFilter="Figyelmet igényel")}
    }else if(role==PortalRole.FARMER&&route.startsWith("/fields/")&&session!=null){
     item{LiveFieldDetailScreen(route.removePrefix("/fields/").substringBefore('/'),session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/tasks"&&session!=null){
     item{LiveTasksScreen(session,colors,onNavigate=onNavigate)}
+   }else if(role==PortalRole.FARMER&&route.startsWith("/tasks/")&&session!=null){
+    item{LiveTasksScreen(session,colors,onNavigate=onNavigate,selectedTaskId=route.removePrefix("/tasks/"))}
    }else if(role==PortalRole.FARMER&&route=="/daily-work"&&session!=null){
     item{LiveTasksScreen(session,colors,mode=TaskListMode.DUE,onNavigate=onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/work"&&session!=null){
@@ -429,7 +436,7 @@ private fun operationLabel(type:String):String=when(type){
 private enum class TaskListMode{ALL,DUE,MINE}
 
 @Composable
-private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL,onNavigate:(String)->Unit){
+private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:TaskListMode=TaskListMode.ALL,onNavigate:(String)->Unit,selectedTaskId:String?=null){
  val repository=remember{FarmerWorkspaceRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val completion=remember{GeneralTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  val fieldCompletion=remember{FieldTaskCompletion(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
@@ -453,6 +460,9 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
   catch(e:CancellationException){throw e}
   catch(_:Exception){error=true}
   finally{loading=false}
+ }
+ LaunchedEffect(selectedTaskId,tasks){
+  if(selectedTaskId!=null)openedTask=tasks.firstOrNull{it.id==selectedTaskId}
  }
  val today=LocalDate.now(java.time.ZoneId.of("Europe/Budapest")).toString()
  val scoped=tasks.filter{task->when(mode){
@@ -483,6 +493,9 @@ private fun LiveTasksScreen(session:AuthorizedSession,colors:PortalPalette,mode:
   }
   OutlinedTextField(value=search,onValueChange={search=it;shown=40},label={Text("Teendő vagy földtábla keresése")},singleLine=true,modifier=Modifier.fillMaxWidth())
   if(!loading&&!error)Text("${filtered.size} találat",fontSize=12.sp,color=MutedText)
+  if(!loading&&!error&&selectedTaskId!=null&&tasks.none{it.id==selectedTaskId}){
+   Text("A kiválasztott feladat nem található vagy nincs hozzáférésed.",fontSize=13.sp,color=Color(0xFFB1303E))
+  }
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error)LoadError(colors,onRetry={revision++})
   else if(filtered.isEmpty())Text("Ebben a nézetben nincs teendő.",color=MutedText)
@@ -807,13 +820,13 @@ internal fun LoadError(colors:PortalPalette,onRetry:()->Unit){
 }
 
 @Composable
-private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit){
+private fun LiveFieldsScreen(session:AuthorizedSession,colors:PortalPalette,onNavigate:(String)->Unit,initialFilter:String="Aktív"){
  val repository=remember{FieldRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var revision by remember{mutableIntStateOf(0)}
  var fields by remember{mutableStateOf<List<FieldSummary>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf<String?>(null)}
- var filter by rememberSaveable{mutableStateOf("Aktív")}
+ var filter by rememberSaveable(initialFilter){mutableStateOf(initialFilter)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=null
   try{fields=repository.load(session)}

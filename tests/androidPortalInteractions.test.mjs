@@ -29,6 +29,9 @@ test("roles share the reference layout but keep green, blue and burgundy palette
  assert.match(main,/MaterialTheme\(colorScheme=lightColorScheme\(/);
  assert.match(main,/primary=colors\.accent,onPrimary=Color\.White/);
  assert.match(main,/primaryContainer=colors\.tint,onPrimaryContainer=colors\.drawer/);
+ const activity=read("android/app/src/main/java/hu/agrarmentor/android/MainActivity.kt");
+ assert.match(activity,/MaterialTheme\(colorScheme=lightColorScheme\(/);
+ assert.match(activity,/primary=Color\(0xFF0A613C\)/);
 });
 
 test("reference-inspired header alerts and account buttons have real role-specific destinations",()=>{
@@ -54,6 +57,11 @@ test("farmer overview KPI and priority entries open relevant modules",()=>{
  assert.match(overview,/PortalMetric\("Összterület"/);
  assert.match(overview,/PortalMetric\("Nyitott teendő"/);
  assert.match(overview,/data\.priorityTasks\.forEach\{task->[\s\S]*?Card\(colors,onClick=/);
+ assert.match(overview,/Card\(colors,onClick=\{onNavigate\("\/tasks\/\$\{task\.id\}"\)\}\)/);
+ assert.match(main,/selectedTaskId=route\.removePrefix\("\/tasks\/"\)/);
+ assert.match(main,/openedTask=tasks\.firstOrNull\{it\.id==selectedTaskId\}/);
+ assert.match(overview,/PortalMetric\("Figyelmet igényel"[\s\S]*?onNavigate\("\/fields\/attention"\)/);
+ assert.match(main,/route=="\/fields\/attention"[\s\S]*?LiveFieldsScreen\(session,colors,onNavigate,initialFilter="Figyelmet igényel"\)/);
 });
 
 test("advisor overview metrics and relevant work cards have destinations",()=>{
@@ -96,6 +104,8 @@ test("advisor priority task opens its own details instead of an unrelated list",
  assert.match(main,/route\.startsWith\("\/admin\/tasks\/"\)/);
  assert.match(workspace,/selectedTaskId=route\.removePrefix\("\/admin\/tasks\/"\)/);
  assert.match(workspace,/openedTask=data\.tasks\.firstOrNull\{it\.id==selectedTaskId\}/);
+ assert.match(workspace,/PortalMetric\("Ellenőrzésre vár"[\s\S]*?onNavigate\("\/admin\/tasks\/review"\)/);
+ assert.match(workspace,/"\/admin\/tasks\/review"->AdvisorTasks\([\s\S]*?statusFilter="submitted"/);
 });
 
 test("large record lists support searches and bounded initial rendering",()=>{
