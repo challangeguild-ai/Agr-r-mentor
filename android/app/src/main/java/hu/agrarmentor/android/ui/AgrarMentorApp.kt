@@ -76,7 +76,7 @@ private fun palette(role:PortalRole)=when(role){
 @Composable
 fun AgrarMentorApp(demoMode:Boolean){
  var session by remember{mutableStateOf<AuthorizedSession?>(null)}
- val gateway=remember{SupabaseAuthGateway(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
+ val gateway=remember{SupabaseAuthGateway(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY,BuildConfig.WEB_ORIGIN)}
  val context=LocalContext.current
  val secureStore=remember{SecureSessionStore(context)}
  val scope=rememberCoroutineScope()

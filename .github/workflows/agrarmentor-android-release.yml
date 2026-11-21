@@ -70,16 +70,14 @@ jobs:
           }
           # This repository is public: the environment metadata can be read
           # without an administration-scoped token. Fail closed if unavailable.
-          environment_json="$(curl --fail --silent --show-error \
-            --header 'Accept: application/vnd.github+json' \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-release")" || {
-              echo 'Az agrarmentor-release környezet nincs megfelelően létrehozva.'
-              exit 1
-            }
-          if ! printf '%s' "$environment_json" | jq -e '.protection_rules[]? | select(.type == "required_reviewers")' > /dev/null; then
-            echo 'Az agrarmentor-release környezethez kötelező GitHub-jóváhagyó szükséges.'
-            exit 1
-          fi
+          curl --fail --silent --show-error --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-release" \
+            -o "$RUNNER_TEMP/agrarmentor-environment.json"
+          curl --fail --silent --show-error --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/agrarmentor-release/deployment-branch-policies?per_page=2" \
+            -o "$RUNNER_TEMP/agrarmentor-release-branches.json"
+          node ../scripts/android-release-guards.mjs environment \
+            "$RUNNER_TEMP/agrarmentor-environment.json" "$RUNNER_TEMP/agrarmentor-release-branches.json"
 
       - name: Verzó és kiadási hitelesítés ellenőrzése
         env:

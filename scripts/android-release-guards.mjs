@@ -49,6 +49,25 @@ export function validateAndroidReleaseConfig(env,expected=targets){
  return errors;
 }
 
+/** Check the actual protected GitHub environment, not just the presence of any reviewer rule. */
+export function validateReleaseEnvironment(environment,branches){
+ const errors=[];
+ const reviewRules=environment?.protection_rules?.filter(rule=>rule?.type==="required_reviewers");
+ if(environment?.name!=="agrarmentor-release"||environment?.can_admins_bypass!==false)
+  errors.push("A kiadási környezet hiányzik, vagy az adminisztrátori megkerülés engedélyezett.");
+ if(!Array.isArray(reviewRules)||reviewRules.length!==1||reviewRules[0].prevent_self_review!==true||
+  reviewRules[0].reviewers?.length!==1||reviewRules[0].reviewers[0]?.type!=="User"||
+  reviewRules[0].reviewers[0]?.reviewer?.login!=="gpshuntruck-blip")
+  errors.push("A kötelező, önjóváhagyást tiltó kiadási ellenőr nincs megfelelően beállítva.");
+ if(environment?.deployment_branch_policy?.custom_branch_policies!==true||
+  environment?.deployment_branch_policy?.protected_branches!==false||
+  !environment?.protection_rules?.some(rule=>rule?.type==="branch_policy")||
+  branches?.total_count!==1||branches?.branch_policies?.length!==1||
+  branches.branch_policies[0]?.name!=="main"||branches.branch_policies[0]?.type!=="branch")
+  errors.push("A kiadási környezet nem kizárólag a main ágról enged telepítést.");
+ return errors;
+}
+
 /** apksigner's output is inspected after a successful `verify --verbose --print-certs`. */
 export function checkSignedApkCertificate(apksignerOutput,expected){
  const pinned=normalizeSigningFingerprint(expected);
@@ -69,10 +88,16 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const mode=process.argv[2];
  let problems;
  if(mode==="config")problems=validateAndroidReleaseConfig(process.env);
+ else if(mode==="environment"&&process.argv.length===5){
+  try{problems=validateReleaseEnvironment(
+   JSON.parse(readFileSync(process.argv[3],"utf8")),
+   JSON.parse(readFileSync(process.argv[4],"utf8"))
+  )}catch{problems=["A GitHub kiadási környezetének ellenőrzése nem sikerült."]}
+ }
  else if(mode==="cert"&&process.argv.length===4){
   const result=checkSignedApkCertificate(readFileSync(process.argv[3],"utf8"),process.env.AGRAR_RELEASE_SIGNING_CERT_SHA256);
   problems=result.ok?[]:[result.reason];
- }else problems=["Használat: node scripts/android-release-guards.mjs config | cert <apksigner-kimenet>" ];
+ }else problems=["Használat: node scripts/android-release-guards.mjs config | environment <env-json> <branch-json> | cert <apksigner-kimenet>" ];
  if(problems.length){for(const problem of problems)process.stderr.write(`KIADÁSI ZÁR: ${problem}\n`);process.exitCode=1}
  else process.stdout.write("Android kiadási ellenőrzés: rendben.\n");
 }

@@ -32,7 +32,7 @@ sealed interface SignInResult {
  * Only the short-lived bearer token is sent to PostgREST. The refresh token is
  * rotated by Supabase Auth and persisted separately in Android Keystore storage.
  */
-class SupabaseAuthGateway(private val baseUrl:String,private val publishableKey:String){
+class SupabaseAuthGateway(private val baseUrl:String,private val publishableKey:String,private val webOrigin:String){
  val isConfigured=baseUrl.startsWith("https://")&&publishableKey.isNotBlank()
 
  suspend fun signIn(email:String,password:String):SignInResult = withContext(Dispatchers.IO){
@@ -70,7 +70,12 @@ class SupabaseAuthGateway(private val baseUrl:String,private val publishableKey:
 
  suspend fun requestPasswordReset(email:String):Boolean = withContext(Dispatchers.IO){
   if(!isConfigured||!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches())return@withContext false
-  runCatching{requestText("POST","auth/v1/recover",null,JSONObject().put("email",email.trim()))}.isSuccess
+  val endpoint=passwordRecoveryEndpoint(webOrigin)?:return@withContext false
+  try{
+   requestText("POST",endpoint,null,JSONObject().put("email",email.trim()))
+   true
+  }catch(e:kotlinx.coroutines.CancellationException){throw e}
+  catch(_:Exception){false}
  }
 
  suspend fun signOut(token:String)=withContext(Dispatchers.IO){

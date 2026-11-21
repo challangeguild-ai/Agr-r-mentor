@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {checkSignedApkCertificate,normalizeSigningFingerprint,validateAndroidReleaseConfig} from "../scripts/android-release-guards.mjs";
+import {checkSignedApkCertificate,normalizeSigningFingerprint,validateAndroidReleaseConfig,validateReleaseEnvironment} from "../scripts/android-release-guards.mjs";
 
 const digest="ab".repeat(32);
 const valid={
@@ -42,4 +42,27 @@ test("only the pinned single-signing-certificate fingerprint is accepted",()=>{
  assert.equal(checkSignedApkCertificate(output+`Signer #2 certificate SHA-256 digest: ${digest}\n`,digest).ok,false);
  assert.equal(checkSignedApkCertificate("no certificate output",digest).ok,false);
  assert.equal(checkSignedApkCertificate(output," ").ok,false);
+});
+
+test("signed release needs a non-bypassable one-reviewer main-only environment",()=>{
+ const environment={
+  name:"agrarmentor-release",can_admins_bypass:false,
+  protection_rules:[
+   {type:"required_reviewers",prevent_self_review:true,reviewers:[{type:"User",reviewer:{login:"gpshuntruck-blip"}}]},
+   {type:"branch_policy"}
+  ],
+  deployment_branch_policy:{protected_branches:false,custom_branch_policies:true}
+ };
+ const branches={total_count:1,branch_policies:[{name:"main",type:"branch"}]};
+ assert.deepEqual(validateReleaseEnvironment(environment,branches),[]);
+ assert.ok(validateReleaseEnvironment({...environment,can_admins_bypass:true},branches).length);
+ assert.ok(validateReleaseEnvironment({...environment,protection_rules:[{type:"branch_policy"}]},branches).length);
+ assert.ok(validateReleaseEnvironment({...environment,protection_rules:[
+  {...environment.protection_rules[0],prevent_self_review:false},environment.protection_rules[1]]},branches).length);
+ assert.ok(validateReleaseEnvironment({...environment,protection_rules:[
+  {...environment.protection_rules[0],reviewers:[{type:"User",reviewer:{login:"unrelated"}}]},environment.protection_rules[1]]},branches).length);
+ assert.ok(validateReleaseEnvironment(environment,{total_count:2,branch_policies:[...branches.branch_policies,{name:"test",type:"branch"}]}).length);
+ assert.ok(validateReleaseEnvironment(environment,{total_count:1,branch_policies:[{name:"main",type:"tag"}]}).length);
+ assert.ok(validateReleaseEnvironment(environment,null).length);
+ assert.ok(validateReleaseEnvironment(null,branches).length);
 });
