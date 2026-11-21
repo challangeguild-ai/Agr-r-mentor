@@ -53,7 +53,7 @@ export default async function FieldsPage({searchParams}:{searchParams:SearchPara
     <div className={styles.toolbarActions}><Link className={styles.mapButton} href="/map">Térkép</Link><BlockHelpButton label="A táblajegyzék magyarázata" content={{title:"Táblák",body:"A bal oldali listában a földtáblák fő adatait, a jobb oldalon pedig az elhelyezkedésüket látod. A státuszok a legfrissebb szakmai állapot alapján segítenek priorizálni.",important:"A térképi és állapotjelzés döntéstámogatás; nem önálló szakmai diagnózis."}}/></div>
    </section>
 
-   <section className={styles.workspace}>
+   <section className={styles.workspace} data-help-block="fields-register">
     <div className={styles.list}>
      {visibleFields.length?visibleFields.map((field,index)=>{const farm=farmMap.get(field.farm_id);const ins=latestInspection.get(field.id);const fieldTasks=(tasks??[]).filter(t=>t.field_id===field.id&&t.status!=="done");const state=ins?.condition||"none";return <Link className={styles.fieldCard} href={`/fields/${field.id}`} key={field.id}>
       <FieldMiniMap className={styles.thumb} lat={field.center_lat} lng={field.center_lng} boundary={field.boundary_geojson} label={`${field.name} műholdképe és táblahatára`}/>

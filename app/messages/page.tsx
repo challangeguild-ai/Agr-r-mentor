@@ -38,7 +38,7 @@ export default async function MessagesPage({searchParams}:{searchParams:SearchPa
 
    <nav className={styles.tabs}><Link className={view==="all"?styles.active:""} href="/messages?view=all">Összes <span>{all.length}</span></Link><Link className={view==="waiting"?styles.active:""} href="/messages?view=waiting">Válaszra vár <span>{waiting.length}</span></Link><Link className={view==="answered"?styles.active:""} href="/messages?view=answered">Megválaszolva <span>{answered.length}</span></Link><Link className={view==="closed"?styles.active:""} href="/messages?view=closed">Lezárt <span>{closed.length}</span></Link></nav>
 
-   <section className={`${styles.workspace} ${selected?styles.hasSelection:""}`}>
+   <section className={`${styles.workspace} ${selected?styles.hasSelection:""}`} data-help-block="messages">
     <aside className={styles.conversations}>
      {visible.length?visible.map(r=><Link key={r.id} href={hrefFor(r.id)} className={`${styles.conversation} ${selected?.id===r.id?styles.selected:""}`}>
       <span className={styles.avatar}>{r.advisor_reply?"A":"!"}</span>
@@ -47,7 +47,7 @@ export default async function MessagesPage({searchParams}:{searchParams:SearchPa
      </Link>):<div className={styles.empty}>Ebben a nézetben nincs üzenet.</div>}
     </aside>
 
-    <article className={styles.thread}>
+    <article className={styles.thread} data-help-block="messages-thread">
      {selected?<><CommunicationOpenMarker entityType="farmer_report" entityId={selected.id}/>
       <header className={styles.threadHead}><div className={styles.threadIdentity}><Link className={styles.mobileBack} href={`/messages?view=${encodeURIComponent(view)}`}>←</Link><span className={styles.threadAvatar}>A</span><div><strong>Szaktanácsadói beszélgetés</strong><small>{selectedField||"Földtábla"} · {statusLabel(selected.status)}</small></div></div><div className={styles.threadTools}>{selected.field_id&&<Link href={`/fields/${selected.field_id}`}>Tábla megnyitása</Link>}<RemindLaterButton entityType="farmer_report" entityId={selected.id} title={selected.title} href={hrefFor(selected.id)}/></div></header>
       <div className={styles.threadBody}>

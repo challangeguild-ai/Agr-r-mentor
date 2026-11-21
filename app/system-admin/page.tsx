@@ -30,7 +30,7 @@ export default async function SystemAdminPage(){
    <div className={styles.topActions}><BlockHelpButton label="A rendszeráttekintés magyarázata" content={{title:"Rendszerszintű áttekintés",body:"A rendszeradmin felület üzemeltetési és támogatási munkatér. A kártyák a teljes rendszer fő terhelési és biztonsági jelzéseit foglalják össze.",important:"A rendszeradmin szerepkör nem szakmai gazdálkodási döntési felület."}}/><span className={styles.adminMode}>ADMIN MÓD</span></div>
   </header>
 
-  <section className={styles.hero}>
+  <section className={styles.hero} data-help-block="system-overview">
    <div><span>RENDSZERÁLLAPOT</span><h2><strong>{attention}</strong> ügy igényel rendszeradminisztrátori figyelmet</h2><p>{openTasks??0} nyitott feladat · {reports??0} nyitott jelzés · {securityHigh??0} magas kockázatú esemény</p></div>
    <Link href="/system-admin/security">Biztonsági központ →</Link>
   </section>
