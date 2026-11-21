@@ -32,10 +32,10 @@ internal fun boundaryVersionChanged(previous:String?,baseline:String?):Boolean{
 class AdvisorBoundaryRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun queue(session:AuthorizedSession):List<MobileBoundaryProposal> = withContext(Dispatchers.IO){
   requireAdvisor(session)
-  val proposals=read("field_boundary_proposals?select=id,field_id,farm_id,created_at,geometry_source,has_boundary,note&status=eq.pending&order=created_at.asc&limit=200",session)
+  val proposals=readAll("field_boundary_proposals?select=id,field_id,farm_id,created_at,geometry_source,has_boundary,note&status=eq.pending&order=created_at.asc,id.asc",session)
   if(proposals.isEmpty())return@withContext emptyList()
-  val farms=read("farms?select=id,name&limit=1000",session).associateBy{it.getString("id")}
-  val fields=read("fields?select=id,name&limit=1000",session).associateBy{it.getString("id")}
+  val farms=readAll("farms?select=id,name&order=id.asc",session).associateBy{it.getString("id")}
+  val fields=readAll("fields?select=id,name&order=id.asc",session).associateBy{it.getString("id")}
   proposals.map{p->summary(p,fields[p.optString("field_id")]?.optString("name"),farms[p.optString("farm_id")]?.optString("name"))}
  }
 
@@ -100,6 +100,9 @@ class AdvisorBoundaryRepository(private val baseUrl:String,private val publishab
   farmName?.ifBlank{"Gazdaság"}?:"Gazdaság",p.optional("created_at"),
   p.optString("geometry_source","manual"),p.optBoolean("has_boundary"),p.optString("note")
  )
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private fun read(path:String,session:AuthorizedSession):List<JSONObject>{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{

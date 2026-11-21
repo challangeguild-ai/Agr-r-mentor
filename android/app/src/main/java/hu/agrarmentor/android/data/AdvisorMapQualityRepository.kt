@@ -72,8 +72,8 @@ internal fun mobileBoundaryQuality(boundary:String?,lat:Double?,lng:Double?,decl
 class AdvisorMapQualityRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun load(session:AuthorizedSession):List<MobileFieldQuality> = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR){"Térképi minőségellenőrzést csak szaktanácsadó tekinthet meg."}
-  val farms=read("farms?select=id,name&limit=1000",session).associate{it.getString("id") to it.optString("name")}
-  read("fields?select=id,name,farm_id,area_ha,center_lat,center_lng,boundary_geojson&order=name.asc&limit=1000",session).map{field->
+  val farms=readAll("farms?select=id,name&order=name.asc,id.asc",session).associate{it.getString("id") to it.optString("name")}
+  readAll("fields?select=id,name,farm_id,area_ha,center_lat,center_lng,boundary_geojson&order=name.asc,id.asc",session).map{field->
    val area=field.number("area_ha")
    val geometry=if(field.isNull("boundary_geojson"))null else field.optJSONObject("boundary_geojson")?.toString()?:"invalid"
    val (state,note)=mobileBoundaryQuality(geometry,field.number("center_lat"),field.number("center_lng"),area)
@@ -84,6 +84,9 @@ class AdvisorMapQualityRepository(private val baseUrl:String,private val publish
    MobileBoundaryQuality.POINT->3;MobileBoundaryQuality.BOUNDED->4
   }}.thenBy{it.name})
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path,pageSize=200){pagedPath->read(pagedPath,session)}
 
  private fun read(path:String,session:AuthorizedSession):List<JSONObject>{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{

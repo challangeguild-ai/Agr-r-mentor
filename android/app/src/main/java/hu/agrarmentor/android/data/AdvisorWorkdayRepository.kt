@@ -60,12 +60,12 @@ class AdvisorWorkdayRepository(private val baseUrl:String,private val publishabl
  suspend fun load(session:AuthorizedSession):AdvisorWorkdaySnapshot = withContext(Dispatchers.IO){
   require(session.role==PortalRole.ADVISOR){"Munkanapot csak szaktanácsadó tekinthet meg."}
   require(session.userId.matches(Regex("[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}"))){"Érvénytelen felhasználóazonosító."}
-  val farms=read("farms?select=id,name&limit=1000",session).associateBy{it.getString("id")}
-  val fields=read("fields?select=id,name,farm_id&limit=1000",session).associateBy{it.getString("id")}
-  val tasks=read("tasks?select=id,title,field_id,farm_id,status,due_date,priority&status=neq.done&limit=500",session)
-  val inspections=read("inspections?select=field_id,condition,next_check_at,issue_status,recommendation&issue_status=neq.resolved&limit=500",session)
-  val visits=read("timeline_events?select=description,field_id,farm_id&event_type=eq.advisor_visit_plan&created_by=eq.${session.userId}&limit=300",session)
-  val reports=read("farmer_reports?select=id&status=neq.closed&limit=1000",session)
+  val farms=readAll("farms?select=id,name&order=id.asc",session).associateBy{it.getString("id")}
+  val fields=readAll("fields?select=id,name,farm_id&order=id.asc",session).associateBy{it.getString("id")}
+  val tasks=readAll("tasks?select=id,title,field_id,farm_id,status,due_date,priority&status=neq.done&order=id.asc",session)
+  val inspections=readAll("inspections?select=field_id,condition,next_check_at,issue_status,recommendation&issue_status=neq.resolved&order=id.asc",session)
+  val visits=readAll("timeline_events?select=description,field_id,farm_id&event_type=eq.advisor_visit_plan&created_by=eq.${session.userId}&order=id.asc",session)
+  val reports=readAll("farmer_reports?select=id&status=neq.closed&order=id.asc",session)
   fun subtitle(fieldId:String?,farmId:String?):String{
    val field=fieldId?.let{fields[it]}
    val farm=(farmId?:field?.optString("farm_id"))?.let{farms[it]}
@@ -92,6 +92,9 @@ class AdvisorWorkdayRepository(private val baseUrl:String,private val publishabl
   AdvisorWorkdaySnapshot(taskItems+checkItems+visitItems,reports.size,
    inspections.filter{it.optString("condition")=="critical"}.map{it.optString("field_id")}.filter{it.isNotBlank()}.distinct().size)
  }
+
+ private fun readAll(path:String,session:AuthorizedSession):List<JSONObject> =
+  collectPostgrestPages(path){pagedPath->read(pagedPath,session)}
 
  private fun read(path:String,session:AuthorizedSession):List<JSONObject>{
   val conn=(URL("${baseUrl.trimEnd('/')}/rest/v1/$path").openConnection() as HttpURLConnection).apply{
