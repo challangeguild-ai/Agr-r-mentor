@@ -75,6 +75,7 @@ jobs:
           VERSION_CODE: ${{ inputs.version_code }}
           AGRAR_SUPABASE_URL: ${{ vars.AGRAR_SUPABASE_URL }}
           AGRAR_SUPABASE_PUBLISHABLE_KEY: ${{ vars.AGRAR_SUPABASE_PUBLISHABLE_KEY }}
+          AGRAR_WEB_ORIGIN: ${{ vars.AGRAR_WEB_ORIGIN }}
           KEYSTORE_BASE64: ${{ secrets.AGRAR_RELEASE_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.AGRAR_RELEASE_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.AGRAR_RELEASE_KEY_ALIAS }}
@@ -85,6 +86,7 @@ jobs:
           [[ "$VERSION_CODE" =~ ^[1-9][0-9]{0,8}$ ]] || { echo 'Érvénytelen pozitív verziókód.'; exit 1; }
           [[ "$AGRAR_SUPABASE_URL" =~ ^https://[a-z0-9-]+\.supabase\.co$ ]] || { echo 'Hiányzó vagy érvénytelen Supabase projekt-URL.'; exit 1; }
           test -n "$AGRAR_SUPABASE_PUBLISHABLE_KEY" || { echo 'Hiányzik a nyilvános Supabase-kulcs.'; exit 1; }
+          [[ "$AGRAR_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9.-]+$ ]] || { echo 'Hiányzik a HTTPS webes alkalmazáscím.'; exit 1; }
           test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Hiányzik a tartós Android-kiadási aláírókulcs vagy jelszava.'; exit 1; }
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/agrarmentor-release.jks"
@@ -96,6 +98,7 @@ jobs:
           ORG_GRADLE_PROJECT_AGRAR_APP_VERSION_CODE: ${{ inputs.version_code }}
           ORG_GRADLE_PROJECT_AGRAR_SUPABASE_URL: ${{ vars.AGRAR_SUPABASE_URL }}
           ORG_GRADLE_PROJECT_AGRAR_SUPABASE_PUBLISHABLE_KEY: ${{ vars.AGRAR_SUPABASE_PUBLISHABLE_KEY }}
+          ORG_GRADLE_PROJECT_AGRAR_WEB_ORIGIN: ${{ vars.AGRAR_WEB_ORIGIN }}
           ORG_GRADLE_PROJECT_AGRAR_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/agrarmentor-release.jks
           ORG_GRADLE_PROJECT_AGRAR_RELEASE_STORE_PASSWORD: ${{ secrets.AGRAR_RELEASE_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_AGRAR_RELEASE_KEY_ALIAS: ${{ secrets.AGRAR_RELEASE_KEY_ALIAS }}

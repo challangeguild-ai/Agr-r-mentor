@@ -8,6 +8,7 @@ plugins {
 
 val supabaseUrl = providers.gradleProperty("AGRAR_SUPABASE_URL").orElse("")
 val supabasePublishableKey = providers.gradleProperty("AGRAR_SUPABASE_PUBLISHABLE_KEY").orElse("")
+val webOrigin = providers.gradleProperty("AGRAR_WEB_ORIGIN").orElse("https://agr-r-mentor.vercel.app")
 val appVersionName = providers.gradleProperty("AGRAR_APP_VERSION_NAME").orElse("0.1.0-dev")
 val appVersionCode = providers.gradleProperty("AGRAR_APP_VERSION_CODE").map{it.toInt()}.orElse(1)
 val releaseKeystore = providers.gradleProperty("AGRAR_RELEASE_KEYSTORE_PATH").orElse("")
@@ -31,6 +32,7 @@ android {
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   buildConfigField("String","SUPABASE_URL",quoted(supabaseUrl.get()))
   buildConfigField("String","SUPABASE_PUBLISHABLE_KEY",quoted(supabasePublishableKey.get()))
+  buildConfigField("String","WEB_ORIGIN",quoted(webOrigin.get().trimEnd('/')))
  }
 
  signingConfigs {

@@ -3,11 +3,14 @@ package hu.agrarmentor.android.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import hu.agrarmentor.android.BuildConfig
+import hu.agrarmentor.android.data.safeWebModuleUrl
 
 /** Deliberate security boundary: high-risk server workflows stay in the web administrator UI. */
 @Composable
@@ -32,6 +35,22 @@ internal fun AdvancedWebModuleScreen(route:String,colors:PortalPalette,onNavigat
    Text(title,color=Color(0xFF253B30),fontSize=19.sp,fontWeight=FontWeight.Bold)
    Text(description,color=Color(0xFF64766B),fontSize=14.sp)
   }
+  Text("A webes felület külön bejelentkezést és szükség esetén újabb MFA-ellenőrzést kérhet. Az Android-munkamenet hitelesítő adatait nem adjuk át a böngészőnek.",color=Color(0xFF64766B),fontSize=12.sp)
+  WebModuleOpenButton(route,colors)
   TextButton(onClick={onNavigate(related)}){Text("Kapcsolódó Android-nézet megnyitása ›",color=colors.accent)}
  }
+}
+
+/** Opens the separate web session, never putting the Android access token in the URL. */
+@Composable
+internal fun WebModuleOpenButton(path:String,colors:PortalPalette){
+ val uriHandler=LocalUriHandler.current
+ var openError by remember(path){mutableStateOf(false)}
+ TextButton(onClick={
+  openError=false
+  val url=safeWebModuleUrl(BuildConfig.WEB_ORIGIN,path)
+  if(url==null)openError=true
+  else runCatching{uriHandler.openUri(url)}.onFailure{openError=true}
+ }){Text("Megnyitás a webes Agrár Mentorban ›",color=colors.accent)}
+ if(openError)Text("A biztonságos webcím nem nyitható meg. Ellenőrizd a kapcsolatot és a kiadási konfigurációt.",color=Color(0xFFC1453B),fontSize=12.sp)
 }

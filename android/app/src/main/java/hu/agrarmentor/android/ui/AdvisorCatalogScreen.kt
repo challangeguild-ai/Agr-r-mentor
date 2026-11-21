@@ -68,6 +68,7 @@ internal fun AdvisorCatalogScreen(session:AuthorizedSession,colors:PortalPalette
     Text("Az importálás szerveroldali ellenőrzést igényel",color=CatalogInk,fontWeight=FontWeight.Bold,fontSize=14.sp)
     Text("A hivatalos CSV/XLSX szinkron és fájlfeldolgozás a webes Agrár Mentor kezelőfelületén fut. Ez a natív nézet a valóban betöltött adatokat ellenőrzi.",color=CatalogMuted,fontSize=12.sp)
    }
+   WebModuleOpenButton("/admin/plant-protection-import",colors)
    TextButton(onClick={onNavigate("/admin/operations")}){Text("Műveletek megnyitása ›",color=colors.accent)}
   }
  }
