@@ -45,6 +45,8 @@ test("reference-inspired header alerts and account buttons have real role-specif
  assert.match(nav,/MobileDestination\("\/admin\/profile"/);
  assert.match(nav,/MobileDestination\("\/system-admin\/profile"/);
  const communication=read(`${ui}/CommunicationScreens.kt`);
+ const profile=communication.split("internal fun LiveProfileScreen(")[1];
+ assert.match(profile,/var loading by remember\{mutableStateOf\(true\)\}\s*var loadFailed by remember\{mutableStateOf\(false\)\}/);
  assert.match(communication,/else if\(loadFailed\)LoadError\(colors,onRetry=\{revision\+\+\}\)/);
  assert.doesNotMatch(main,/A működés és az éles adatok bekötése ebben a modulban még hátravan/);
  assert.match(main,/Vissza a kezdőlapra ›/);

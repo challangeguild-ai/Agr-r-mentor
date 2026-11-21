@@ -54,7 +54,6 @@ internal fun LiveNotificationsScreen(session:AuthorizedSession,colors:PortalPale
  val repo=remember{CommunicationRepository(BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY)}
  var entries by remember(session.userId){mutableStateOf<List<MobileNotification>>(emptyList())}
  var loading by remember{mutableStateOf(true)}
- var loadFailed by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
  var savingId by remember{mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
@@ -501,6 +500,7 @@ internal fun LiveProfileScreen(session:AuthorizedSession,colors:PortalPalette){
  var city by remember(session.userId){mutableStateOf("")}
  var jobTitle by remember(session.userId){mutableStateOf("")}
  var loading by remember{mutableStateOf(true)}
+ var loadFailed by remember{mutableStateOf(false)}
  var saving by remember{mutableStateOf(false)}
  var error by remember{mutableStateOf<String?>(null)}
  var success by remember{mutableStateOf(false)}
