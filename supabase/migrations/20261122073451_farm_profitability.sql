@@ -1,4 +1,4 @@
--- Farmer-owned financial planning. These are estimated operating figures, not tax accounting.
+-- Farmer-owned financial planning (applied 20261122073451). These are estimated operating figures, not tax accounting.
 -- The field/farm pair prevents a record being attached to another farm's field.
 create unique index if not exists fields_id_farm_id_profit_fk_idx on public.fields (id,farm_id);
 
