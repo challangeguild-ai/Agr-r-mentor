@@ -1,21 +1,21 @@
 import Link from "next/link";
 import {createAdminClient} from "@/lib/supabase/admin";
+import {fetchAllPages} from "@/lib/supabasePaging";
 import {grantAdvisorFinance,revokeAdvisorFinance} from "../actions";
 
 export const dynamic="force-dynamic";
 export default async function FinanceAccessPage({searchParams}:{searchParams:Promise<{result?:string}>}){
  const admin=createAdminClient();
- const [{data:farms,error:fe},{data:profiles,error:pe},{data:grants,error:ge}]=await Promise.all([
-  admin.from("farms").select("id,name,owner_id").order("name"),
-  admin.from("profiles").select("id,full_name,role,system_role"),
-  admin.from("farm_advisor_finance_grants").select("farm_id,owner_id,advisor_id,authorization_reference,granted_at,revoked_at").order("granted_at",{ascending:false})
+ const [farms,profiles,grants]=await Promise.all([
+  fetchAllPages((from,to)=>admin.from("farms").select("id,name,owner_id").order("id").range(from,to),"A gazdaságok listája nem tölthető be"),
+  fetchAllPages((from,to)=>admin.from("profiles").select("id,full_name,role,system_role").order("id").range(from,to),"A felhasználók listája nem tölthető be"),
+  fetchAllPages((from,to)=>admin.from("farm_advisor_finance_grants").select("farm_id,owner_id,advisor_id,authorization_reference,granted_at,revoked_at").order("farm_id").order("advisor_id").range(from,to),"A pénzügyi hozzáférések nyilvántartása nem tölthető be")
  ]);
- if(fe||pe||ge)throw new Error("A pénzügyi hozzáférések nyilvántartása nem tölthető be.");
- const advisors=(profiles??[]).filter(p=>p.role==="advisor"&&(p.system_role??"user")==="user");
- const names=new Map((profiles??[]).map(p=>[p.id,p.full_name??"Névtelen"]));
- const farmNames=new Map((farms??[]).map(f=>[f.id,f.name]));
- const owners=new Map((farms??[]).map(f=>[f.id,f.owner_id]));
- const active=(grants??[]).filter(g=>!g.revoked_at);
+ const advisors=profiles.filter(p=>p.role==="advisor"&&(p.system_role??"user")==="user");
+ const names=new Map(profiles.map(p=>[p.id,p.full_name??"Névtelen"]));
+ const farmNames=new Map(farms.map(f=>[f.id,f.name]));
+ const owners=new Map(farms.map(f=>[f.id,f.owner_id]));
+ const active=grants.filter(g=>!g.revoked_at).sort((a,b)=>b.granted_at.localeCompare(a.granted_at));
  const query=await searchParams;
  return <main className="admin-shell"><header className="admin-header"><div><span className="eyebrow">RENDSZERADMIN · PÉNZÜGYI JOGOSULTSÁG</span><h1>Szaktanácsadói pénzügyi hozzáférések</h1><p>Gazdaságonként és személyenként dokumentált, visszavonható betekintések.</p></div></header>
   {query.result&&<p className="notice" role="status">{query.result==="granted"?"A jogosultság naplózva rögzítve.":"A jogosultság naplózva visszavonva."}</p>}
