@@ -18,7 +18,9 @@ const items=[
  ["/admin/contacts","☎","Elérhetőségek","advisor-contacts"],
  ["/admin/workday","◷","Munkanap","advisor-workday"],
  ["/admin/operations","▤","Műveletek","advisor-operations"],
+ ["/admin/tasks#operation-plan","✚","Ajánlás kiadása","advisor-recommendation"],
  ["/admin/plant-protection-import","✦","Növényvédelem","advisor-plant"],
+ ["/admin/profit","▥","Jövedelmezőség","advisor-profit"],
  ["/admin/map","⌖","Térkép","advisor-map"],
  ["/admin/documents","□","Dokumentumok","advisor-documents"]
 ] as const;
@@ -45,7 +47,8 @@ export function AdvisorSidebar(){
     <button className={styles.close} type="button" onClick={()=>setOpen(false)} aria-label="Oldalsáv bezárása"><span/><span/><span/></button>
    </div>
    <nav className={styles.nav} aria-label="Szaktanácsadói menü">{items.map(([href,icon,label,tour])=>{
-    const active=href==="/admin"?pathname===href:pathname.startsWith(href);
+    const path=href.split("#")[0];
+    const active=path==="/admin"?pathname===path:pathname===path||pathname.startsWith(`${path}/`);
     return <Link data-tour={tour} onClick={()=>setOpen(false)} key={href} className={active?styles.active:""} href={href}><span>{icon}</span><b>{label}</b></Link>
    })}</nav>
    <div className={styles.help}>

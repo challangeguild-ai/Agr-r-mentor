@@ -11,6 +11,7 @@ const items=[
  ["/system-admin","⌂","Rendszeráttekintés","admin-home"],
  ["/system-admin/support","⌘","Támogatási központ","admin-support"],
  ["/system-admin/users","♙","Felhasználók","admin-users"],
+ ["/system-admin/finance","▥","Pénzügyi jogosultságok","admin-finance"],
  ["/system-admin/security","⚠","Biztonsági események","admin-security"],
  ["/system-admin/weather","☁","HungaroMet kapcsolat","admin-weather"],
  ["/system-admin/backup","▤","Biztonsági mentés","admin-backup"],

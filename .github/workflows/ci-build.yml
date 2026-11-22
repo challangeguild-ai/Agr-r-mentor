@@ -2,7 +2,7 @@ name: CI build
 
 on:
   push:
-    branches: [feat/agrarmentor-android-native]
+    branches: [feat/agrarmentor-android-native, 'fix/agrarmentor-unified-release-*']
   pull_request:
     branches: [main]
   workflow_dispatch:

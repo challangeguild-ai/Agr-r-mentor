@@ -1,46 +1,42 @@
 import Link from "next/link";
+import Image from "next/image";
 import {LandingLoginModal} from "@/components/LandingLoginModal";
 import {AgrarMentorLogo} from "@/components/AgrarMentorLogo";
+import {publicContactHref} from "@/lib/publicContact";
 import styles from "./landing.module.css";
 
 function BrandMark({large=false}:{large?:boolean}){
   return <span className={large?styles.brandMarkLarge:styles.brandMark} aria-hidden="true">
-    <svg viewBox="0 0 42 54">
-      <path d="M21 51V8"/>
-      <path d="M21 17C14 14 10 10 9 5c7 1 11 5 12 12Z"/>
-      <path d="M21 25c7-3 11-7 12-12-7 1-11 5-12 12Z"/>
-      <path d="M21 32c-7-3-11-7-12-12 7 1 11 5 12 12Z"/>
-      <path d="M21 40c7-3 11-7 12-12-7 1-11 5-12 12Z"/>
-      <path d="M21 47c-7-3-11-7-12-12 7 1 11 5 12 12Z"/>
-    </svg>
+    <Image src="/images/agrar-wheat-ornament.webp" width={320} height={480} alt="" />
   </span>;
 }
 
-const process=[
- ["●","Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
- ["⌑","Területek rögzítése","Táblák, növények, alapadatok felvétele."],
- ["◒","Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
- ["▤","Javaslat","Konkrét, dokumentált szakmai javaslatok."],
- ["✣","Végrehajtás","Feladatok ütemezése és megvalósítása."],
- ["✓","Ellenőrzés","Eredmények követése, következő lépések."]
+const processSteps=[
+ ["Gazdaság megismerése","Célok, adottságok, tervek felmérése."],
+ ["Területek rögzítése","Táblák, növények, alapadatok felvétele."],
+ ["Szemle","Helyszíni állapotfelmérés, problémák azonosítása."],
+ ["Javaslat","Konkrét, dokumentált szakmai javaslatok."],
+ ["Végrehajtás","Feladatok ütemezése és megvalósítása."],
+ ["Ellenőrzés","Eredmények követése, következő lépések."]
 ] as const;
 
 const dataPoints=[
- ["☁","Helyi időjárási","és csapadékadatok"],
- ["⌑","Táblaszintű","információk"],
- ["◷","Korábbi szemlék","és beavatkozások"],
- ["☷","Aktuális","feladatok"],
- ["⌁","Visszakövethető","döntések"],
- ["◒","Szezon közbeni","nyomon követés"]
+ ["Helyi időjárási","és csapadékadatok"],
+ ["Táblaszintű","információk"],
+ ["Korábbi szemlék","és beavatkozások"],
+ ["Aktuális","feladatok"],
+ ["Visszakövethető","döntések"],
+ ["Szezon közbeni","nyomon követés"]
 ] as const;
 
 export default async function Home({searchParams}:{searchParams:Promise<{login?:string;next?:string}>}){
  const params=await searchParams;const requestedNext=params.next&&params.next.startsWith("/")&&!params.next.startsWith("//")?params.next:null;
+ const contactHref=publicContactHref(process.env.AGRAR_CONTACT_EMAIL);
  return <main className={styles.site}>
   <header className={styles.header}>
    <div className={styles.headerInner}>
     <a className={styles.brand} href="#fooldal" aria-label="Agrár Mentor – Főoldal"><AgrarMentorLogo className={styles.brandLogo} onLight priority/></a>
-    <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
+    <nav className={styles.nav} aria-label="Fő navigáció"><a className={styles.active} href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#mobilapp">Android app</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav>
     <div className={styles.headerActions}><LandingLoginModal triggerLabel="Belépés" triggerClassName={styles.loginButton} initialOpen={params.login==="1"} next={requestedNext}/><a className={styles.joinButton} href="#kapcsolat">Csatlakozom</a></div>
    </div>
   </header>
@@ -53,7 +49,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
      <h1>Jobb döntések.<br/><em>A földön.</em></h1>
      <p>Személyes agronómiai támogatás, valós területi adatokkal és digitális háttérrel.</p>
      <div className={styles.heroActions}><a className={styles.primaryButton} href="#kapcsolat">Csatlakozom az Agrár Mentorhoz <span>→</span></a><LandingLoginModal triggerLabel="Belépés az ügyfélfelületre" triggerClassName={styles.secondaryButton}/></div>
-     <div className={styles.heroAssurances}><span><b>♧</b>Helyszíni szemle</span><span><b>▤</b>Dokumentált javaslatok</span><span><b>▣</b>Digitális ügyfélfelület</span></div>
+     <div className={styles.heroAssurances}><span><b aria-hidden="true">✓</b>Helyszíni szemle</span><span><b aria-hidden="true">✓</b>Dokumentált javaslatok</span><span><b aria-hidden="true">✓</b>Digitális ügyfélfelület</span></div>
     </div>
    </div>
    <div className={styles.heroCards} aria-label="Példa gazdasági információk">
@@ -66,15 +62,44 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
   <section className={styles.services}>
    <h2>Nem csak tanács. <em>Folyamatos szakmai háttér.</em></h2>
    <div className={styles.serviceGrid}>
-    <article><span className={styles.serviceIcon}>♧</span><div><h3>A területen</h3><p>Helyszíni szemle és valós állapotfelmérés.</p></div><b>›</b></article>
-    <article><span className={styles.serviceIconGold}>▤</span><div><h3>A döntéseknél</h3><p>Konkrét, dokumentált szakmai javaslatok.</p></div><b>›</b></article>
-    <article><span className={styles.serviceIcon}>▥</span><div><h3>A szezon egészében</h3><p>Feladatok, adatok és előzmények egy helyen.</p></div><b>›</b></article>
+    <article><span className={styles.serviceVisualField} aria-hidden="true"/><div><h3>A területen</h3><p>Helyszíni szemle és valós állapotfelmérés.</p></div><b aria-hidden="true">›</b></article>
+    <article><span className={styles.serviceVisualAdvisor} aria-hidden="true"/><div><h3>A döntéseknél</h3><p>Konkrét, dokumentált szakmai javaslatok.</p></div><b aria-hidden="true">›</b></article>
+    <article><span className={styles.serviceVisualDigital} aria-hidden="true"/><div><h3>A szezon egészében</h3><p>Feladatok, adatok és előzmények egy helyen.</p></div><b aria-hidden="true">›</b></article>
    </div>
   </section>
 
   <section className={styles.processSection} id="hogyan">
    <h2>Így működik az Agrár Mentor</h2>
-   <div className={styles.processGrid}>{process.map(([icon,title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{icon}</span>{index<process.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
+   <div className={styles.processGrid}>{processSteps.map(([title,desc],index)=><article key={title} className={styles.processStep}><div className={styles.stepTop}><span className={styles.stepIcon}>{String(index+1).padStart(2,"0")}</span>{index<processSteps.length-1&&<b className={styles.stepArrow}>›</b>}</div><h3>{title}</h3><p>{desc}</p></article>)}</div>
+  </section>
+
+  <section className={styles.mobileSection} id="mobilapp" aria-labelledby="mobilapp-title">
+   <div className={styles.mobileInner}>
+    <div className={styles.mobileVisual}>
+     <div className={styles.mobileGlow}/>
+     <div className={styles.phoneMockup} aria-label="Az Agrár Mentor Android alkalmazásának szemléltető látványterve" role="img">
+      <div className={styles.phoneSpeaker}/>
+      <div className={styles.phoneScreen}>
+       <div className={styles.phoneStatus}><b>09:41</b><span>●●● ▰</span></div>
+       <div className={styles.phoneAppBrand}><AgrarMentorLogo className={styles.phoneAppLogo}/></div>
+       <div className={styles.phoneWelcome}><small>AZ ÉN GAZDASÁGOM</small><strong>Jó reggelt!</strong><span>A mai teendők egy helyen.</span></div>
+       <div className={styles.phoneHighlight}><small>Aktuális gazdasági állapot</small><strong>3 aktív földtábla</strong><span>Feladatok, napló, szemlék</span></div>
+       <div className={styles.phoneCardGrid}><div><b>Tábláim</b><span>Területek</span></div><div><b>Teendők</b><span>Mai feladatok</span></div><div><b>Napló</b><span>Műveletek</span></div><div><b>Szemlék</b><span>Megfigyelések</span></div></div>
+       <div className={styles.phoneBottom}><span>Áttekintés</span><span>Táblák</span><span>Feladatok</span><span>Menü</span></div>
+      </div>
+     </div>
+     <p className={styles.phoneCaption}>Szemléltető alkalmazás-látványterv</p>
+    </div>
+    <div className={styles.mobileCopy}>
+     <span className={styles.mobileEyebrow}>AGRÁR MENTOR • ANDROID</span>
+     <h2 id="mobilapp-title">A gazdaságod.<br/><em>Veled a terepen is.</em></h2>
+     <p>Az Agrár Mentor Android-alkalmazása a webes rendszerhez kapcsolódik. Egyetlen bejelentkezés után a jogosultságodnak megfelelő gazdálkodói, szaktanácsadói vagy adminisztrátori felület fogad.</p>
+     <ul className={styles.mobileFeatures}><li>Földtáblák és napi teendők mobilon</li><li>Szemlék, dokumentumok és műveleti napló</li><li>Szerepköralapú, hitelesített hozzáférés</li></ul>
+     <div className={styles.mobileRelease}><span className={styles.androidLabel}>ANDROID</span><span className={styles.comingSoon}>Tesztverzió előkészítés alatt</span></div>
+     <p className={styles.mobileHonesty}>Az APK még nem tölthető le nyilvánosan. A biztonsági és kiadási ellenőrzések lezárása után tesszük elérhetővé a tesztelőknek.</p>
+     <LandingLoginModal triggerLabel="Belépés a webes felületre" triggerClassName={styles.mobileLoginButton}/>
+    </div>
+   </div>
   </section>
 
   <section className={styles.digitalSection} id="digitalis">
@@ -102,7 +127,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
 
   <section className={styles.dataBand}>
    <div className={styles.dataInner}>
-    <div className={styles.dataCopy}><h2>Több adat. <em>Kevesebb találgatás.</em></h2><p>Valós adatokra és szakmai tapasztalatra alapozott javaslatok, hogy magabiztosabban hozhass döntéseket.</p><div className={styles.dataGrid}>{dataPoints.map(([icon,a,b])=><div key={a}><span>{icon}</span><p>{a}<br/>{b}</p></div>)}</div></div>
+    <div className={styles.dataCopy}><h2>Több adat. <em>Kevesebb találgatás.</em></h2><p>Valós adatokra és szakmai tapasztalatra alapozott javaslatok, hogy magabiztosabban hozhass döntéseket.</p><div className={styles.dataGrid}>{dataPoints.map(([a,b])=><div key={a}><span aria-hidden="true">✓</span><p>{a}<br/>{b}</p></div>)}</div></div>
     <blockquote><span>“</span>Az adat segít dönteni.<br/><strong>A szakember vállalja<br/>a döntést.</strong><i/></blockquote>
    </div>
   </section>
@@ -114,12 +139,12 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
 
   <section className={styles.contact} id="kapcsolat">
    <div className={styles.contactContour}/>
-   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div><a className={styles.primaryButton} href="#kapcsolat">Kapcsolatfelvétel <span>→</span></a><LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
+   <div className={styles.contactInner}><h2>Beszéljünk a gazdaságodról.</h2><p>Nézzük meg együtt, hogyan tud az Agrár Mentor illeszkedni a gazdaságod működéséhez.</p><div>{contactHref?<a className={styles.primaryButton} href={contactHref}>Kapcsolatfelvétel e-mailben <span>→</span></a>:<p role="status">A kapcsolatfelvételi e-mail-cím beállítása folyamatban van. Addig a jelentkezés innen nem küldhető el.</p>}<LandingLoginModal triggerLabel="Már ügyfél vagyok" triggerClassName={styles.secondaryButton}/></div></div>
    <BrandMark large/>
   </section>
 
   <footer className={styles.footer}>
-   <div className={styles.footerInner}><div className={styles.footerBrand}><AgrarMentorLogo className={styles.footerBrandLogo}/></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
+   <div className={styles.footerInner}><div className={styles.footerBrand}><AgrarMentorLogo className={styles.footerBrandLogo}/></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#mobilapp">Android app</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a><a href="/adatkezeles">Pénzügyi adatkezelés</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
   </footer>
  </main>;
 }

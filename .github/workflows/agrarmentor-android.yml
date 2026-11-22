@@ -6,6 +6,7 @@ on:
       - feat/agrarmentor-android-native
       - feat/agrarmentor-profit-android-20261122
       - 'fix/agrarmentor-native-*'
+      - 'fix/agrarmentor-unified-release-*'
     paths:
       - 'android/**'
       - '.github/workflows/agrarmentor-android.yml'
@@ -73,7 +74,7 @@ jobs:
           echo 'A bejelentkezést és szerveroldali szerepkör-ellenőrzést használó belső teszt-APK készül.'
 
       - name: Debug teszt-APK csomagazonosító és aláírás ellenőrzése
-        if: github.ref == 'refs/heads/feat/agrarmentor-android-native' || github.ref == 'refs/heads/feat/agrarmentor-profit-android-20261122'
+        if: github.ref == 'refs/heads/feat/agrarmentor-android-native' || github.ref == 'refs/heads/feat/agrarmentor-profit-android-20261122' || startsWith(github.ref, 'refs/heads/fix/agrarmentor-unified-release-')
         run: |
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
@@ -82,7 +83,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -F "package: name='hu.agrarmentor.android'"
 
       - name: Telepíthető belső TESZT-APK (nem végleges kiadás)
-        if: github.ref == 'refs/heads/feat/agrarmentor-android-native' || github.ref == 'refs/heads/feat/agrarmentor-profit-android-20261122'
+        if: github.ref == 'refs/heads/feat/agrarmentor-android-native' || github.ref == 'refs/heads/feat/agrarmentor-profit-android-20261122' || startsWith(github.ref, 'refs/heads/fix/agrarmentor-unified-release-')
         uses: actions/upload-artifact@v4
         with:
           name: AgrarMentor-ANDROID-TESZT-KAPCSOLT-${{ github.run_number }}

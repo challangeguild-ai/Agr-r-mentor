@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {deflateRawSync} from "node:zlib";
 import {
- parseHungaroMetStations,parseHungaroMetDailyCsv,unzipOfficialCsv
+ parseHungaroMetStations,parseHungaroMetDailyCsv,parseHungaroMetDailyListing,unzipOfficialCsv
 } from "../lib/weather/hungarometParsing.ts";
 
 const dailyCsv=`##Meta
@@ -26,6 +26,26 @@ test("station metadata accepts a commented HungaroMet header and rejects invalid
   {stationNumber:"73211",name:"Budapest",latitude:47.5,longitude:19,elevation:100},
   {stationNumber:"73212",name:"Gödöllő",latitude:47.72,longitude:19.54,elevation:null}
  ]);
+});
+
+test("official metadata excludes discontinued stations and selects the current station period",()=>{
+ const csv=`StationNumber;StartDate;EndDate;Latitude;Longitude;Elevation;StationName;EOR
+46303;19950101;20121231;46.9131;19.7483;101;Megszűnt Kecskemét;EOR
+46400;19950101;20171231;46.9000;19.7000;100;Régi hely;EOR
+46400;20180101;20261121;46.9122;19.7597;110;Kecskemét repülőtér;EOR
+46314;20200101;20261121;46.9167;19.7486;100;Repülőtér közép;EOR`;
+ assert.deepEqual(parseHungaroMetStations(csv,"20261114"),[
+  {stationNumber:"46400",name:"Kecskemét repülőtér",latitude:46.9122,longitude:19.7597,elevation:110},
+  {stationNumber:"46314",name:"Repülőtér közép",latitude:46.9167,longitude:19.7486,elevation:100}
+ ]);
+ assert.throws(()=>parseHungaroMetStations("StationNumber;Latitude;Longitude\n12345;47;19","20261114"),/EndDate/);
+});
+
+test("daily directory listing contains published archive IDs, not retired metadata IDs",()=>{
+ const index=`<html><a href="HABP_1D_46314_akt.zip">station</a>
+  <a href="HABP_1D_46400_akt.zip">station</a></html>`;
+ assert.deepEqual([...parseHungaroMetDailyListing(index)],["46314","46400"]);
+ assert.throws(()=>parseHungaroMetDailyListing("<html>No daily archives</html>"),/állományjegyzék/);
 });
 
 test("daily CSV handles official meta lines, measured zero, precipitation and missing markers",()=>{

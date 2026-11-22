@@ -1,5 +1,5 @@
 import "server-only";
-import {parseHungaroMetDailyCsv,parseHungaroMetStations,unzipOfficialCsv,type HungaroMetStation} from "./hungarometParsing";
+import {parseHungaroMetDailyCsv,parseHungaroMetStations,parseHungaroMetDailyListing,unzipOfficialCsv,type HungaroMetStation} from "./hungarometParsing";
 import {stationDistanceKm} from "./stationSelection";
 export type {HungaroMetStation,HungaroMetDailyObservation} from "./hungarometParsing";
 export {unzipOfficialCsv as unzipSingleText} from "./hungarometParsing";
@@ -29,7 +29,14 @@ async function officialDownload<T>(url:string,read:(res:Response)=>Promise<T>):P
 
 export async function fetchHungaroMetStations(){
  const csv=await officialDownload(HUNGAROMET_META_URL,res=>res.text());
- return parseHungaroMetStations(csv);
+ const activeSince=new Date();
+ activeSince.setUTCDate(activeSince.getUTCDate()-7);
+ return parseHungaroMetStations(csv,activeSince.toISOString().slice(0,10).replace(/-/g,""));
+}
+
+export async function fetchHungaroMetDailyStationIds(){
+ const listing=await officialDownload(`${HUNGAROMET_DAILY_BASE}/`,res=>res.text());
+ return parseHungaroMetDailyListing(listing);
 }
 
 export {stationDistanceKm as distanceKm} from "./stationSelection";

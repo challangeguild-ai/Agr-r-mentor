@@ -52,31 +52,43 @@ function validDate(date:string){
  return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===date;
 }
 
-export function parseHungaroMetStations(text:string):HungaroMetStation[]{
+/** The metadata also contains discontinued stations; prefer the newest valid station period. */
+export function parseHungaroMetStations(text:string,minEndDate?:string):HungaroMetStation[]{
  const lines=csvLines(text);
  const header=findHeader(lines,["stationnumber","latitude","longitude"]);
  if(!header)throw new Error("HungaroMet állomásmeta fejléc nem azonosítható.");
  const idx=(key:string)=>header.keys.indexOf(key);
  const stationIdx=idx("stationnumber"),latIdx=idx("latitude"),lngIdx=idx("longitude");
- const nameIdx=idx("stationname"),elevationIdx=idx("elevation");
- const stations:HungaroMetStation[]=[];
- const seen=new Set<string>();
+ const nameIdx=idx("stationname"),elevationIdx=idx("elevation"),endDateIdx=idx("enddate"),startDateIdx=idx("startdate");
+ if(minEndDate&&endDateIdx<0)throw new Error("HungaroMet állomásmeta: hiányzik az EndDate mező.");
+ const stations=new Map<string,{station:HungaroMetStation;period:string}>();
  for(const line of lines.slice(header.index+1)){
   if(line.startsWith("#"))continue;
   const cols=line.split(";").map(x=>x.trim());
   const latitude=numberOrNull(cols[latIdx]),longitude=numberOrNull(cols[lngIdx]);
   const stationNumber=cols[stationIdx]?.replace(/\D/g,"");
-  if(!stationNumber||latitude==null||longitude==null||Math.abs(latitude)>90||Math.abs(longitude)>180||seen.has(stationNumber))continue;
-  seen.add(stationNumber);
-  stations.push({
+  const endDate=endDateIdx>=0?cols[endDateIdx]?.replace(/\D/g,"")||"":"";
+  const startDate=startDateIdx>=0?cols[startDateIdx]?.replace(/\D/g,"")||"":"";
+  if(minEndDate&&(!/^\d{8}$/.test(endDate)||endDate<minEndDate))continue;
+  if(!stationNumber||latitude==null||longitude==null||Math.abs(latitude)>90||Math.abs(longitude)>180)continue;
+  const period=`${endDate}:${startDate}`;
+  if(stations.has(stationNumber)&&stations.get(stationNumber)!.period>=period)continue;
+  stations.set(stationNumber,{period,station:{
    stationNumber,
    name:nameIdx>=0?(cols[nameIdx]||stationNumber):stationNumber,
    latitude,longitude,
    elevation:elevationIdx>=0?numberOrNull(cols[elevationIdx]):null
-  });
+  }});
  }
- if(!stations.length)throw new Error("HungaroMet állomásmeta üres vagy nem feldolgozható.");
- return stations;
+ if(!stations.size)throw new Error("HungaroMet állomásmeta üres vagy nem feldolgozható.");
+ return [...stations.values()].map(x=>x.station);
+}
+
+/** Only archive files advertised by HungaroMet's own daily directory are candidates. */
+export function parseHungaroMetDailyListing(html:string):Set<string>{
+ const ids=new Set([...html.matchAll(/HABP_1D_(\d{5})_akt\.zip/gi)].map(match=>match[1]));
+ if(!ids.size)throw new Error("HungaroMet napi állományjegyzék nem feldolgozható.");
+ return ids;
 }
 
 export function parseHungaroMetDailyCsv(text:string,stationNumber:string):HungaroMetDailyObservation[]{
