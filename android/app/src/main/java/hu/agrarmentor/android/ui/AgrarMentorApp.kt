@@ -374,7 +374,7 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
    }else if(role==PortalRole.ADVISOR&&route=="/admin/documents"&&session!=null){
     item{LiveDocumentsScreen(session,colors)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/profit"&&session!=null){
-    item{AdvisorProfitPrivacyScreen(colors,onNavigate)}
+    item{AdvisorProfitScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route in listOf("/admin/timeline","/admin/machines")&&session!=null){
     item{LiveFarmExtrasScreen(if(route=="/admin/timeline")"/timeline" else "/machines",session,colors,onNavigate)}
    }else if(role==PortalRole.ADVISOR&&route=="/admin/contacts"&&session!=null){

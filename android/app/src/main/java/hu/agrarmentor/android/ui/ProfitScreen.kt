@@ -95,26 +95,3 @@ internal fun ProfitScreen(session:AuthorizedSession,colors:PortalPalette){
   Text("A kimutatás nem hivatalos könyvelés: a támogatásokat és az áfát nem osztja fel automatikusan.",fontSize=12.sp,color=Color(0xFF64776A))
  }
 }
-
-/** Advisor access is intentionally masked; no profit query is issued or cached. */
-@Composable
-internal fun AdvisorProfitPrivacyScreen(colors:PortalPalette,onNavigate:(String)->Unit){
- Column(verticalArrangement=Arrangement.spacedBy(13.dp)){
-  Card(colors){
-   Text("🔒 Gazdálkodói pénzügyi adatok",color=colors.accent,fontSize=18.sp,fontWeight=FontWeight.ExtraBold)
-   Text("A költségek, eladási árak, terméshozamok és profitok csak a gazdálkodó saját fiókjában olvashatók.",color=Color(0xFF657785),fontSize=13.sp)
-  }
-  for(label in listOf("Rögzített költség","Tényleges árbevétel","Realizált eredmény","Becsült teljes eredmény")){
-   Card(colors){
-    Text(label,color=Color(0xFF526D80),fontSize=12.sp)
-    Text("•••••• Ft",color=colors.accent,fontSize=23.sp,fontWeight=FontWeight.ExtraBold)
-    Text("Bizalmas – nem hozzáférhető",color=Color(0xFF71828A),fontSize=11.sp)
-   }
-  }
-  Card(colors){
-   Text("Szakmai munka és üzleti adatok",color=colors.accent,fontWeight=FontWeight.Bold,fontSize=16.sp)
-   Text("A szaktanácsadó a növényvédelmi, szemle- és műveleti adatokon dolgozhat. A pénzügyi eredményekre automatikus hozzáférése nincs; ezeket az alkalmazás nem tölti le.",color=Color(0xFF657785),fontSize=12.sp)
-   TextButton(onClick={onNavigate("/admin/clients")}){Text("Ügyfelek szakmai nézete ›",color=colors.accent)}
-  }
- }
-}
