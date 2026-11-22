@@ -45,7 +45,7 @@ async function ownedField(supabase:Awaited<ReturnType<typeof createClient>>,owne
 
 async function ownedSeason(supabase:Awaited<ReturnType<typeof createClient>>,ownerId:string,seasonId:string){
  if(!uuid(seasonId))fail("Érvénytelen termesztési év azonosító.");
- const{data:season,error}=await supabase.from("field_profit_seasons").select("id,farm_id,field_id,harvested_tonnes").eq("id",seasonId).maybeSingle();
+ const{data:season,error}=await supabase.from("field_profit_seasons").select("id,farm_id,field_id,harvested_tonnes").eq("id",seasonId).eq("created_by",ownerId).maybeSingle();
  if(error||!season)fail("A kiválasztott pénzügyi év nem érhető el.");
  const{data:farm}=await supabase.from("farms").select("id").eq("id",season.farm_id).eq("owner_id",ownerId).maybeSingle();
  if(!farm)fail("A pénzügyi év nem tartozik a saját gazdaságodhoz.");
@@ -82,7 +82,7 @@ export async function saveProfitSeason(previous:ProfitActionState,form:FormData)
   const price=amount(form,"expected_price_huf_per_tonne",0,1000000000);
   if(Math.abs(Math.round(harvested*1000)-harvested*1000)>1e-6)fail("A termésmennyiséget legfeljebb három tizedessel add meg.");
   const{data:existing,error:lookupError}=await supabase.from("field_profit_seasons")
-   .select("id,area_ha_snapshot").eq("field_id",field.id).eq("season_year",year).maybeSingle();
+   .select("id,area_ha_snapshot").eq("field_id",field.id).eq("season_year",year).eq("created_by",user.id).maybeSingle();
   if(lookupError)throw lookupError;
   if(existing){
    const{data:sales,error:salesError}=await supabase.from("field_profit_entries").select("quantity_tonnes").eq("season_id",existing.id).eq("entry_type","sale");
