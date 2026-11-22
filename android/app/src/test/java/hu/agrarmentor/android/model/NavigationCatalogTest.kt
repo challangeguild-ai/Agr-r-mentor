@@ -65,4 +65,10 @@ class NavigationCatalogTest {
   assertFalse(NavigationCatalog.farmer.any{it.route=="/admin/recommendations"})
   assertFalse(NavigationCatalog.admin.any{it.route=="/admin/recommendations"})
  }
+ @Test fun financialNumbersAreOnlyOnFarmerNavigation(){
+  assertTrue(NavigationCatalog.farmer.any{it.route=="/profit"})
+  assertTrue(NavigationCatalog.advisor.any{it.route=="/admin/profit"})
+  assertFalse(NavigationCatalog.advisor.any{it.route=="/profit"})
+  assertFalse(NavigationCatalog.admin.any{it.route=="/profit"})
+ }
 }

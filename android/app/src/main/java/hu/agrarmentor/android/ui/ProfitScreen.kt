@@ -1,6 +1,8 @@
 package hu.agrarmentor.android.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,6 +21,7 @@ import java.util.Locale
 
 private val hu=Locale.forLanguageTag("hu-HU")
 private fun money(value:Long)="${NumberFormat.getIntegerInstance(hu).format(value)} Ft"
+private fun tonnes(value:Double)="${NumberFormat.getNumberInstance(hu).apply{maximumFractionDigits=3}.format(value)} t"
 
 /** Real financial metrics in the native app; editing opens the authenticated web module. */
 @Composable
@@ -31,7 +34,11 @@ internal fun ProfitScreen(session:AuthorizedSession,colors:PortalPalette){
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(session.accessToken,revision){
   loading=true;error=false
-  try{seasons=repository.load(session)}catch(_:Exception){error=true}
+  try{
+   val loaded=repository.load(session)
+   seasons=loaded
+   if(loaded.isNotEmpty()&&loaded.none{it.year==selectedYear})selectedYear=loaded.maxOf{it.year}
+  }catch(_:Exception){error=true}
   finally{loading=false}
  }
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -42,14 +49,14 @@ internal fun ProfitScreen(session:AuthorizedSession,colors:PortalPalette){
   if(loading)CircularProgressIndicator(color=colors.accent)
   else if(error){
    Card(colors){
-    Text("A pénzügyi adatok jelenleg nem tölthetők be. Lehet, hogy az új adatbázismodul még nincs aktiválva.",color=Color(0xFF9F3942),fontSize=13.sp)
+    Text("A pénzügyi adatok jelenleg nem tölthetők be. Ellenőrizd a kapcsolatot, majd próbáld újra.",color=Color(0xFF9F3942),fontSize=13.sp)
     TextButton(onClick={revision++}){Text("Újrapróbálás",color=colors.accent)}
    }
   }else{
    val availableYears=seasons.map{it.year}.distinct().sortedDescending()
    if(availableYears.isNotEmpty()){
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     availableYears.take(5).forEach{year->
+    Row(modifier=androidx.compose.ui.Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+     availableYears.forEach{year->
       TextButton(onClick={selectedYear=year}){Text(year.toString(),color=if(selectedYear==year)colors.accent else Color.Gray,fontWeight=if(selectedYear==year)FontWeight.ExtraBold else FontWeight.Normal)}
      }
     }
@@ -70,8 +77,8 @@ internal fun ProfitScreen(session:AuthorizedSession,colors:PortalPalette){
     current.forEach{field->
      Card(colors){
       Text(field.fieldName,color=colors.accent,fontWeight=FontWeight.Bold,fontSize=16.sp)
-      Text("${field.cropName} · ${field.harvestedTonnes} tonna betakarítva",fontSize=12.sp,color=Color(0xFF617568))
-      Text("Eladott: ${field.figures.soldTonnes} t · Készleten: ${field.figures.unsoldTonnes} t",fontSize=13.sp)
+      Text("${field.cropName} · ${tonnes(field.harvestedTonnes)} betakarítva",fontSize=12.sp,color=Color(0xFF617568))
+      Text("Eladott: ${tonnes(field.figures.soldTonnes)} · Készleten: ${tonnes(field.figures.unsoldTonnes)}",fontSize=13.sp)
       Text("Költség: ${money(field.figures.cost)}",fontSize=13.sp)
       Text("Realizált: ${money(field.figures.realizedResult)}",fontSize=13.sp)
       Text("Becsült: ${money(field.figures.projectedResult)}",fontSize=13.sp,fontWeight=FontWeight.Bold)
@@ -86,5 +93,28 @@ internal fun ProfitScreen(session:AuthorizedSession,colors:PortalPalette){
    WebModuleOpenButton("/profit",colors)
   }
   Text("A kimutatás nem hivatalos könyvelés: a támogatásokat és az áfát nem osztja fel automatikusan.",fontSize=12.sp,color=Color(0xFF64776A))
+ }
+}
+
+/** Advisor access is intentionally masked; no profit query is issued or cached. */
+@Composable
+internal fun AdvisorProfitPrivacyScreen(colors:PortalPalette,onNavigate:(String)->Unit){
+ Column(verticalArrangement=Arrangement.spacedBy(13.dp)){
+  Card(colors){
+   Text("🔒 Gazdálkodói pénzügyi adatok",color=colors.accent,fontSize=18.sp,fontWeight=FontWeight.ExtraBold)
+   Text("A költségek, eladási árak, terméshozamok és profitok csak a gazdálkodó saját fiókjában olvashatók.",color=Color(0xFF657785),fontSize=13.sp)
+  }
+  for(label in listOf("Rögzített költség","Tényleges árbevétel","Realizált eredmény","Becsült teljes eredmény")){
+   Card(colors){
+    Text(label,color=Color(0xFF526D80),fontSize=12.sp)
+    Text("•••••• Ft",color=colors.accent,fontSize=23.sp,fontWeight=FontWeight.ExtraBold)
+    Text("Bizalmas – nem hozzáférhető",color=Color(0xFF71828A),fontSize=11.sp)
+   }
+  }
+  Card(colors){
+   Text("Szakmai munka és üzleti adatok",color=colors.accent,fontWeight=FontWeight.Bold,fontSize=16.sp)
+   Text("A szaktanácsadó a növényvédelmi, szemle- és műveleti adatokon dolgozhat. A pénzügyi eredményekre automatikus hozzáférése nincs; ezeket az alkalmazás nem tölti le.",color=Color(0xFF657785),fontSize=12.sp)
+   TextButton(onClick={onNavigate("/admin/clients")}){Text("Ügyfelek szakmai nézete ›",color=colors.accent)}
+  }
  }
 }

@@ -46,6 +46,7 @@ object NavigationCatalog {
   MobileDestination("/admin/map/import","Térképimport","Szakmai eszközök"),
   MobileDestination("/admin/plant-protection-import","Növényvédelem","Szakmai eszközök"),
   MobileDestination("/admin/recommendations","Növényvédelmi ajánlások","Szakmai eszközök"),
+  MobileDestination("/admin/profit","Jövedelmezőség · rejtett","Szakmai eszközök"),
   MobileDestination("/admin/documents","Dokumentumok","Szakmai eszközök"),
   MobileDestination("/admin/timeline","Idővonal","Szakmai eszközök"),
   MobileDestination("/admin/reports","Jelentések","Szakmai eszközök"),

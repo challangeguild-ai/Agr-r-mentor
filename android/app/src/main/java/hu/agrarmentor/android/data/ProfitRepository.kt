@@ -26,6 +26,12 @@ fun calculateProfitFigures(harvestedTonnes:Double,expectedUnitPrice:Double,entri
 
 data class MobileProfitSeason(val id:String,val fieldName:String,val cropName:String,val year:Int,val harvestedTonnes:Double,val figures:ProfitFigures)
 
+internal fun belongsToCurrentFarmer(row:JSONObject,userId:String,farmIds:Set<String>,fieldIds:Set<String>)=
+ row.optString("created_by")==userId&&row.optString("farm_id") in farmIds&&row.optString("field_id") in fieldIds
+
+internal fun belongsToCurrentFarmerEntry(row:JSONObject,userId:String,seasonIds:Set<String>)=
+ row.optString("created_by")==userId&&row.optString("season_id") in seasonIds
+
 /** A farmer can only load records visible through their own Supabase RLS token. */
 class ProfitRepository(private val baseUrl:String,private val publishableKey:String){
  suspend fun load(session:AuthorizedSession):List<MobileProfitSeason> = withContext(Dispatchers.IO){
@@ -34,12 +40,12 @@ class ProfitRepository(private val baseUrl:String,private val publishableKey:Str
   if(farmIds.isEmpty())return@withContext emptyList()
   val fields=fetchAll("fields?select=id,farm_id,name&order=id.asc",session.accessToken)
    .filter{it.optString("farm_id") in farmIds}.associate{it.getString("id") to it.optString("name","Földtábla")}
-  val seasons=fetchAll("field_profit_seasons?select=id,farm_id,field_id,season_year,crop_name,harvested_tonnes,expected_price_huf_per_tonne&order=season_year.desc,id.asc",session.accessToken)
-   .filter{it.optString("farm_id") in farmIds&&it.optString("field_id") in fields}
+  val seasons=fetchAll("field_profit_seasons?select=id,farm_id,field_id,created_by,season_year,crop_name,harvested_tonnes,expected_price_huf_per_tonne&created_by=eq.${session.userId}&order=season_year.desc,id.asc",session.accessToken)
+   .filter{belongsToCurrentFarmer(it,session.userId,farmIds,fields.keys)}
   if(seasons.isEmpty())return@withContext emptyList()
   val seasonIds=seasons.map{it.getString("id")}.toSet()
-  val entries=fetchAll("field_profit_entries?select=season_id,entry_type,amount_huf,quantity_tonnes,price_huf_per_tonne&order=id.asc",session.accessToken)
-   .filter{it.optString("season_id") in seasonIds}.groupBy{it.getString("season_id")}
+  val entries=fetchAll("field_profit_entries?select=season_id,created_by,entry_type,amount_huf,quantity_tonnes,price_huf_per_tonne&created_by=eq.${session.userId}&order=id.asc",session.accessToken)
+   .filter{belongsToCurrentFarmerEntry(it,session.userId,seasonIds)}.groupBy{it.getString("season_id")}
   seasons.map{season->
    val id=season.getString("id")
    val entryRows=entries[id].orEmpty().map{row->ProfitEntry(row.optString("entry_type"),row.optDouble("amount_huf",0.0),row.optDouble("quantity_tonnes",0.0),row.optDouble("price_huf_per_tonne",0.0))}
