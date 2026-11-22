@@ -43,7 +43,7 @@ test("advisor sees exact audited figures only after MFA and grant checks",()=>{
 });
 
 test("financial access is grant-gated, audited and never exposed via advisor RLS",()=>{
- const grants=source("supabase/migrations/20261122091631_advisor_finance_access.sql");
+ const grants=source("supabase/migrations/20261122103129_advisor_finance_access.sql");
  const helper=source("lib/advisorProfit.ts");
  const endpoint=source("app/api/advisor/profit/route.ts");
  const actions=source("app/system-admin/actions.ts");
