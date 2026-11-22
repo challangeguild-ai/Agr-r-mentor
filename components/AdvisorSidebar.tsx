@@ -20,7 +20,7 @@ const items=[
  ["/admin/operations","▤","Műveletek","advisor-operations"],
  ["/admin/tasks#operation-plan","✚","Ajánlás kiadása","advisor-recommendation"],
  ["/admin/plant-protection-import","✦","Növényvédelem","advisor-plant"],
- ["/admin/profit","▥","Jövedelmezőség 🔒","advisor-profit"],
+ ["/admin/profit","▥","Jövedelmezőség","advisor-profit"],
  ["/admin/map","⌖","Térkép","advisor-map"],
  ["/admin/documents","□","Dokumentumok","advisor-documents"]
 ] as const;

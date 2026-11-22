@@ -6,7 +6,7 @@ const source=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 const migration=source("supabase/migrations/20261122081322_farm_profit_privacy_hardening.sql");
 const farmerPage=source("app/profit/page.tsx");
 const actions=source("app/profit/actions.ts");
-const advisorPage=source("app/admin/profit/page.tsx");
+const advisorPage=source("app/admin/profit/AdvisorFinanceView.tsx");
 const advisorLayout=source("app/admin/layout.tsx");
 const advisorMenu=source("components/AdvisorSidebar.tsx");
 const tour=source("components/ComprehensiveTour.tsx");
@@ -31,12 +31,34 @@ test("farmer server views and writes retain creator scoping independently of RLS
  assert.match(actions,/profile\.role!=="farmer"/);
 });
 
-test("advisor privacy view shows masked amounts but never queries financial records",()=>{
- assert.match(advisorMenu,/\["\/admin\/profit","▥","Jövedelmezőség 🔒","advisor-profit"\]/);
+test("advisor sees exact audited figures only after MFA and grant checks",()=>{
+ assert.match(advisorMenu,/\["\/admin\/profit","▥","Jövedelmezőség","advisor-profit"\]/);
  assert.match(tour,/href:"\/admin\/profit",menu:'\[data-tour="advisor-profit"\]'/);
- assert.match(advisorPage,/•••••• Ft/);
- assert.match(advisorPage,/href="\/admin\/clients"/);
- assert.doesNotMatch(advisorPage,/createClient|field_profit_seasons|field_profit_entries|service_role/);
+ assert.match(advisorPage,/readAdvisorFinance\(user\.id/);
+ assert.match(advisorPage,/s\.totals\.realizedRevenue/);
+ assert.match(advisorPage,/currentLevel!=="aal2"/);
+ assert.doesNotMatch(advisorPage,/createAdminClient|service_role/);
  assert.match(advisorLayout,/profile\?\.role!=="advisor"/);
  assert.match(advisorLayout,/currentLevel!=="aal2"/);
+});
+
+test("financial access is grant-gated, audited and never exposed via advisor RLS",()=>{
+ const grants=source("supabase/migrations/20261122091631_advisor_finance_access.sql");
+ const helper=source("lib/advisorProfit.ts");
+ const endpoint=source("app/api/advisor/profit/route.ts");
+ const actions=source("app/system-admin/actions.ts");
+ assert.match(grants,/farm_advisor_finance_grants/);
+ assert.match(grants,/grant select on public\.farm_advisor_finance_grants to authenticated/);
+ assert.doesNotMatch(grants,/grant (?:insert|update|delete|all) on public\.farm_advisor_finance_grants to authenticated/);
+ assert.doesNotMatch(grants,/create policy .* on public\.field_profit_(?:seasons|entries)/);
+ assert.match(grants,/advisor_finance_grant_audit/);
+ assert.match(helper,/\.eq\("advisor_id",userId\)\.is\("revoked_at",null\)/);
+ assert.match(helper,/grantOwners\.get\(f\.id\)===f\.owner_id/);
+ assert.match(helper,/owners\.get\(s\.farm_id\)===s\.created_by/);
+ assert.match(helper,/action:"advisor_finance_view"/);
+ assert.match(helper,/if\(auditError\)throw/);
+ assert.match(endpoint,/db\.auth\.getUser\(token\)/);
+ assert.match(endpoint,/claims\.aal!=="aal2"/);
+ assert.match(endpoint,/private, no-store/);
+ assert.match(actions,/form\.get\("basis_ack"\)!=="yes"/);
 });

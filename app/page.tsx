@@ -144,7 +144,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{login?:
   </section>
 
   <footer className={styles.footer}>
-   <div className={styles.footerInner}><div className={styles.footerBrand}><AgrarMentorLogo className={styles.footerBrandLogo}/></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#mobilapp">Android app</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
+   <div className={styles.footerInner}><div className={styles.footerBrand}><AgrarMentorLogo className={styles.footerBrandLogo}/></div><nav><a href="#fooldal">Főoldal</a><a href="#hogyan">Hogyan működik</a><a href="#mobilapp">Android app</a><a href="#digitalis">Digitális háttér</a><a href="#rolunk">Rólunk</a><a href="#kapcsolat">Kapcsolat</a><a href="/adatkezeles">Pénzügyi adatkezelés</a></nav><small>© 2026 Agrár Mentor. Minden jog fenntartva.</small></div>
   </footer>
  </main>;
 }
