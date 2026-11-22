@@ -9,6 +9,11 @@ on:
       - 'fix/agrarmentor-unified-release-*'
     paths:
       - 'android/**'
+      - 'app/api/advisor/profit/**'
+      - 'app/system-admin/finance/**'
+      - 'lib/advisorProfit.ts'
+      - 'lib/supabasePaging.ts'
+      - 'supabase/migrations/*advisor_finance_access.sql'
       - '.github/workflows/agrarmentor-android.yml'
       - '.github/workflows/agrarmentor-android-release.yml'
       - 'scripts/android-release-guards.mjs'
