@@ -25,6 +25,7 @@ const secondary=[
  ["/machines","machines","⚙","Géppark","farmer-machines"],
  ["/timeline","timeline","☼","Idővonal","farmer-timeline"],
  ["/invoices","invoices","▤","Számlák","farmer-invoices"],
+ ["/profit","profit","▥","Jövedelmezőség","farmer-profit"],
  ["/notifications","notifications","●","Értesítések","farmer-notifications"]
 ] as const;
 
