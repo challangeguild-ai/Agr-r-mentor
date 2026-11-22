@@ -24,6 +24,8 @@ class WebModuleLinkTest{
    safeWebModuleUrl("https://agr-r-mentor.vercel.app","/admin/visits"))
   assertEquals("https://agr-r-mentor.vercel.app/operations/94e01dbb-229b-4b09-9770-c6874cbbf9b0",
    safeWebModuleUrl("https://agr-r-mentor.vercel.app","/operations/94e01dbb-229b-4b09-9770-c6874cbbf9b0"))
+  assertEquals("https://agr-r-mentor.vercel.app/profit",
+   safeWebModuleUrl("https://agr-r-mentor.vercel.app","/profit"))
  }
 
  @Test fun untrustedDestinationsNeverOpen(){

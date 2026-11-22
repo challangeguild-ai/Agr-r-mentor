@@ -349,6 +349,8 @@ private fun PortalContent(role:PortalRole,route:String,colors:PortalPalette,sess
     item{LiveDocumentsScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/invoices"&&session!=null){
     item{LiveDocumentsScreen(session,colors,onlyInvoices=true)}
+   }else if(role==PortalRole.FARMER&&route=="/profit"&&session!=null){
+    item{ProfitScreen(session,colors)}
    }else if(role==PortalRole.FARMER&&route=="/map"&&session!=null){
     item{NativeMapScreen(session,colors,onNavigate)}
    }else if(role==PortalRole.FARMER&&route=="/profile"&&session!=null){

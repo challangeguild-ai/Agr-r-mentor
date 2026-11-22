@@ -10,6 +10,7 @@ internal fun safeWebModuleUrl(origin:String,path:String):String?{
   "/admin/tasks",
   "/admin/inspections",
   "/admin/visits",
+  "/profit",
   "/system-admin/weather",
   "/system-admin/backup",
   "/system-admin/users",

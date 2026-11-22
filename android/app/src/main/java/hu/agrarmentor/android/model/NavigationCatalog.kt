@@ -18,6 +18,7 @@ object NavigationCatalog {
   MobileDestination("/team","Munkatársak","Gazdaság"),
   MobileDestination("/machines","Géppark","Gazdaság"),
   MobileDestination("/invoices","Számlák","Gazdaság"),
+  MobileDestination("/profit","Jövedelmezőség","Gazdaság"),
   MobileDestination("/messages","Üzenetek","Kapcsolat és adatok"),
   MobileDestination("/documents","Dokumentumok","Kapcsolat és adatok"),
   MobileDestination("/notifications","Értesítések","Kapcsolat és adatok"),
